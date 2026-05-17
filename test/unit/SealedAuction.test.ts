@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { SealedAuction, ConfidentialToken, SettlementVault, PlatformRegistry } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { cofhejs, Encryptable } from "cofhejs/node";
+import { encryptUint128 } from "../helpers/cofhe";
 
 describe("SealedAuction", function () {
   let auction: SealedAuction;
@@ -14,13 +14,6 @@ describe("SealedAuction", function () {
   let seller: HardhatEthersSigner;
   let bidder1: HardhatEthersSigner;
   let bidder2: HardhatEthersSigner;
-
-  async function encryptUint128(signer: HardhatEthersSigner, value: bigint) {
-    await hre.cofhe.initializeWithHardhatSigner(signer);
-    const result = await cofhejs.encrypt([Encryptable.uint128(value)]);
-    if (!result.success) throw new Error("Encryption failed: " + result.error?.message);
-    return result.data[0];
-  }
 
   beforeEach(async function () {
     [deployer, seller, bidder1, bidder2] = await hre.ethers.getSigners();
@@ -47,11 +40,12 @@ describe("SealedAuction", function () {
     await vault.waitForDeployment();
     await vault.addSupportedToken(await paymentToken.getAddress());
 
-    // Deploy SealedAuction
+    // Deploy SealedAuction (3rd arg: claimNFT, optional — pass zero address)
     const auctionFactory = await hre.ethers.getContractFactory("SealedAuction");
     auction = await auctionFactory.deploy(
       await vault.getAddress(),
-      await registry.getAddress()
+      await registry.getAddress(),
+      hre.ethers.ZeroAddress
     );
     await auction.waitForDeployment();
 
@@ -284,6 +278,167 @@ describe("SealedAuction", function () {
       await expect(
         auction.connect(bidder1).cancelAuction(0)
       ).to.be.revertedWithCustomError(auction, "Unauthorized");
+    });
+  });
+
+  describe("Blind Floor Auction (createBlindAuction)", function () {
+    it("creates blind auction with hasReserve = true", async function () {
+      const tokenAddr = await token.getAddress();
+      const paymentAddr = await paymentToken.getAddress();
+      const encReserve = await encryptUint128(seller, 10000n);
+
+      await expect(
+        auction.connect(seller).createBlindAuction(tokenAddr, paymentAddr, 1000, 600, 0, encReserve)
+      ).to.emit(auction, "AuctionCreated");
+
+      const blindStatus = await auction.getBlindStatus(0);
+      expect(blindStatus.hasReserve).to.equal(true);
+      expect(blindStatus.revealedReserveMet).to.equal(false);
+
+      const a = await auction.getAuction(0);
+      expect(a.seller).to.equal(seller.address);
+      expect(a.amount).to.equal(1000n);
+      expect(a.status).to.equal(0n); // OPEN
+    });
+
+    it("standard auctions report hasReserve = false", async function () {
+      const tokenAddr = await token.getAddress();
+      const paymentAddr = await paymentToken.getAddress();
+      await auction.connect(seller).createAuction(tokenAddr, paymentAddr, 1000, 600, 0);
+
+      const blindStatus = await auction.getBlindStatus(0);
+      expect(blindStatus.hasReserve).to.equal(false);
+    });
+
+    it("reverts createBlindAuction with same token", async function () {
+      const tokenAddr = await token.getAddress();
+      const encReserve = await encryptUint128(seller, 10000n);
+      await expect(
+        auction.connect(seller).createBlindAuction(tokenAddr, tokenAddr, 1000, 600, 0, encReserve)
+      ).to.be.revertedWithCustomError(auction, "InvalidInput");
+    });
+
+    it("reverts createBlindAuction with zero amount", async function () {
+      const tokenAddr = await token.getAddress();
+      const paymentAddr = await paymentToken.getAddress();
+      const encReserve = await encryptUint128(seller, 10000n);
+      await expect(
+        auction.connect(seller).createBlindAuction(tokenAddr, paymentAddr, 0, 600, 0, encReserve)
+      ).to.be.revertedWithCustomError(auction, "InvalidInput");
+    });
+
+    it("reverts createBlindAuction with duration below MIN_DURATION", async function () {
+      const tokenAddr = await token.getAddress();
+      const paymentAddr = await paymentToken.getAddress();
+      const encReserve = await encryptUint128(seller, 10000n);
+      await expect(
+        auction.connect(seller).createBlindAuction(tokenAddr, paymentAddr, 1000, 100, 0, encReserve)
+      ).to.be.revertedWithCustomError(auction, "InvalidInput");
+    });
+
+    it("accepts bids on blind auctions and tracks count", async function () {
+      const tokenAddr = await token.getAddress();
+      const paymentAddr = await paymentToken.getAddress();
+      const encReserve = await encryptUint128(seller, 10000n);
+      await auction.connect(seller).createBlindAuction(tokenAddr, paymentAddr, 1000, 600, 0, encReserve);
+
+      const encBid1 = await encryptUint128(bidder1, 5000n);
+      await auction.connect(bidder1).bid(0, encBid1);
+      const encBid2 = await encryptUint128(bidder2, 12000n);
+      await auction.connect(bidder2).bid(0, encBid2);
+
+      const a = await auction.getAuction(0);
+      expect(a.bidCount).to.equal(2n);
+    });
+
+    it("closeAuction populates encReserveMet for blind auctions", async function () {
+      const tokenAddr = await token.getAddress();
+      const paymentAddr = await paymentToken.getAddress();
+      const encReserve = await encryptUint128(seller, 10000n);
+      await auction.connect(seller).createBlindAuction(tokenAddr, paymentAddr, 1000, 300, 0, encReserve);
+
+      const encBid = await encryptUint128(bidder1, 5000n);
+      await auction.connect(bidder1).bid(0, encBid);
+
+      // Advance past deadline
+      await hre.network.provider.send("evm_increaseTime", [301]);
+      await hre.network.provider.send("evm_mine");
+
+      await expect(auction.connect(seller).closeAuction(0))
+        .to.emit(auction, "AuctionClosed");
+
+      const a = await auction.getAuction(0);
+      expect(a.status).to.equal(1n); // CLOSED
+
+      // The encReserveMet handle should be set (non-zero) after close
+      const blindStatus = await auction.getBlindStatus(0);
+      expect(blindStatus.encReserveMetHandle).to.not.equal(0n);
+    });
+
+    it("revealWinner reverts on blind auctions (must use revealWinnerBlind)", async function () {
+      const tokenAddr = await token.getAddress();
+      const paymentAddr = await paymentToken.getAddress();
+      const encReserve = await encryptUint128(seller, 10000n);
+      await auction.connect(seller).createBlindAuction(tokenAddr, paymentAddr, 1000, 300, 0, encReserve);
+
+      const encBid = await encryptUint128(bidder1, 5000n);
+      await auction.connect(bidder1).bid(0, encBid);
+
+      await hre.network.provider.send("evm_increaseTime", [301]);
+      await hre.network.provider.send("evm_mine");
+      await auction.connect(seller).closeAuction(0);
+
+      // Attempting revealWinner on a blind auction should revert with InvalidState
+      // (signatures are placeholders; the InvalidState check fires before signature verification)
+      await expect(
+        auction.revealWinner(0, 5000n, "0x", bidder1.address, "0x")
+      ).to.be.revertedWithCustomError(auction, "InvalidState");
+    });
+
+    it("revealWinnerBlind reverts on non-blind auctions", async function () {
+      const tokenAddr = await token.getAddress();
+      const paymentAddr = await paymentToken.getAddress();
+      await auction.connect(seller).createAuction(tokenAddr, paymentAddr, 1000, 300, 0);
+
+      const encBid = await encryptUint128(bidder1, 5000n);
+      await auction.connect(bidder1).bid(0, encBid);
+
+      await hre.network.provider.send("evm_increaseTime", [301]);
+      await hre.network.provider.send("evm_mine");
+      await auction.connect(seller).closeAuction(0);
+
+      await expect(
+        auction.revealWinnerBlind(0, 5000n, "0x", bidder1.address, "0x", 1n, "0x")
+      ).to.be.revertedWithCustomError(auction, "InvalidState");
+    });
+
+    it("revealWinnerBlind reverts with reserveMetValue > 1", async function () {
+      const tokenAddr = await token.getAddress();
+      const paymentAddr = await paymentToken.getAddress();
+      const encReserve = await encryptUint128(seller, 10000n);
+      await auction.connect(seller).createBlindAuction(tokenAddr, paymentAddr, 1000, 300, 0, encReserve);
+
+      const encBid = await encryptUint128(bidder1, 5000n);
+      await auction.connect(bidder1).bid(0, encBid);
+
+      await hre.network.provider.send("evm_increaseTime", [301]);
+      await hre.network.provider.send("evm_mine");
+      await auction.connect(seller).closeAuction(0);
+
+      // reserveMetValue must be 0 or 1
+      await expect(
+        auction.revealWinnerBlind(0, 5000n, "0x", bidder1.address, "0x", 2n, "0x")
+      ).to.be.revertedWithCustomError(auction, "InvalidInput");
+    });
+
+    it("blind cancelAuction works pre-bid", async function () {
+      const tokenAddr = await token.getAddress();
+      const paymentAddr = await paymentToken.getAddress();
+      const encReserve = await encryptUint128(seller, 10000n);
+      await auction.connect(seller).createBlindAuction(tokenAddr, paymentAddr, 1000, 300, 0, encReserve);
+
+      await expect(auction.connect(seller).cancelAuction(0))
+        .to.emit(auction, "AuctionCancelled");
     });
   });
 });

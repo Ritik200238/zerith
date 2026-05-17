@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { FreelanceBidding, ConfidentialToken, SettlementVault, PlatformRegistry } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { cofhejs, Encryptable } from "cofhejs/node";
+import { encryptUint8, encryptUint128 } from "../helpers/cofhe";
 
 describe("FreelanceBidding", function () {
   let freelance: FreelanceBidding;
@@ -18,20 +18,6 @@ describe("FreelanceBidding", function () {
   let voter2: HardhatEthersSigner;
   let voter3: HardhatEthersSigner;
   let outsider: HardhatEthersSigner;
-
-  async function encryptUint128(signer: HardhatEthersSigner, value: bigint) {
-    await hre.cofhe.initializeWithHardhatSigner(signer);
-    const result = await cofhejs.encrypt([Encryptable.uint128(value)]);
-    if (!result.success) throw new Error("Encryption failed: " + result.error?.message);
-    return result.data[0];
-  }
-
-  async function encryptUint8(signer: HardhatEthersSigner, value: bigint) {
-    await hre.cofhe.initializeWithHardhatSigner(signer);
-    const result = await cofhejs.encrypt([Encryptable.uint8(value)]);
-    if (!result.success) throw new Error("Encryption failed: " + result.error?.message);
-    return result.data[0];
-  }
 
   beforeEach(async function () {
     [deployer, admin, client, freelancer1, freelancer2, voter1, voter2, voter3, outsider] = await hre.ethers.getSigners();

@@ -46,10 +46,15 @@ contract OTCBoard is ReentrancyGuard, FHEConstants {
     mapping(uint256 => OTCQuote[]) private quotes;
     uint256 public nextRequestId;
 
+    // Encrypted uint64.max sentinel — used to gate amount*price overflow into uint64 settlement.
+    // Computed once in constructor, reused for every acceptQuote check.
+    euint128 internal MAX_U64_AS_E128;
+
     event RequestPosted(uint256 indexed requestId, address indexed requester, address tokenWant, address tokenOffer, uint256 deadline);
     event QuoteSubmitted(uint256 indexed requestId, uint256 quoteIndex, address indexed quoter);
     event QuoteAccepted(uint256 indexed requestId, uint256 quoteIndex);
     event RequestCancelled(uint256 indexed requestId);
+    event RequestExpired(uint256 indexed requestId);
     event TradeCompleted(bytes32 indexed partyAHash, bytes32 indexed partyBHash, uint256 requestId);
 
     modifier whenNotPaused() {
@@ -62,6 +67,9 @@ contract OTCBoard is ReentrancyGuard, FHEConstants {
         vault = ISettlementVault(_vault);
         registry = IPlatformRegistry(_registry);
         _initFHEConstants();
+        // 2^64 - 1 = 18446744073709551615; literal works for euint128.
+        MAX_U64_AS_E128 = FHE.asEuint128(18446744073709551615);
+        FHE.allowThis(MAX_U64_AS_E128);
     }
 
     /// @notice Post a private OTC request
@@ -102,9 +110,9 @@ contract OTCBoard is ReentrancyGuard, FHEConstants {
         FHE.allowThis(amount);
         FHE.allowThis(minP);
         FHE.allowThis(maxP);
-        FHE.allow(amount, msg.sender);
-        FHE.allow(minP, msg.sender);
-        FHE.allow(maxP, msg.sender);
+        FHE.allowSender(amount);
+        FHE.allowSender(minP);
+        FHE.allowSender(maxP);
 
         emit RequestPosted(requestId, msg.sender, tokenWant, tokenOffer, deadline);
     }
@@ -139,9 +147,9 @@ contract OTCBoard is ReentrancyGuard, FHEConstants {
         FHE.allowThis(price);
         FHE.allowThis(amount);
         FHE.allow(price, req.requester);
-        FHE.allow(price, msg.sender);
+        FHE.allowSender(price);
         FHE.allow(amount, req.requester);
-        FHE.allow(amount, msg.sender);
+        FHE.allowSender(amount);
 
         emit QuoteSubmitted(requestId, quoteIndex, msg.sender);
     }
@@ -161,22 +169,49 @@ contract OTCBoard is ReentrancyGuard, FHEConstants {
         OTCQuote storage quote = quotes[requestId][quoteIndex];
         if (quote.accepted) revert InvalidState();
 
-        // Verify quote price is within requester's acceptable range
+        // Verify quote price is within requester's acceptable range.
         ebool aboveMin = FHE.gte(quote.encQuotePrice, req.encMinPrice);
         ebool belowMax = FHE.lte(quote.encQuotePrice, req.encMaxPrice);
         ebool inRange = FHE.and(aboveMin, belowMax);
 
-        // Settlement: if in range, transfer; if not, transfer 0
-        euint128 amount128 = FHE.select(inRange, quote.encQuoteAmount, ZERO_128);
-        euint64 settlementAmount = FHE.asEuint64(amount128);
-        FHE.allowThis(settlementAmount);
-        FHE.allowTransient(settlementAmount, address(vault));
-        FHE.allow(settlementAmount, address(vault));
+        // Settlement legs: requester gets `quoteAmount` of tokenWant; quoter gets
+        // `quoteAmount * quotePrice` of tokenOffer. Both legs zero-replace on failure.
+        //
+        // Audit fix (Tier-2): the previous version cast euint128 → euint64 directly,
+        // which SILENTLY TRUNCATES for amount*price > 2^64-1, sending the wrong
+        // number of tokens. Now we add an encrypted overflow guard:
+        // `fitsInU64 = (amount128 ≤ MAX_U64) AND (payment128 ≤ MAX_U64)`, combine
+        // with `inRange`, and zero-replace BOTH legs when the combined predicate
+        // is false. Result: either both legs settle the intended amounts, or both
+        // legs settle zero — never a half-trade with truncated values. Privacy
+        // preserved: the predicate is encrypted, so the public reason for a
+        // zero-settlement is indistinguishable from any other zero-settlement.
+        euint128 payment128_raw = FHE.mul(quote.encQuoteAmount, quote.encQuotePrice);
+        ebool amountFits = FHE.lte(quote.encQuoteAmount, MAX_U64_AS_E128);
+        ebool paymentFits = FHE.lte(payment128_raw, MAX_U64_AS_E128);
+        ebool safe = FHE.and(FHE.and(inRange, amountFits), paymentFits);
 
-        // Requester gets tokenWant from quoter
-        vault.settleTrade(quote.quoter, req.requester, req.tokenWant, settlementAmount);
-        // Quoter gets tokenOffer from requester
-        vault.settleTrade(req.requester, quote.quoter, req.tokenOffer, settlementAmount);
+        euint128 amount128 = FHE.select(safe, quote.encQuoteAmount, ZERO_128);
+        euint128 payment128 = FHE.select(safe, payment128_raw, ZERO_128);
+        FHE.allowThis(amount128);
+        FHE.allowThis(payment128);
+
+        // Now amount128 + payment128 are guaranteed to fit in uint64. The cast
+        // below cannot truncate because the FHE.select above clamps to 0 in the
+        // unsafe branch.
+        euint64 amountToWant = FHE.asEuint64(amount128);
+        euint64 amountToOffer = FHE.asEuint64(payment128);
+        FHE.allowThis(amountToWant);
+        FHE.allowThis(amountToOffer);
+        FHE.allowTransient(amountToWant, address(vault));
+        FHE.allow(amountToWant, address(vault));
+        FHE.allowTransient(amountToOffer, address(vault));
+        FHE.allow(amountToOffer, address(vault));
+
+        // Requester gets `amount` of tokenWant from quoter
+        vault.settleTrade(quote.quoter, req.requester, req.tokenWant, amountToWant);
+        // Quoter gets `amount * price` of tokenOffer from requester
+        vault.settleTrade(req.requester, quote.quoter, req.tokenOffer, amountToOffer);
 
         quote.accepted = true;
         req.status = RequestStatus.MATCHED;
@@ -198,6 +233,18 @@ contract OTCBoard is ReentrancyGuard, FHEConstants {
 
         req.status = RequestStatus.CANCELLED;
         emit RequestCancelled(requestId);
+    }
+
+    /// @notice Mark an expired request as EXPIRED (anyone can sweep)
+    /// @dev Closes the audit gap where the EXPIRED status was unreachable on-chain.
+    ///      Permissionless because the deadline check is the only authorization needed.
+    function expireRequest(uint256 requestId) external {
+        OTCRequest storage req = requests[requestId];
+        if (req.status != RequestStatus.ACTIVE) revert InvalidState();
+        if (block.timestamp < req.deadline) revert InvalidState();
+
+        req.status = RequestStatus.EXPIRED;
+        emit RequestExpired(requestId);
     }
 
     /// @notice Get request details

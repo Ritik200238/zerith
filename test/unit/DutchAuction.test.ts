@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { DutchAuction, ConfidentialToken, SettlementVault, PlatformRegistry } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { cofhejs, Encryptable } from "cofhejs/node";
+import { encryptUint64 } from "../helpers/cofhe";
 
 describe("DutchAuction", function () {
   let auction: DutchAuction;
@@ -14,13 +14,6 @@ describe("DutchAuction", function () {
   let seller: HardhatEthersSigner;
   let buyer1: HardhatEthersSigner;
   let buyer2: HardhatEthersSigner;
-
-  async function encryptUint64(signer: HardhatEthersSigner, value: bigint) {
-    await hre.cofhe.initializeWithHardhatSigner(signer);
-    const result = await cofhejs.encrypt([Encryptable.uint64(value)]);
-    if (!result.success) throw new Error("Encryption failed: " + result.error?.message);
-    return result.data[0];
-  }
 
   beforeEach(async function () {
     [deployer, seller, buyer1, buyer2] = await hre.ethers.getSigners();

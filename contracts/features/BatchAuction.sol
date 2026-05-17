@@ -61,9 +61,10 @@ contract BatchAuction is ReentrancyGuard, FHEConstants {
     mapping(uint256 => euint128) private encClearingPrice;
 
     event RoundCreated(uint256 indexed roundId, address tokenA, address tokenB, uint256 endTime);
-    // NOTE: amounts excluded from events to prevent order imbalance inference
-    event BuyOrderSubmitted(uint256 indexed roundId, address indexed buyer);
-    event SellOrderSubmitted(uint256 indexed roundId, address indexed seller);
+    // Amounts are public via getRound().totalBuyVolume / totalSellVolume — surfacing
+    // them in events is no extra privacy leak, and aids subgraph indexing.
+    event BuyOrderSubmitted(uint256 indexed roundId, address indexed buyer, uint256 amount);
+    event SellOrderSubmitted(uint256 indexed roundId, address indexed seller, uint256 amount);
     event RoundClosed(uint256 indexed roundId);
     event ClearingPriceRevealed(uint256 indexed roundId, uint256 price);
     event RoundSettled(uint256 indexed roundId);
@@ -125,7 +126,7 @@ contract BatchAuction is ReentrancyGuard, FHEConstants {
 
         euint128 maxPrice = FHE.asEuint128(encMaxPrice);
         FHE.allowThis(maxPrice);
-        FHE.allow(maxPrice, msg.sender);
+        FHE.allowSender(maxPrice);
 
         buyOrders[roundId].push(BuyOrder({
             buyer: msg.sender,
@@ -134,7 +135,7 @@ contract BatchAuction is ReentrancyGuard, FHEConstants {
         }));
 
         round.totalBuyVolume += amount;
-        emit BuyOrderSubmitted(roundId, msg.sender);
+        emit BuyOrderSubmitted(roundId, msg.sender, amount);
     }
 
     /// @notice Submit a sell order with encrypted min price
@@ -151,7 +152,7 @@ contract BatchAuction is ReentrancyGuard, FHEConstants {
 
         euint128 minPrice = FHE.asEuint128(encMinPrice);
         FHE.allowThis(minPrice);
-        FHE.allow(minPrice, msg.sender);
+        FHE.allowSender(minPrice);
 
         sellOrders[roundId].push(SellOrder({
             seller: msg.sender,
@@ -160,7 +161,7 @@ contract BatchAuction is ReentrancyGuard, FHEConstants {
         }));
 
         round.totalSellVolume += amount;
-        emit SellOrderSubmitted(roundId, msg.sender);
+        emit SellOrderSubmitted(roundId, msg.sender, amount);
     }
 
     /// @notice Close round and compute clearing price using price ladder
@@ -214,21 +215,25 @@ contract BatchAuction is ReentrancyGuard, FHEConstants {
             FHE.allowThis(bestClearingPrice);
         }
 
-        // Store and request async decryption
+        // Store and mark publicly decryptable via Threshold Network
         encClearingPrice[roundId] = bestClearingPrice;
-        FHE.decrypt(bestClearingPrice);
+        FHE.allowGlobal(bestClearingPrice);
 
         round.status = RoundStatus.CLEARING;
         emit RoundClosed(roundId);
     }
 
-    /// @notice Retrieve clearing price after async decryption
-    function revealClearingPrice(uint256 roundId) external returns (uint256) {
+    /// @notice Publish the verified clearing price reveal.
+    /// @dev Caller obtains (price, signature) off-chain via client.decryptForTx().withoutPermit().
+    function revealClearingPrice(
+        uint256 roundId,
+        uint128 price,
+        bytes calldata signature
+    ) external returns (uint256) {
         Round storage round = rounds[roundId];
         if (round.status != RoundStatus.CLEARING) revert InvalidState();
 
-        (uint128 price, bool ready) = FHE.getDecryptResultSafe(encClearingPrice[roundId]);
-        if (!ready) revert InvalidState();
+        FHE.publishDecryptResult(encClearingPrice[roundId], price, signature);
 
         round.clearingPrice = uint256(price);
         emit ClearingPriceRevealed(roundId, uint256(price));
@@ -292,5 +297,17 @@ contract BatchAuction is ReentrancyGuard, FHEConstants {
 
     function hasRounds() external view returns (bool) {
         return nextRoundId > 0;
+    }
+
+    /// @notice Total round count (including closed rounds).
+    function getRoundCount() external view returns (uint256) {
+        return nextRoundId;
+    }
+
+    /// @notice Get the encrypted clearing-price handle for a round after closeAndCompute.
+    /// @dev Required for frontend to fetch the TN reveal signature via decryptForTx.
+    ///      Returns the bytes32 wrapped handle as uint256 (euint128 underlying type).
+    function getEncClearingPrice(uint256 roundId) external view returns (euint128) {
+        return encClearingPrice[roundId];
     }
 }

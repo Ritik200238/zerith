@@ -25,9 +25,14 @@ contract AuctionClaim is ERC721, AccessControl {
 
     event ClaimMinted(uint256 indexed tokenId, address indexed winner, address sourceContract, uint256 sourceId, string claimType);
 
-    constructor(address admin) ERC721("CipherDEX Claim", "CLAIM") {
+    constructor(address admin) ERC721("Sigil Claim", "CLAIM") {
         if (admin == address(0)) revert InvalidInput();
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        // Admin gets MINTER_ROLE too so they can mint manually if a feature
+        // contract isn't yet authorized. Bug fix from audit C-AC1: previously
+        // no role was granted to admin, so feature contracts had to be
+        // explicitly granted before any mint succeeded.
+        _grantRole(MINTER_ROLE, admin);
     }
 
     /// @notice Mint a claim NFT to an auction/job winner

@@ -190,13 +190,15 @@ describe("PortfolioTracker", function () {
     it("computes portfolio value across tracked tokens and emits event", async function () {
       const tokenAAddr = await tokenA.getAddress();
       const tokenBAddr = await tokenB.getAddress();
+      const trackerAddr = await tracker.getAddress();
 
       await tracker.connect(user).trackToken(tokenAAddr);
       await tracker.connect(user).trackToken(tokenBAddr);
 
-      // computePortfolioValue reads encrypted balances from vault
-      // In the test environment, vault balances are zero, so portfolio value will be zero
-      // But the function should execute without reverting and emit the event
+      // Audit fix m-PT1: user must delegate balance-read access to the tracker.
+      await vault.connect(user).delegateBalanceRead(trackerAddr, tokenAAddr);
+      await vault.connect(user).delegateBalanceRead(trackerAddr, tokenBAddr);
+
       await expect(
         tracker.connect(user).computePortfolioValue([100, 200])
       )
@@ -208,10 +210,15 @@ describe("PortfolioTracker", function () {
       const tokenAAddr = await tokenA.getAddress();
       const tokenBAddr = await tokenB.getAddress();
       const tokenCAddr = await tokenC.getAddress();
+      const trackerAddr = await tracker.getAddress();
 
       await tracker.connect(user).trackToken(tokenAAddr);
       await tracker.connect(user).trackToken(tokenBAddr);
       await tracker.connect(user).trackToken(tokenCAddr);
+
+      await vault.connect(user).delegateBalanceRead(trackerAddr, tokenAAddr);
+      await vault.connect(user).delegateBalanceRead(trackerAddr, tokenBAddr);
+      await vault.connect(user).delegateBalanceRead(trackerAddr, tokenCAddr);
 
       await expect(
         tracker.connect(user).computePortfolioValue([100, 200, 300])

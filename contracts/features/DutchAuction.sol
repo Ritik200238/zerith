@@ -137,7 +137,7 @@ contract DutchAuction is ReentrancyGuard, FHEConstants {
         euint64 cappedAmount = FHE.min(amount, FHE.asEuint64(uint64(remaining)));
 
         FHE.allowThis(cappedAmount);
-        FHE.allow(cappedAmount, msg.sender);
+        FHE.allowSender(cappedAmount);
 
         purchases[auctionId].push(Purchase({
             buyer: msg.sender,
@@ -159,26 +159,30 @@ contract DutchAuction is ReentrancyGuard, FHEConstants {
         emit DutchAuctionSettled(auctionId, auction.filledAmount);
     }
 
-    /// @notice Buyer claims tokens after settlement
-    /// @dev Decrypts purchase amount, computes payment, settles via vault
+    /// @notice Buyer initiates claim by marking their purchase amount publicly decryptable.
+    /// @dev Buyer then calls client.decryptForTx() off-chain to obtain (amount, signature)
+    ///      and submits it via finalizeClaim. Only the buyer can initiate this for their purchase.
     function claimPurchase(uint256 auctionId, uint256 purchaseIndex) external nonReentrant {
         Purchase storage purchase = purchases[auctionId][purchaseIndex];
         if (purchase.buyer != msg.sender) revert Unauthorized();
         if (purchase.claimed) revert InvalidState();
 
-        // Request decrypt of purchase amount
-        FHE.decrypt(purchase.encAmount);
+        FHE.allowGlobal(purchase.encAmount);
     }
 
-    /// @notice Finalize claim after decrypt
-    function finalizeClaim(uint256 auctionId, uint256 purchaseIndex) external nonReentrant {
+    /// @notice Finalize claim with the verified decryption signature.
+    function finalizeClaim(
+        uint256 auctionId,
+        uint256 purchaseIndex,
+        uint64 amount,
+        bytes calldata signature
+    ) external nonReentrant {
         Auction storage auction = auctions[auctionId];
         Purchase storage purchase = purchases[auctionId][purchaseIndex];
         if (purchase.buyer != msg.sender) revert Unauthorized();
         if (purchase.claimed) revert InvalidState();
 
-        (uint64 amount, bool ready) = FHE.getDecryptResultSafe(purchase.encAmount);
-        if (!ready) revert InvalidState();
+        FHE.publishDecryptResult(purchase.encAmount, amount, signature);
 
         // Cap at remaining supply
         uint256 remaining = auction.totalSupply - auction.filledAmount;
@@ -248,6 +252,10 @@ contract DutchAuction is ReentrancyGuard, FHEConstants {
 
     function getPurchaseCount(uint256 auctionId) external view returns (uint256) {
         return purchases[auctionId].length;
+    }
+
+    function getAuctionCount() external view returns (uint256) {
+        return nextAuctionId;
     }
 
     function hasAuctions() external view returns (bool) {

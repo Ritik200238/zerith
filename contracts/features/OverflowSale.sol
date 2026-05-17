@@ -127,7 +127,7 @@ contract OverflowSale is ReentrancyGuard, FHEConstants {
         }));
 
         FHE.allowThis(amount);
-        FHE.allow(amount, msg.sender);
+        FHE.allowSender(amount);
 
         hasDeposited[saleId][msg.sender] = true;
         sale.depositCount++;
@@ -147,19 +147,19 @@ contract OverflowSale is ReentrancyGuard, FHEConstants {
             return;
         }
 
-        FHE.decrypt(sale.totalDeposited);
+        FHE.allowGlobal(sale.totalDeposited);
         sale.status = SaleStatus.COMPUTING;
 
         emit SaleComputing(saleId);
     }
 
     /// @notice Finalize after total demand is decrypted
-    function finalizeSettlement(uint256 saleId) external {
+    /// @dev Caller obtains (totalDemand, signature) via client.decryptForTx().withoutPermit().
+    function finalizeSettlement(uint256 saleId, uint64 totalDemand, bytes calldata signature) external {
         Sale storage sale = sales[saleId];
         if (sale.status != SaleStatus.COMPUTING) revert InvalidState();
 
-        (uint64 totalDemand, bool ready) = FHE.getDecryptResultSafe(sale.totalDeposited);
-        if (!ready) revert InvalidState();
+        FHE.publishDecryptResult(sale.totalDeposited, totalDemand, signature);
 
         sale.revealedTotal = totalDemand;
         sale.status = SaleStatus.SETTLED;
@@ -180,12 +180,17 @@ contract OverflowSale is ReentrancyGuard, FHEConstants {
         if (dep.depositor != msg.sender) revert Unauthorized();
         if (dep.claimed) revert InvalidState();
 
-        // Need to decrypt individual deposit amount
-        FHE.decrypt(dep.encAmount);
+        // Mark individual deposit amount publicly decryptable (this depositor's own).
+        FHE.allowGlobal(dep.encAmount);
     }
 
-    /// @notice Finalize individual claim after decrypt
-    function finalizeClaimAllocation(uint256 saleId, uint256 depositIndex) external nonReentrant {
+    /// @notice Finalize individual claim with verified decryption signature
+    function finalizeClaimAllocation(
+        uint256 saleId,
+        uint256 depositIndex,
+        uint64 myDeposit,
+        bytes calldata signature
+    ) external nonReentrant {
         Sale storage sale = sales[saleId];
         if (sale.status != SaleStatus.SETTLED) revert InvalidState();
 
@@ -193,8 +198,7 @@ contract OverflowSale is ReentrancyGuard, FHEConstants {
         if (dep.depositor != msg.sender) revert Unauthorized();
         if (dep.claimed) revert InvalidState();
 
-        (uint64 myDeposit, bool ready) = FHE.getDecryptResultSafe(dep.encAmount);
-        if (!ready) revert InvalidState();
+        FHE.publishDecryptResult(dep.encAmount, myDeposit, signature);
 
         dep.claimed = true;
 
@@ -258,6 +262,10 @@ contract OverflowSale is ReentrancyGuard, FHEConstants {
         Sale storage s = sales[saleId];
         return (s.seller, s.token, s.paymentToken, s.tokensForSale,
                 s.pricePerToken, s.deadline, s.depositCount, s.status, s.revealedTotal);
+    }
+
+    function getSaleCount() external view returns (uint256) {
+        return nextSaleId;
     }
 
     function hasSales() external view returns (bool) {

@@ -145,6 +145,39 @@ async function main() {
   const referralsAddr = await referrals.getAddress();
   console.log("Referrals deployed to:", referralsAddr);
 
+  // ─── Wave 4 — Organization + EncryptedStreaming ────────────
+  const Organization = await ethers.getContractFactory("Organization");
+  const organization = await Organization.deploy(registryAddr);
+  await organization.waitForDeployment();
+  const organizationAddr = await organization.getAddress();
+  console.log("Organization deployed to:", organizationAddr);
+
+  const EncryptedStreaming = await ethers.getContractFactory("EncryptedStreaming");
+  const streaming = await EncryptedStreaming.deploy(vaultAddr);
+  await streaming.waitForDeployment();
+  const streamingAddr = await streaming.getAddress();
+  console.log("EncryptedStreaming deployed to:", streamingAddr);
+
+  // ─── Wave 5+ — ConfidentialMultisig + EncryptedRoyalty ─────
+  const ConfidentialMultisig = await ethers.getContractFactory("ConfidentialMultisig");
+  const multisig = await ConfidentialMultisig.deploy(vaultAddr);
+  await multisig.waitForDeployment();
+  const multisigAddr = await multisig.getAddress();
+  console.log("ConfidentialMultisig deployed to:", multisigAddr);
+
+  const EncryptedRoyalty = await ethers.getContractFactory("EncryptedRoyalty");
+  const royalty = await EncryptedRoyalty.deploy(vaultAddr);
+  await royalty.waitForDeployment();
+  const royaltyAddr = await royalty.getAddress();
+  console.log("EncryptedRoyalty deployed to:", royaltyAddr);
+
+  // ─── ProofOfReserves — encrypted reserve threshold proofs ─
+  const ProofOfReserves = await ethers.getContractFactory("ProofOfReserves");
+  const proofOfReserves = await ProofOfReserves.deploy(vaultAddr, registryAddr);
+  await proofOfReserves.waitForDeployment();
+  const proofAddr = await proofOfReserves.getAddress();
+  console.log("ProofOfReserves deployed to:", proofAddr);
+
   // ─── Step 5: Set Vault Permissions ────────────────────────
   console.log("\n--- Step 5: Vault Permissions ---");
 
@@ -185,6 +218,15 @@ async function main() {
   await vault.addAuthorizedSettler(referralsAddr);
   console.log("Authorized Referrals as settler");
 
+  await vault.addAuthorizedSettler(streamingAddr);
+  console.log("Authorized EncryptedStreaming as settler");
+
+  await vault.addAuthorizedSettler(multisigAddr);
+  console.log("Authorized ConfidentialMultisig as settler");
+
+  await vault.addAuthorizedSettler(royaltyAddr);
+  console.log("Authorized EncryptedRoyalty as settler");
+
   // ─── Step 5b: AuctionClaim MINTER_ROLE ────────────────────
   const MINTER_ROLE = ethers.keccak256(ethers.toUtf8Bytes("MINTER_ROLE"));
   await claimNFT.grantRole(MINTER_ROLE, auctionAddr);
@@ -224,6 +266,11 @@ async function main() {
   await registry.registerContract(overflowAddr);
   await registry.registerContract(vestingAddr);
   await registry.registerContract(referralsAddr);
+  await registry.registerContract(organizationAddr);
+  await registry.registerContract(streamingAddr);
+  await registry.registerContract(multisigAddr);
+  await registry.registerContract(royaltyAddr);
+  await registry.registerContract(proofAddr);
   console.log("Registered all feature contracts");
 
   // ─── Step 7: Set Token Operator (Vault) ───────────────────
@@ -270,6 +317,11 @@ async function main() {
   console.log(`║ TokenVesting:       ${vestingAddr}`);
   console.log(`║ AllowlistGate:      ${allowlistAddr}`);
   console.log(`║ Referrals:          ${referralsAddr}`);
+  console.log(`║ Organization:       ${organizationAddr}`);
+  console.log(`║ EncryptedStreaming: ${streamingAddr}`);
+  console.log(`║ ConfidentialMultisig: ${multisigAddr}`);
+  console.log(`║ EncryptedRoyalty:   ${royaltyAddr}`);
+  console.log(`║ ProofOfReserves:    ${proofAddr}`);
   console.log("╚══════════════════════════════════════════════════╝");
 
   // Write addresses to file for frontend consumption
@@ -294,6 +346,11 @@ async function main() {
     TokenVesting: vestingAddr,
     AllowlistGate: allowlistAddr,
     Referrals: referralsAddr,
+    Organization: organizationAddr,
+    EncryptedStreaming: streamingAddr,
+    ConfidentialMultisig: multisigAddr,
+    EncryptedRoyalty: royaltyAddr,
+    ProofOfReserves: proofAddr,
   };
 
   const fs = require("fs");

@@ -105,10 +105,10 @@ contract Escrow is ReentrancyGuard, FHEConstants {
         FHE.allowThis(termsA);
         FHE.allowThis(termsB);
         // Both parties can unseal their own terms
-        FHE.allow(termsA, msg.sender);
+        FHE.allowSender(termsA);
         FHE.allow(termsB, partyB);
         // Cross-visibility: each party sees what they need to deposit
-        FHE.allow(termsA, msg.sender); // A sees their own terms
+        FHE.allowSender(termsA); // A sees their own terms
         FHE.allow(termsB, partyB);     // B sees their own terms
 
         emit DealCreated(dealId, msg.sender, partyB, deadline);
@@ -135,7 +135,7 @@ contract Escrow is ReentrancyGuard, FHEConstants {
 
             FHE.allowThis(deal.encDepositA);
             FHE.allowThis(deal.matchA);
-            FHE.allow(deal.encDepositA, msg.sender);
+            FHE.allowSender(deal.encDepositA);
             FHE.allow(deal.encDepositA, deal.partyB);  // B can verify A's deposit
 
             if (deal.status == DealStatus.CREATED) {
@@ -149,7 +149,7 @@ contract Escrow is ReentrancyGuard, FHEConstants {
 
             FHE.allowThis(deal.encDepositB);
             FHE.allowThis(deal.matchB);
-            FHE.allow(deal.encDepositB, msg.sender);
+            FHE.allowSender(deal.encDepositB);
             FHE.allow(deal.encDepositB, deal.partyA);  // A can verify B's deposit
 
             deal.status = DealStatus.FUNDED_BOTH;

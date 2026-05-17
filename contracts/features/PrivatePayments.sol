@@ -258,6 +258,10 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
         return recipientSplitHistory[recipient];
     }
 
+    function getSplitCount() external view returns (uint256) {
+        return nextSplitId;
+    }
+
     function hasSplits() external view returns (bool) {
         return nextSplitId > 0;
     }

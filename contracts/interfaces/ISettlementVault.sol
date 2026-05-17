@@ -23,4 +23,8 @@ interface ISettlementVault {
     /// @notice Get a user's encrypted vault balance for a token
     /// @dev Only the user themselves can unseal the returned handle
     function getEncBalance(address user, address token) external view returns (euint64);
+
+    /// @notice Delegate read access of caller's encrypted balance to another contract
+    /// @dev Required for cross-contract reads (e.g. PortfolioTracker)
+    function delegateBalanceRead(address consumer, address token) external;
 }

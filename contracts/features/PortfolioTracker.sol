@@ -114,7 +114,7 @@ contract PortfolioTracker is FHEConstants {
         FHE.allowSender(totalValue);
 
         portfolioValues[msg.sender] = totalValue;
-        FHE.allow(portfolioValues[msg.sender], msg.sender);
+        FHE.allowSender(portfolioValues[msg.sender]);
         emit PortfolioComputed(msg.sender, activeCount);
         return totalValue;
     }

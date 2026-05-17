@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { ConfidentialToken, PlatformRegistry, SettlementVault } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { cofhejs, Encryptable } from "cofhejs/node";
+import { encryptUint64 } from "../helpers/cofhe";
 
 describe("SettlementVault", function () {
   let token: ConfidentialToken;
@@ -215,13 +215,10 @@ describe("SettlementVault", function () {
 
     beforeEach(async function () {
       tokenAddr = await token.getAddress();
-      // Initialize cofhejs for alice (needed for encrypt)
-      await hre.cofhe.initializeWithHardhatSigner(alice);
     });
 
     it("reverts for unsupported token", async function () {
-      const encResult = await cofhejs.encrypt([Encryptable.uint64(500n)]);
-      const encAmount = encResult.data[0];
+      const encAmount = await encryptUint64(alice, 500n);
 
       await expect(
         vault.connect(alice).deposit(bob.address, encAmount)
@@ -231,8 +228,7 @@ describe("SettlementVault", function () {
     it("reverts when platform is paused", async function () {
       await registry.connect(admin).pause();
 
-      const encResult = await cofhejs.encrypt([Encryptable.uint64(500n)]);
-      const encAmount = encResult.data[0];
+      const encAmount = await encryptUint64(alice, 500n);
 
       await expect(
         vault.connect(alice).deposit(tokenAddr, encAmount)
@@ -245,12 +241,10 @@ describe("SettlementVault", function () {
 
     beforeEach(async function () {
       tokenAddr = await token.getAddress();
-      await hre.cofhe.initializeWithHardhatSigner(alice);
     });
 
     it("reverts for unsupported token", async function () {
-      const encResult = await cofhejs.encrypt([Encryptable.uint64(100n)]);
-      const encAmount = encResult.data[0];
+      const encAmount = await encryptUint64(alice, 100n);
 
       await expect(
         vault.connect(alice).withdraw(bob.address, encAmount)
@@ -260,8 +254,7 @@ describe("SettlementVault", function () {
     it("reverts when platform is paused", async function () {
       await registry.connect(admin).pause();
 
-      const encResult = await cofhejs.encrypt([Encryptable.uint64(100n)]);
-      const encAmount = encResult.data[0];
+      const encAmount = await encryptUint64(alice, 100n);
 
       await expect(
         vault.connect(alice).withdraw(tokenAddr, encAmount)

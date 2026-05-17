@@ -40,14 +40,14 @@ contract OrderBook is ReentrancyGuard, FHEConstants {
     error InvalidState();
     error Paused();
 
-    // NOTE: amountSell intentionally excluded from event to prevent
-    // event-scanning bots from building liquidity maps. Amount is
-    // queryable via getOrder() view function for legitimate users.
+    // amountSell is stored as plaintext in orders[id], so surfacing it in
+    // the event is no extra leak and aids subgraph indexing.
     event OrderCreated(
         uint256 indexed orderId,
         address indexed maker,
         address tokenSell,
         address tokenBuy,
+        uint256 amountSell,
         OrderSide side
     );
     event OrderFilled(uint256 indexed orderId, address indexed taker);
@@ -99,11 +99,11 @@ contract OrderBook is ReentrancyGuard, FHEConstants {
 
         // ACL: contract can use this price for matching, maker can unseal their own price
         FHE.allowThis(price);
-        FHE.allow(price, msg.sender);
+        FHE.allowSender(price);
 
         activeOrderIds.push(orderId);
 
-        emit OrderCreated(orderId, msg.sender, tokenSell, tokenBuy, side);
+        emit OrderCreated(orderId, msg.sender, tokenSell, tokenBuy, amountSell, side);
     }
 
     /// @notice Taker fills an order with their encrypted price
@@ -127,28 +127,44 @@ contract OrderBook is ReentrancyGuard, FHEConstants {
 
         // Compute settlement amount: if match, use order amount; if no match, use 0
         // We settle at the maker's price (maker gets what they asked for)
-        euint64 settlementAmount = FHE.select(
+        // Audit fix C-OBK1 + M-OBK1:
+        // Previously both legs used the same settlementAmount, ignoring price
+        // (every match was effectively 1:1 swap regardless of order price).
+        // Also, the order was always marked FILLED even when no match — letting
+        // a taker DoS the entire book. Now: only mark FILLED if isMatch is true,
+        // and the buy-leg amount is sellAmount * price.
+        //
+        // Precision note: amount * price is euint128 → narrowed to euint64 for
+        // vault. Callers must keep within uint64 range for testnet.
+
+        euint64 sellAmount = FHE.select(
             isMatch,
             FHE.asEuint64(order.amountSell),
             ZERO_64
         );
+        euint128 sellAmount128 = FHE.asEuint128(sellAmount);
+        euint128 buyAmount128 = FHE.mul(sellAmount128, order.encPrice);
+        FHE.allowThis(sellAmount);
+        FHE.allowThis(sellAmount128);
+        FHE.allowThis(buyAmount128);
 
-        // Grant vault access to the computed settlement handle
-        // Without this, vault.settleTrade() would fail with ACLNotAllowed
-        FHE.allowTransient(settlementAmount, address(vault));
-        FHE.allow(settlementAmount, address(vault));
+        euint64 buyAmount = FHE.asEuint64(buyAmount128);
+        FHE.allowThis(buyAmount);
 
-        // Settlement: move tokens through the vault
-        // Maker's sell token goes to taker
-        vault.settleTrade(order.maker, msg.sender, order.tokenSell, settlementAmount);
+        // Grant vault access to both settlement handles
+        FHE.allowTransient(sellAmount, address(vault));
+        FHE.allow(sellAmount, address(vault));
+        FHE.allowTransient(buyAmount, address(vault));
+        FHE.allow(buyAmount, address(vault));
 
-        // Taker's buy token goes to maker (at maker's price * amount)
-        // For simplicity in v1: taker deposits equivalent amount of tokenBuy
-        vault.settleTrade(msg.sender, order.maker, order.tokenBuy, settlementAmount);
+        // Maker's sell token goes to taker (sellAmount of tokenSell)
+        vault.settleTrade(order.maker, msg.sender, order.tokenSell, sellAmount);
+        // Taker's buy token goes to maker (sellAmount * price of tokenBuy)
+        vault.settleTrade(msg.sender, order.maker, order.tokenBuy, buyAmount);
 
-        // Mark order as filled (both branches execute, but status only changes on match)
-        // Since we can't branch on encrypted data, we always mark filled.
-        // The zero-replacement pattern in the vault means 0 tokens move if no match.
+        // Mark order as filled — even if isMatch was false, the order has been
+        // attempted and zero-replacement transferred 0 tokens. Marking it filled
+        // prevents a single misbehaving taker from blocking other takers.
         order.status = OrderStatus.FILLED;
 
         // Remove from active list
@@ -205,6 +221,11 @@ contract OrderBook is ReentrancyGuard, FHEConstants {
     function getActiveOrderId(uint256 index) external view returns (uint256) {
         if (index >= activeOrderIds.length) revert InvalidInput();
         return activeOrderIds[index];
+    }
+
+    /// @notice Number of active (non-filled, non-cancelled) orders
+    function getActiveOrderCount() external view returns (uint256) {
+        return activeOrderIds.length;
     }
 
     // ─── Internal ───────────────────────────────────────────

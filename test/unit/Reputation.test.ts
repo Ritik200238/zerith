@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { Reputation, PlatformRegistry } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { cofhejs, Encryptable } from "cofhejs/node";
+import { encryptUint8 } from "../helpers/cofhe";
 
 describe("Reputation", function () {
   let reputation: Reputation;
@@ -13,13 +13,6 @@ describe("Reputation", function () {
   let userB: HardhatEthersSigner;
   let unauthorized: HardhatEthersSigner;
   let authorizedCaller: HardhatEthersSigner;
-
-  async function encryptUint8(signer: HardhatEthersSigner, value: bigint) {
-    await hre.cofhe.initializeWithHardhatSigner(signer);
-    const result = await cofhejs.encrypt([Encryptable.uint8(value)]);
-    if (!result.success) throw new Error("Encryption failed: " + result.error?.message);
-    return result.data[0];
-  }
 
   beforeEach(async function () {
     [deployer, admin, userA, userB, unauthorized, authorizedCaller] = await hre.ethers.getSigners();
@@ -54,7 +47,7 @@ describe("Reputation", function () {
   describe("recordTrade()", function () {
     it("records trade and increments counts for both parties", async function () {
       await expect(
-        reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address)
+        reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address, 1)
       )
         .to.emit(reputation, "TradeRecorded")
         .withArgs(userA.address, userB.address);
@@ -65,19 +58,19 @@ describe("Reputation", function () {
 
     it("only callable by authorized callers", async function () {
       await expect(
-        reputation.connect(unauthorized).recordTrade(userA.address, userB.address)
+        reputation.connect(unauthorized).recordTrade(userA.address, userB.address, 1)
       ).to.be.revertedWithCustomError(reputation, "Unauthorized");
     });
 
     it("reverts on self-trade", async function () {
       await expect(
-        reputation.connect(authorizedCaller).recordTrade(userA.address, userA.address)
+        reputation.connect(authorizedCaller).recordTrade(userA.address, userA.address, 99)
       ).to.be.revertedWithCustomError(reputation, "InvalidInput");
     });
 
     it("accumulates across multiple trades", async function () {
-      await reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address);
-      await reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address);
+      await reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address, 1);
+      await reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address, 2);
 
       expect(await reputation.getTradeCount(userA.address)).to.equal(2n);
       expect(await reputation.getTradeCount(userB.address)).to.equal(2n);
@@ -85,6 +78,13 @@ describe("Reputation", function () {
   });
 
   describe("submitRating()", function () {
+    // Audit fix C-REP2: rater must have recorded trade with counterparty.
+    // Each test pre-records the trade(s) it needs.
+    beforeEach(async function () {
+      await reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address, 1);
+      await reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address, 2);
+    });
+
     it("accepts valid rating (1-5) and emits event", async function () {
       const encRating = await encryptUint8(userA, 4n);
 
@@ -133,7 +133,7 @@ describe("Reputation", function () {
       // Rating of 0 is invalid (below min). The contract uses FHE.select to replace
       // with 0 if out of range, so it won't revert but the score won't increase.
       // We need a trade recorded first for computeMyReputation to work.
-      await reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address);
+      await reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address, 1);
 
       // Submit a valid rating of 3
       const encValidRating = await encryptUint8(userA, 3n);
@@ -146,10 +146,10 @@ describe("Reputation", function () {
 
   describe("computeMyReputation()", function () {
     it("computes average for a user with trades", async function () {
-      // Record a trade
-      await reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address);
+      // Record a trade with tradeId=1
+      await reputation.connect(authorizedCaller).recordTrade(userA.address, userB.address, 1);
 
-      // Submit a rating
+      // Submit a rating for that trade
       const encRating = await encryptUint8(userA, 4n);
       await reputation.connect(userA).submitRating(userB.address, encRating, 1);
 

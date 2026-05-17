@@ -148,7 +148,7 @@ contract TokenVesting is ReentrancyGuard, FHEConstants {
         // Update claimed
         schedule.claimed = vestedAmount;
         FHE.allowThis(schedule.claimed);
-        FHE.allow(schedule.claimed, msg.sender);
+        FHE.allowSender(schedule.claimed);
 
         // Transfer claimable from granter to beneficiary via vault
         FHE.allowThis(claimable);

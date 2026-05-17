@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { OverflowSale, ConfidentialToken, SettlementVault, PlatformRegistry } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { cofhejs, Encryptable } from "cofhejs/node";
+import { encryptUint64 } from "../helpers/cofhe";
 
 describe("OverflowSale", function () {
   let sale: OverflowSale;
@@ -15,13 +15,6 @@ describe("OverflowSale", function () {
   let depositor1: HardhatEthersSigner;
   let depositor2: HardhatEthersSigner;
   let depositor3: HardhatEthersSigner;
-
-  async function encryptUint64(signer: HardhatEthersSigner, value: bigint) {
-    await hre.cofhe.initializeWithHardhatSigner(signer);
-    const result = await cofhejs.encrypt([Encryptable.uint64(value)]);
-    if (!result.success) throw new Error("Encryption failed: " + result.error?.message);
-    return result.data[0];
-  }
 
   beforeEach(async function () {
     [deployer, seller, depositor1, depositor2, depositor3] = await hre.ethers.getSigners();

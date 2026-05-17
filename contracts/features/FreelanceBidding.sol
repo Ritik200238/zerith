@@ -192,7 +192,7 @@ contract FreelanceBidding is Ownable, ReentrancyGuard, FHEConstants {
 
         bids[jobId][msg.sender] = newBid;
         FHE.allowThis(newBid);
-        FHE.allow(newBid, msg.sender);
+        FHE.allowSender(newBid);
 
         hasBid[jobId][msg.sender] = true;
         job.bidCount++;
@@ -214,24 +214,28 @@ contract FreelanceBidding is Ownable, ReentrancyGuard, FHEConstants {
             return;
         }
 
-        FHE.decrypt(job.lowestBid);
-        FHE.decrypt(job.lowestBidder);
+        FHE.allowGlobal(job.lowestBid);
+        FHE.allowGlobal(job.lowestBidder);
         job.status = JobStatus.SETTLING;
         job.settleTimestamp = block.timestamp;
 
         emit SettlementRequested(jobId);
     }
 
-    /// @notice Finalize after async decryption
-    function finalizeSettlement(uint256 jobId) external {
+    /// @notice Finalize with verified Threshold Network signatures of the winning bid + bidder.
+    /// @dev Caller fetches (value, signature) tuples via client.decryptForTx().withoutPermit().
+    function finalizeSettlement(
+        uint256 jobId,
+        uint128 bidValue,
+        bytes calldata bidSignature,
+        address bidderValue,
+        bytes calldata bidderSignature
+    ) external {
         Job storage job = jobs[jobId];
         if (job.status != JobStatus.SETTLING) revert InvalidState();
 
-        (uint128 bidValue, bool bidReady) = FHE.getDecryptResultSafe(job.lowestBid);
-        if (!bidReady) revert InvalidState();
-
-        (address bidderValue, bool bidderReady) = FHE.getDecryptResultSafe(job.lowestBidder);
-        if (!bidderReady) revert InvalidState();
+        FHE.publishDecryptResult(job.lowestBid, bidValue, bidSignature);
+        FHE.publishDecryptResult(job.lowestBidder, bidderValue, bidderSignature);
 
         if (bidderValue == address(0) || bidValue >= type(uint128).max) {
             job.status = JobStatus.CANCELLED;
@@ -288,7 +292,7 @@ contract FreelanceBidding is Ownable, ReentrancyGuard, FHEConstants {
         emit MilestoneApproved(jobId, milestoneIndex, payment);
 
         if (job.milestonesApproved == job.milestoneCount) {
-            _refundExcessEscrow(job);
+            // No-op: excess escrow stays in client's vault (audit fix C-FB2)
             job.status = JobStatus.COMPLETED;
             emit JobCompleted(jobId);
         }
@@ -338,20 +342,25 @@ contract FreelanceBidding is Ownable, ReentrancyGuard, FHEConstants {
         emit DisputeVoteSubmitted(jobId, milestoneIndex, msg.sender);
 
         if (ms.voteCount == REQUIRED_VOTES) {
-            FHE.decrypt(ms.voteSum);
+            FHE.allowGlobal(ms.voteSum);
         }
     }
 
-    /// @notice Resolve dispute after all 3 votes are decrypted
-    /// @dev Majority wins: voteSum >= 2 means freelancer approved
-    function resolveDispute(uint256 jobId, uint8 milestoneIndex) external nonReentrant {
+    /// @notice Resolve dispute with verified majority-vote decryption.
+    /// @dev voteSum >= 2 means freelancer approved. Caller obtains (totalVotes, signature)
+    ///      via client.decryptForTx().withoutPermit() once all 3 votes are submitted.
+    function resolveDispute(
+        uint256 jobId,
+        uint8 milestoneIndex,
+        uint8 totalVotes,
+        bytes calldata signature
+    ) external nonReentrant {
         Job storage job = jobs[jobId];
         Milestone storage ms = milestones[jobId][milestoneIndex];
         if (ms.status != MilestoneStatus.DISPUTED) revert InvalidState();
         if (ms.voteCount < REQUIRED_VOTES) revert InvalidState();
 
-        (uint8 totalVotes, bool ready) = FHE.getDecryptResultSafe(ms.voteSum);
-        if (!ready) revert InvalidState();
+        FHE.publishDecryptResult(ms.voteSum, totalVotes, signature);
 
         bool freelancerWins = totalVotes >= 2;
         ms.status = MilestoneStatus.RESOLVED;
@@ -364,13 +373,14 @@ contract FreelanceBidding is Ownable, ReentrancyGuard, FHEConstants {
             job.milestonesApproved++;
 
             if (job.milestonesApproved == job.milestoneCount) {
-                _refundExcessEscrow(job);
+                // Excess escrow stays in client's vault (audit fix C-FB2)
                 job.status = JobStatus.COMPLETED;
                 emit JobCompleted(jobId);
             }
         } else {
-            // Client wins — refund this milestone's share back to client
-            _refundMilestoneToClient(job, payment);
+            // Client wins — milestone's share stays in client's vault.
+            // No on-chain transfer needed (audit fix C-FB1); escrow was never
+            // moved out of the client's vault to begin with.
         }
 
         emit DisputeResolved(jobId, milestoneIndex, freelancerWins);
@@ -386,25 +396,13 @@ contract FreelanceBidding is Ownable, ReentrancyGuard, FHEConstants {
         vault.settleTrade(job.client, job.revealedBidder, job.token, encAmount);
     }
 
-    function _refundMilestoneToClient(Job storage job, uint256 amount) internal {
-        euint64 encAmount = FHE.asEuint64(uint64(amount));
-        FHE.allowThis(encAmount);
-        FHE.allowTransient(encAmount, address(vault));
-        FHE.allow(encAmount, address(vault));
-        // "Refund" by settling from client to client — keeps balance in their vault
-        vault.settleTrade(job.client, job.client, job.token, encAmount);
-    }
-
-    function _refundExcessEscrow(Job storage job) internal {
-        if (job.escrowAmount > uint256(job.revealedBid)) {
-            uint256 refund = job.escrowAmount - uint256(job.revealedBid);
-            euint64 encRefund = FHE.asEuint64(uint64(refund));
-            FHE.allowThis(encRefund);
-            FHE.allowTransient(encRefund, address(vault));
-            FHE.allow(encRefund, address(vault));
-            vault.settleTrade(job.client, job.client, job.token, encRefund);
-        }
-    }
+    /// @dev Audit fix C-FB1/C-FB2: previously these functions called
+    ///      vault.settleTrade(client, client, ...) which reverts on from==to.
+    ///      The intent was always a no-op — escrow funds remain in the client's
+    ///      vault throughout. _transferPayment moves money TO the freelancer when
+    ///      the freelancer wins; if the client wins, no on-chain transfer happens
+    ///      because the funds never left the client's vault. The "refund" was
+    ///      always implicit. Functions removed entirely.
 
     // ─── Auto-Release (Upwork-style 14-day timeout) ──────
 
@@ -432,7 +430,7 @@ contract FreelanceBidding is Ownable, ReentrancyGuard, FHEConstants {
         emit MilestoneApproved(jobId, milestoneIndex, payment);
 
         if (job.milestonesApproved == job.milestoneCount) {
-            _refundExcessEscrow(job);
+            // No-op: excess escrow stays in client's vault (audit fix C-FB2)
             job.status = JobStatus.COMPLETED;
             emit JobCompleted(jobId);
         }
@@ -483,6 +481,10 @@ contract FreelanceBidding is Ownable, ReentrancyGuard, FHEConstants {
     ) {
         Milestone storage ms = milestones[jobId][index];
         return (ms.description, ms.percentageBps, ms.status, ms.voteCount);
+    }
+
+    function getJobCount() external view returns (uint256) {
+        return nextJobId;
     }
 
     function hasJobs() external view returns (bool) {

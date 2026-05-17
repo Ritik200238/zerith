@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { PrivatePayments, ConfidentialToken, SettlementVault, PlatformRegistry } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { cofhejs, Encryptable } from "cofhejs/node";
+import { encryptUint64 } from "../helpers/cofhe";
 
 describe("PrivatePayments", function () {
   let payments: PrivatePayments;
@@ -14,13 +14,6 @@ describe("PrivatePayments", function () {
   let recipient1: HardhatEthersSigner;
   let recipient2: HardhatEthersSigner;
   let outsider: HardhatEthersSigner;
-
-  async function encryptUint64(signer: HardhatEthersSigner, value: bigint) {
-    await hre.cofhe.initializeWithHardhatSigner(signer);
-    const result = await cofhejs.encrypt([Encryptable.uint64(value)]);
-    if (!result.success) throw new Error("Encryption failed: " + result.error?.message);
-    return result.data[0];
-  }
 
   beforeEach(async function () {
     [deployer, creator, recipient1, recipient2, outsider] = await hre.ethers.getSigners();

@@ -84,7 +84,7 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
 
         // ACL: vault can use this balance in future txns, user can unseal
         FHE.allowThis(encBalances[msg.sender][token]);
-        FHE.allow(encBalances[msg.sender][token], msg.sender);
+        FHE.allowSender(encBalances[msg.sender][token]);
 
         emit Deposited(msg.sender, token);
     }
@@ -115,7 +115,7 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
 
         // ACL: vault can use updated balance, user can unseal
         FHE.allowThis(encBalances[msg.sender][token]);
-        FHE.allow(encBalances[msg.sender][token], msg.sender);
+        FHE.allowSender(encBalances[msg.sender][token]);
 
         emit Withdrawn(msg.sender, token);
     }
@@ -123,6 +123,29 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
     /// @notice Get own encrypted balance handle (for unsealing via cofhejs)
     function getEncBalance(address user, address token) external view returns (euint64) {
         return encBalances[user][token];
+    }
+
+    /// @notice Delegate read access of caller's encrypted balance to another contract.
+    /// @dev Required for cross-contract reads like PortfolioTracker. The consumer must
+    ///      be able to operate on the handle (FHE ops require ACL access). This grants
+    ///      that access without exposing the underlying value to the consumer's owner.
+    /// @dev Lazy-initializes balance to encrypted zero on first call (otherwise
+    ///      FHE.allow on an uninitialized handle reverts with SenderNotAllowed).
+    /// @param consumer Contract that needs to read this balance
+    /// @param token Token whose balance is being delegated
+    function delegateBalanceRead(address consumer, address token) external whenNotPaused {
+        if (consumer == address(0)) revert InvalidInput();
+        if (!supportedTokens[token]) revert InvalidInput();
+
+        euint64 balance = encBalances[msg.sender][token];
+        // If first ever access, initialize handle to encrypted zero
+        if (euint64.unwrap(balance) == bytes32(0)) {
+            balance = FHE.asEuint64(0);
+            encBalances[msg.sender][token] = balance;
+            FHE.allowThis(balance);
+            FHE.allow(balance, msg.sender);
+        }
+        FHE.allow(balance, consumer);
     }
 
     // ─── Settlement (Feature Contracts Only) ────────────────
@@ -136,7 +159,7 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
         address to,
         address token,
         euint64 amount
-    ) external onlyAuthorizedSettler nonReentrant {
+    ) external onlyAuthorizedSettler whenNotPaused nonReentrant {
         if (!supportedTokens[token]) revert InvalidInput();
         if (from == to) revert InvalidInput();
         if (from == address(0) || to == address(0)) revert InvalidInput();

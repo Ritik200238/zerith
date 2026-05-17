@@ -15,6 +15,10 @@ contract Reputation {
     /// @notice Sum of all encrypted ratings received by a user
     mapping(address => euint64) private totalScores;
 
+    /// @notice Track whether a user's totalScore handle has been initialized.
+    ///         Audit fix C-REP1: prevents FHE ops on un-allocated zero handle.
+    mapping(address => bool) private scoreInitialized;
+
     /// @notice Plaintext trade count (no privacy issue — visible from events anyway)
     mapping(address => uint256) public tradeCounts;
 
@@ -23,6 +27,11 @@ contract Reputation {
 
     /// @notice Authorized callers (feature contracts that can record trades)
     mapping(address => bool) public authorizedCallers;
+
+    /// @notice Recorded trades. Audit fix C-REP2: rater must have actually
+    ///         traded with counterparty before submitting a rating.
+    ///         Key: keccak256(partyA, partyB, tradeId) — set BIDIRECTIONALLY.
+    mapping(bytes32 => bool) private tradeRecorded;
 
     /// @notice Cached average reputation (computed on-demand by user)
     mapping(address => euint64) private cachedReputation;
@@ -69,12 +78,36 @@ contract Reputation {
         FHE.allowThis(EUINT64_ZERO);
     }
 
-    /// @notice Record a completed trade between two parties
-    /// @dev Called by feature contracts (OrderBook, Auction, Escrow, OTC)
-    /// @dev Non-blocking: if this reverts, the calling contract's trade still succeeds
-    ///      because feature contracts use try/catch or emit events instead of direct calls
-    function recordTrade(address partyA, address partyB) external onlyAuthorizedCaller {
+    /// @notice Record a completed trade between two parties for a specific tradeId
+    /// @dev Called by feature contracts (OrderBook, Auction, Escrow, OTC) on every settled trade.
+    ///      The tradeId scope ensures each settlement creates exactly one rate-able pair,
+    ///      preventing rating spam.
+    /// @dev Audit fix C-REP1: lazy-initializes encrypted score handles.
+    /// @dev Audit fix C-REP2: persists the trade record so submitRating can verify it.
+    function recordTrade(address partyA, address partyB, uint256 tradeId) external onlyAuthorizedCaller {
         if (partyA == partyB) revert InvalidInput();
+        if (partyA == address(0) || partyB == address(0)) revert InvalidInput();
+
+        // Lazy-init encrypted score handles so FHE.add doesn't fail on first rating
+        if (!scoreInitialized[partyA]) {
+            totalScores[partyA] = FHE.asEuint64(0);
+            FHE.allowThis(totalScores[partyA]);
+            FHE.allow(totalScores[partyA], partyA);
+            scoreInitialized[partyA] = true;
+        }
+        if (!scoreInitialized[partyB]) {
+            totalScores[partyB] = FHE.asEuint64(0);
+            FHE.allowThis(totalScores[partyB]);
+            FHE.allow(totalScores[partyB], partyB);
+            scoreInitialized[partyB] = true;
+        }
+
+        // Mark trade as recorded for both directions so either party can rate the other
+        bytes32 keyAB = keccak256(abi.encodePacked(partyA, partyB, tradeId));
+        bytes32 keyBA = keccak256(abi.encodePacked(partyB, partyA, tradeId));
+        tradeRecorded[keyAB] = true;
+        tradeRecorded[keyBA] = true;
+
         tradeCounts[partyA]++;
         tradeCounts[partyB]++;
         emit TradeRecorded(partyA, partyB);
@@ -94,8 +127,15 @@ contract Reputation {
         if (counterparty == msg.sender) revert InvalidInput();
         if (counterparty == address(0)) revert InvalidInput();
 
-        bytes32 ratingKey = keccak256(abi.encodePacked(msg.sender, counterparty, tradeId));
+        // Audit fix C-REP2: must have actually traded with counterparty for this tradeId.
+        // recordTrade was called by an authorized feature contract on settle.
+        bytes32 tradeKey = keccak256(abi.encodePacked(msg.sender, counterparty, tradeId));
+        if (!tradeRecorded[tradeKey]) revert Unauthorized();
+
+        bytes32 ratingKey = tradeKey; // same shape; reused since each rater rates each tradeId once
         if (hasRated[ratingKey]) revert InvalidState();
+        // Defense-in-depth: scoreInitialized is set in recordTrade, but assert anyway
+        if (!scoreInitialized[counterparty]) revert InvalidState();
 
         euint8 rating = FHE.asEuint8(encRating);
 

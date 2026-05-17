@@ -172,7 +172,7 @@ contract VickreyAuction is ReentrancyGuard, FHEConstants {
         // Store individual bid for unsealing
         bids[auctionId][msg.sender] = newBid;
         FHE.allowThis(newBid);
-        FHE.allow(newBid, msg.sender);
+        FHE.allowSender(newBid);
 
         hasBid[auctionId][msg.sender] = true;
         auction.bidCount++;
@@ -187,7 +187,9 @@ contract VickreyAuction is ReentrancyGuard, FHEConstants {
         emit BidPlaced(auctionId, msg.sender, newDeadline);
     }
 
-    /// @notice Close auction and request async decryption of all 3 values
+    /// @notice Close auction and mark winner data publicly decryptable.
+    /// @dev Off-chain, anyone calls client.decryptForTx() on each handle to obtain
+    ///      (value, signature) triples that revealWinner verifies on-chain.
     function closeAuction(uint256 auctionId) external {
         Auction storage auction = auctions[auctionId];
         if (auction.seller != msg.sender) revert Unauthorized();
@@ -195,35 +197,42 @@ contract VickreyAuction is ReentrancyGuard, FHEConstants {
         if (block.timestamp < auction.deadline) revert InvalidState();
         if (auction.bidCount == 0) revert InvalidState();
 
-        // Decrypt highest bid, second bid, AND winner address
-        FHE.decrypt(auction.highestBid);
-        FHE.decrypt(auction.secondBid);
-        FHE.decrypt(auction.highestBidder);
+        FHE.allowGlobal(auction.highestBid);
+        FHE.allowGlobal(auction.secondBid);
+        FHE.allowGlobal(auction.highestBidder);
 
         auction.status = AuctionStatus.CLOSED;
         emit AuctionClosed(auctionId);
     }
 
-    /// @notice Reveal winner after async decryption
-    function revealWinner(uint256 auctionId)
+    /// @notice Publish the verified Vickrey reveal: winner, winning bid, price paid (2nd-highest).
+    function revealWinner(
+        uint256 auctionId,
+        uint128 highest,
+        bytes calldata highestSignature,
+        uint128 second,
+        bytes calldata secondSignature,
+        address bidder,
+        bytes calldata bidderSignature
+    )
         external
         returns (uint128 winningBid, uint128 pricePaid, address winner)
     {
         Auction storage auction = auctions[auctionId];
         if (auction.status != AuctionStatus.CLOSED) revert InvalidState();
 
-        (uint128 highest, bool hReady) = FHE.getDecryptResultSafe(auction.highestBid);
-        if (!hReady) revert InvalidState();
+        FHE.publishDecryptResult(auction.highestBid, highest, highestSignature);
+        FHE.publishDecryptResult(auction.secondBid, second, secondSignature);
+        FHE.publishDecryptResult(auction.highestBidder, bidder, bidderSignature);
 
-        (uint128 second, bool sReady) = FHE.getDecryptResultSafe(auction.secondBid);
-        if (!sReady) revert InvalidState();
-
-        (address bidder, bool bReady) = FHE.getDecryptResultSafe(auction.highestBidder);
-        if (!bReady) revert InvalidState();
-
-        // Edge case: single bidder → second price = 0. Use reserve or the bid itself.
-        // For fairness: if only 1 bid, winner pays their own bid (no second price advantage)
-        if (second == 0 && auction.bidCount == 1) {
+        // Audit fix C-VA1: previously only handled single-bidder case. With
+        // multiple bidders, if only one had a positive bid (others bid zero),
+        // second would be 0 and the winner would pay 0. That breaks the
+        // Vickrey mechanism's incentive guarantee.
+        //
+        // New rule: if second == 0 for ANY reason, fall back to first-price
+        // (winner pays their own bid). This preserves auction integrity.
+        if (second == 0) {
             second = highest;
         }
 
@@ -315,5 +324,9 @@ contract VickreyAuction is ReentrancyGuard, FHEConstants {
 
     function hasAuctions() external view returns (bool) {
         return nextAuctionId > 0;
+    }
+
+    function getAuctionCount() external view returns (uint256) {
+        return nextAuctionId;
     }
 }

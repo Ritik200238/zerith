@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { OTCBoard, ConfidentialToken, SettlementVault, PlatformRegistry } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { cofhejs, Encryptable } from "cofhejs/node";
+import { encryptUint128 } from "../helpers/cofhe";
 
 describe("OTCBoard", function () {
   let otcBoard: OTCBoard;
@@ -14,13 +14,6 @@ describe("OTCBoard", function () {
   let requester: HardhatEthersSigner;
   let quoter: HardhatEthersSigner;
   let outsider: HardhatEthersSigner;
-
-  async function encryptUint128(signer: HardhatEthersSigner, value: bigint) {
-    await hre.cofhe.initializeWithHardhatSigner(signer);
-    const result = await cofhejs.encrypt([Encryptable.uint128(value)]);
-    if (!result.success) throw new Error("Encryption failed: " + result.error?.message);
-    return result.data[0];
-  }
 
   beforeEach(async function () {
     [deployer, requester, quoter, outsider] = await hre.ethers.getSigners();
@@ -317,6 +310,71 @@ describe("OTCBoard", function () {
       await expect(
         otcBoard.connect(outsider).cancelRequest(0)
       ).to.be.revertedWithCustomError(otcBoard, "Unauthorized");
+    });
+  });
+
+  describe("expireRequest()", function () {
+    it("flips ACTIVE → EXPIRED after deadline (anyone can sweep)", async function () {
+      const tokenWantAddr = await tokenWant.getAddress();
+      const tokenOfferAddr = await tokenOffer.getAddress();
+      const encAmount = await encryptUint128(requester, 10000n);
+      const encMinPrice = await encryptUint128(requester, 500n);
+      const encMaxPrice = await encryptUint128(requester, 1500n);
+      const deadline = (await hre.ethers.provider.getBlock("latest")).timestamp + 600;
+
+      await otcBoard.connect(requester).postRequest(
+        tokenWantAddr, tokenOfferAddr, encAmount, encMinPrice, encMaxPrice, deadline
+      );
+
+      // Advance past deadline
+      await hre.network.provider.send("evm_increaseTime", [601]);
+      await hre.network.provider.send("evm_mine");
+
+      // outsider (not requester, not quoter) can sweep
+      await expect(otcBoard.connect(outsider).expireRequest(0))
+        .to.emit(otcBoard, "RequestExpired")
+        .withArgs(0);
+
+      const req = await otcBoard.getRequest(0);
+      expect(req.status).to.equal(3n); // EXPIRED
+    });
+
+    it("reverts if called before deadline", async function () {
+      const tokenWantAddr = await tokenWant.getAddress();
+      const tokenOfferAddr = await tokenOffer.getAddress();
+      const encAmount = await encryptUint128(requester, 10000n);
+      const encMinPrice = await encryptUint128(requester, 500n);
+      const encMaxPrice = await encryptUint128(requester, 1500n);
+      const deadline = (await hre.ethers.provider.getBlock("latest")).timestamp + 3600;
+
+      await otcBoard.connect(requester).postRequest(
+        tokenWantAddr, tokenOfferAddr, encAmount, encMinPrice, encMaxPrice, deadline
+      );
+
+      await expect(
+        otcBoard.connect(outsider).expireRequest(0)
+      ).to.be.revertedWithCustomError(otcBoard, "InvalidState");
+    });
+
+    it("reverts if already cancelled", async function () {
+      const tokenWantAddr = await tokenWant.getAddress();
+      const tokenOfferAddr = await tokenOffer.getAddress();
+      const encAmount = await encryptUint128(requester, 10000n);
+      const encMinPrice = await encryptUint128(requester, 500n);
+      const encMaxPrice = await encryptUint128(requester, 1500n);
+      const deadline = (await hre.ethers.provider.getBlock("latest")).timestamp + 600;
+
+      await otcBoard.connect(requester).postRequest(
+        tokenWantAddr, tokenOfferAddr, encAmount, encMinPrice, encMaxPrice, deadline
+      );
+      await otcBoard.connect(requester).cancelRequest(0);
+
+      await hre.network.provider.send("evm_increaseTime", [601]);
+      await hre.network.provider.send("evm_mine");
+
+      await expect(
+        otcBoard.connect(outsider).expireRequest(0)
+      ).to.be.revertedWithCustomError(otcBoard, "InvalidState");
     });
   });
 });

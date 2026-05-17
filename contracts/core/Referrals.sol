@@ -62,7 +62,7 @@ contract Referrals is FHEConstants {
 
         euint64 initEarned = FHE.asEuint64(0);
         FHE.allowThis(initEarned);
-        FHE.allow(initEarned, msg.sender);
+        FHE.allowSender(initEarned);
 
         links[codeHash] = ReferralLink({
             referrer: msg.sender,

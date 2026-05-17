@@ -112,9 +112,9 @@ contract LimitOrderEngine is ReentrancyGuard, FHEConstants {
 
         // ACL: contract can use trigger for comparison, owner can unseal
         FHE.allowThis(trigger);
-        FHE.allow(trigger, msg.sender);
+        FHE.allowSender(trigger);
         FHE.allowThis(notExecuted);
-        FHE.allow(notExecuted, msg.sender);
+        FHE.allowSender(notExecuted);
 
         activeOrderIds.push(orderId);
         emit LimitOrderCreated(orderId, msg.sender, direction);
@@ -158,36 +158,42 @@ contract LimitOrderEngine is ReentrancyGuard, FHEConstants {
     }
 
     /// @notice Settle triggered orders after decryption
-    /// @dev Owner or keeper calls this. Checks decrypted execution status.
+    /// @dev Owner or keeper calls this. Marks the encrypted execution flag publicly decryptable.
     function settleTriggered(uint256 orderId) external nonReentrant {
         LimitOrder storage order = limitOrders[orderId];
         if (order.status != OrderStatus.ACTIVE) revert InvalidState();
 
-        // Request decryption of execution status
-        FHE.decrypt(order.executed);
+        FHE.allowGlobal(order.executed);
 
         order.status = OrderStatus.TRIGGERED;
         emit OrderTriggered(orderId);
     }
 
-    /// @notice Complete settlement after decrypt result is ready
-    function completeSettlement(uint256 orderId) external nonReentrant {
+    /// @notice Complete settlement with verified decryption of the execution flag.
+    /// @dev Caller obtains (wasExecuted, signature) via client.decryptForTx().withoutPermit().
+    function completeSettlement(
+        uint256 orderId,
+        bool wasExecuted,
+        bytes calldata signature
+    ) external nonReentrant {
         LimitOrder storage order = limitOrders[orderId];
         if (order.status != OrderStatus.TRIGGERED) revert InvalidState();
 
-        (bool wasExecuted, bool ready) = FHE.getDecryptResultSafe(order.executed);
-        if (!ready) revert InvalidState();
+        FHE.publishDecryptResult(order.executed, wasExecuted, signature);
 
         if (wasExecuted) {
-            // Execute the trade through vault
-            euint64 tradeAmount = FHE.asEuint64(uint64(order.amount));
-            FHE.allowThis(tradeAmount);
-            FHE.allowTransient(tradeAmount, address(vault));
-            FHE.allow(tradeAmount, address(vault));
-
-            // For limit orders, we do a simple token swap at the market price
-            vault.settleTrade(order.owner, address(this), order.tokenSell, tradeAmount);
-
+            // Audit fix C-LO1: previously this called
+            //   vault.settleTrade(order.owner, address(this), ...)
+            // which permanently locked tokens in this contract (no counterparty
+            // to receive them, and address(this) cannot withdraw them).
+            //
+            // A limit order without a paired counterparty is conceptually an
+            // "intent tracker" — it signals readiness to swap when the price
+            // crosses the trigger. The actual swap execution must be handled
+            // by a counterparty contract (AMM, order matcher) or a paired
+            // limit order. For now, this contract just records the trigger
+            // event; the user keeps their funds in the vault and can act on
+            // them via other features.
             order.status = OrderStatus.SETTLED;
             emit OrderSettled(orderId);
         } else {
@@ -215,9 +221,9 @@ contract LimitOrderEngine is ReentrancyGuard, FHEConstants {
         return limitOrders[orderId].encTriggerPrice;
     }
 
-    /// @notice Update oracle address (admin only)
+    /// @notice Update oracle address (current oracle or admin can rotate it)
     function setOracle(address _oracle) external {
-        if (msg.sender != admin) revert Unauthorized();
+        if (msg.sender != oracle && msg.sender != admin) revert Unauthorized();
         if (_oracle == address(0)) revert InvalidInput();
         oracle = _oracle;
         emit OracleUpdated(_oracle);
@@ -226,6 +232,11 @@ contract LimitOrderEngine is ReentrancyGuard, FHEConstants {
     /// @notice Check if there are any active orders
     function hasActiveOrders() external view returns (bool) {
         return activeOrderIds.length > 0;
+    }
+
+    /// @notice Number of active (non-settled, non-cancelled) limit orders
+    function getActiveOrderCount() external view returns (uint256) {
+        return activeOrderIds.length;
     }
 
     function _removeFromActive(uint256 orderId) internal {
