@@ -33,3 +33,6 @@ coverage.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local workspace SDK (exploratory, not consumed by build)
+packages/sdk/
