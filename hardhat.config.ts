@@ -1,6 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
-import "cofhe-hardhat-plugin";
+import "@cofhe/hardhat-plugin";
 import * as dotenv from "dotenv";
 
 dotenv.config();
