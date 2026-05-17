@@ -33,6 +33,21 @@
   },
   {
     "inputs": [],
+    "name": "InvalidInput",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Paused",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
     "type": "error"
   },
@@ -45,6 +60,11 @@
       }
     ],
     "name": "SecurityZoneOutOfBounds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
     "type": "error"
   },
   {
@@ -127,15 +147,15 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "partyA",
-        "type": "address"
+        "internalType": "bytes32",
+        "name": "partyAHash",
+        "type": "bytes32"
       },
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "partyB",
-        "type": "address"
+        "internalType": "bytes32",
+        "name": "partyBHash",
+        "type": "bytes32"
       },
       {
         "indexed": false,
@@ -374,6 +394,19 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "hasActiveOrders",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",

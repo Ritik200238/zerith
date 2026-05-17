@@ -32,6 +32,16 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "InvalidInput",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "int32",
@@ -40,6 +50,11 @@
       }
     ],
     "name": "SecurityZoneOutOfBounds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
     "type": "error"
   },
   {
@@ -226,6 +241,11 @@
         "internalType": "address",
         "name": "partyB",
         "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tradeId",
+        "type": "uint256"
       }
     ],
     "name": "recordTrade",

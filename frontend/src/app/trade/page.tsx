@@ -19,11 +19,15 @@ import { useWallet } from "@/providers/WalletProvider";
 import { useCofhe } from "@/hooks/useCofhe";
 import { useEncrypt } from "@/hooks/useEncrypt";
 import { useUnseal } from "@/hooks/useUnseal";
+import { useBlockPoll, useAccountChangeReset } from "@/hooks/useBlockPoll";
+import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useContract, useReadContract } from "@/hooks/useContract";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { CONTRACTS } from "@/lib/constants";
+import { parseAmount } from "@/lib/format";
+import { useTxFeedback } from "@/hooks/useTxFeedback";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -79,17 +83,17 @@ function TokenDropdown({
 
   return (
     <div className="space-y-1.5">
-      <label className="text-xs text-gray-400 font-medium">{label}</label>
+      <label className="text-xs text-[var(--text-muted)] font-medium">{label}</label>
       <div className="relative">
         <button
           type="button"
           onClick={() => setOpen(!open)}
           className="w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2.5
-                     bg-[#0a0b14] border border-purple-500/10 text-sm text-gray-200
-                     hover:border-purple-500/30 transition-colors"
+                     bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)]
+                     hover:border-[var(--border-dash)] transition-colors"
         >
           <span>{value ? tokenSymbol(value) : "Select token"}</span>
-          <ChevronDown size={14} className={`text-gray-500 transition-transform ${open ? "rotate-180" : ""}`} />
+          <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
         <AnimatePresence>
           {open && (
@@ -97,7 +101,7 @@ function TokenDropdown({
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              className="absolute z-50 mt-1 w-full rounded-lg border border-purple-500/20 bg-[#111227] shadow-xl overflow-hidden"
+              className="absolute z-50 mt-1 w-full rounded-lg border border-[var(--border-dash)] bg-[var(--bg-card)] shadow-xl overflow-hidden"
             >
               {TOKEN_OPTIONS.map((t) => (
                 <button
@@ -108,8 +112,8 @@ function TokenDropdown({
                   }}
                   className={`w-full px-3 py-2.5 text-left text-sm transition-colors ${
                     value === t.address
-                      ? "bg-purple-600/15 text-purple-300"
-                      : "text-gray-200 hover:bg-purple-600/10"
+                      ? "bg-[var(--bg-alt)] text-[var(--text)]"
+                      : "text-[var(--text)] hover:bg-[var(--bg-alt)]"
                   }`}
                 >
                   {t.symbol}
@@ -152,12 +156,14 @@ export default function TradePage() {
 
   // Fill order modal
   const [modalView, setModalView] = useState<ModalView>("none");
+  const modalProps = useModalEscape(modalView !== "none", () => setModalView("none"));
   const [selectedOrder, setSelectedOrder] = useState<OrderData | null>(null);
   const [takerPrice, setTakerPrice] = useState("");
 
   // Transaction
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash] = useState<string | undefined>();
+  useTxFeedback(txState, { label: "Trade", type: "trade", href: "/trade", txHash });
   const [txError, setTxError] = useState<string | undefined>();
 
   const contractDeployed =
@@ -202,9 +208,26 @@ export default function TradePage() {
     }
   }, [orderBookRead]);
 
+  const blockTick = useBlockPoll();
+  const toast = useToast();
+
+  // Shared tx-error helper — replaces silent errors with toast feedback
+  const handleTxErrorFn = (err: unknown) => {
+    const isRejection = err instanceof Error && err.message.includes("user rejected");
+    const message = isRejection
+      ? "You rejected the transaction in your wallet"
+      : err instanceof Error ? err.message.slice(0, 200) : "Transaction failed";
+    setTxError(message);
+    toast.error(isRejection ? "Transaction cancelled" : "Transaction failed", message);
+  };
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders, refreshKey]);
+  }, [fetchOrders, refreshKey, blockTick]);
+
+  // Audit fix E1: clear cross-account state on wallet switch
+  useAccountChangeReset(useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []));
 
   /* ---------------------------------------------------------------- */
   /* Unseal own order price                                            */
@@ -240,14 +263,22 @@ export default function TradePage() {
     setTxHash(undefined);
 
     try {
+      // Audit fix G1: validate decimal-friendly amount/price
+      const amountBn = parseAmount(amount);
+      const priceBn = parseAmount(price);
+      if (amountBn === null || priceBn === null) {
+        toast.error("Invalid input", "Amount and price must be positive numbers");
+        setTxState("idle");
+        return;
+      }
       const { Encryptable } = await import("cofhejs/web");
-      const encrypted = await encrypt([Encryptable.uint128(BigInt(price))]);
+      const encrypted = await encrypt([Encryptable.uint128(priceBn)]);
       if (!encrypted) throw new Error("Encryption failed");
 
       const tx = await orderBookContract.createOrder(
         sellToken,
         buyToken,
-        BigInt(amount),
+        amountBn,
         encrypted[0],
         side,
       );
@@ -261,13 +292,7 @@ export default function TradePage() {
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       setTxState("error");
-      setTxError(
-        err instanceof Error
-          ? err.message.includes("user rejected")
-            ? "Transaction rejected"
-            : err.message.slice(0, 120)
-          : "Transaction failed",
-      );
+      handleTxErrorFn(err);
     }
   }, [orderBookContract, initialized, amount, price, sellToken, buyToken, side, encrypt]);
 
@@ -283,8 +308,14 @@ export default function TradePage() {
     setTxHash(undefined);
 
     try {
+      const takerPriceBn = parseAmount(takerPrice);
+      if (takerPriceBn === null) {
+        toast.error("Invalid price", "Price must be a positive number");
+        setTxState("idle");
+        return;
+      }
       const { Encryptable } = await import("cofhejs/web");
-      const encrypted = await encrypt([Encryptable.uint128(BigInt(takerPrice))]);
+      const encrypted = await encrypt([Encryptable.uint128(takerPriceBn)]);
       if (!encrypted) throw new Error("Encryption failed");
 
       const tx = await orderBookContract.fillOrder(selectedOrder.id, encrypted[0]);
@@ -299,13 +330,7 @@ export default function TradePage() {
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       setTxState("error");
-      setTxError(
-        err instanceof Error
-          ? err.message.includes("user rejected")
-            ? "Transaction rejected"
-            : err.message.slice(0, 120)
-          : "Transaction failed",
-      );
+      handleTxErrorFn(err);
     }
   }, [orderBookContract, initialized, selectedOrder, takerPrice, encrypt]);
 
@@ -355,33 +380,41 @@ export default function TradePage() {
   /* ================================================================ */
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-10 max-w-[1180px] mx-auto px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
       {/* ---- Header ---- */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-purple-600/20 flex items-center justify-center">
-            <ArrowLeftRight size={20} className="text-purple-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold gradient-text">P2P Trading</h1>
-            <p className="text-sm text-gray-400">
-              Encrypted order matching -- nobody sees your price
+      <div className="mb-10 space-y-6">
+        <div
+          className="font-mono text-[11px] uppercase tracking-[0.1em]"
+          style={{ color: "var(--text-muted)" }}
+        >
+          — P2P trading
+        </div>
+        <div className="flex items-end justify-between flex-wrap gap-6">
+          <div className="max-w-2xl">
+            <h1
+              className="font-display font-bold tracking-tight leading-[1.02] mb-4"
+              style={{ fontSize: "clamp(38px, 5vw, 64px)", letterSpacing: "-0.04em" }}
+            >
+              Order book.{" "}<em className="font-serif italic font-normal">Encrypted balances</em>.
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
+              Trade peer-to-peer with encrypted balances. The order book stores intent — matchers fill without ever seeing wallet sizes.
             </p>
           </div>
-        </div>
         <FaucetButton />
-      </div>
+      </div></div>
+      
 
       {/* ---- Wallet not connected ---- */}
       {!account && (
-        <div className="glass rounded-xl p-10 text-center space-y-3">
+        <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-10 text-center space-y-3">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-purple-600/30 to-cyan-600/30 flex items-center justify-center">
-            <Lock size={24} className="text-purple-400" />
+            <Lock size={24} className="text-[var(--text)]" />
           </div>
-          <h2 className="text-lg font-semibold text-gray-200">
+          <h2 className="text-lg font-semibold text-[var(--text)]">
             Connect your wallet to trade
           </h2>
-          <p className="text-sm text-gray-400 max-w-md mx-auto">
+          <p className="text-sm text-[var(--text-muted)] max-w-md mx-auto">
             All order prices are encrypted with FHE. Connect MetaMask to create
             orders, fill orders, and view your positions.
           </p>
@@ -390,13 +423,13 @@ export default function TradePage() {
 
       {/* ---- Contract not deployed ---- */}
       {account && !contractDeployed && (
-        <div className="glass rounded-xl p-5 border-amber-500/20 flex items-start gap-3">
-          <AlertCircle size={18} className="text-amber-400 mt-0.5 shrink-0" />
+        <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-5 border-[var(--border-dash)] flex items-start gap-3">
+          <AlertCircle size={18} className="text-[var(--text-muted)] mt-0.5 shrink-0" />
           <div>
-            <p className="text-sm font-medium text-amber-300">
+            <p className="text-sm font-medium text-[var(--text-muted)]">
               OrderBook contract not deployed yet
             </p>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-[var(--text-muted)] mt-1">
               Deploy the contracts first, then update the address in
               constants.ts to enable live trading.
             </p>
@@ -417,15 +450,15 @@ export default function TradePage() {
       {account && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* ================= ORDER BOOK (left 2/3) ================= */}
-          <div className="lg:col-span-2 glass rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-purple-500/10 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">
+          <div className="lg:col-span-2 bg-white border border-dashed border-[var(--border-dash)] rounded-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-[var(--border-dash)] flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">
                 Order Book
               </h2>
               <button
                 onClick={() => setRefreshKey((k) => k + 1)}
                 disabled={loading}
-                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-purple-300 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors disabled:opacity-50"
               >
                 <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
                 {loading ? "Loading..." : "Refresh"}
@@ -434,13 +467,13 @@ export default function TradePage() {
 
             {loading && orders.length === 0 ? (
               <div className="flex items-center justify-center py-20">
-                <Loader2 size={22} className="text-purple-400 animate-spin" />
+                <Loader2 size={22} className="text-[var(--text)] animate-spin" />
               </div>
             ) : orders.length === 0 ? (
               <div className="py-20 text-center space-y-2">
-                <ArrowLeftRight size={32} className="mx-auto text-gray-600" />
-                <p className="text-sm text-gray-500">No active orders</p>
-                <p className="text-xs text-gray-600">
+                <ArrowLeftRight size={32} className="mx-auto text-[var(--text-muted)]" />
+                <p className="text-sm text-[var(--text-muted)]">No active orders</p>
+                <p className="text-xs text-[var(--text-muted)]">
                   Create the first encrypted order to get started
                 </p>
               </div>
@@ -448,7 +481,7 @@ export default function TradePage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs text-gray-500 uppercase tracking-wider border-b border-purple-500/5">
+                    <tr className="text-xs text-[var(--text-muted)] uppercase tracking-wider border-b border-[var(--border-dash)]">
                       <th className="text-left px-5 py-3 font-medium">ID</th>
                       <th className="text-left px-5 py-3 font-medium">Pair</th>
                       <th className="text-left px-5 py-3 font-medium">Side</th>
@@ -467,31 +500,31 @@ export default function TradePage() {
                           key={order.id}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          className="border-b border-purple-500/5 hover:bg-white/[0.02] transition-colors"
+                          className="border-b border-[var(--border-dash)] hover:bg-white/[0.02] transition-colors"
                         >
-                          <td className="px-5 py-3.5 font-mono text-gray-400 text-xs">
+                          <td className="px-5 py-3.5 font-mono text-[var(--text-muted)] text-xs">
                             #{order.id}
                           </td>
-                          <td className="px-5 py-3.5 text-gray-200 font-medium">
+                          <td className="px-5 py-3.5 text-[var(--text)] font-medium">
                             {tokenSymbol(order.tokenSell)}/{tokenSymbol(order.tokenBuy)}
                           </td>
                           <td className="px-5 py-3.5">
                             <span
                               className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold tracking-wide ${
                                 isBuy
-                                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-                                  : "bg-red-500/15 text-red-400 border border-red-500/20"
+                                  ? "bg-[var(--bg-alt)] text-[var(--text)] border border-[var(--border-dash)]"
+                                  : "bg-[var(--bg-alt)] text-[var(--text-muted)] border border-[var(--border-dash)]"
                               }`}
                             >
                               {isBuy ? "BUY" : "SELL"}
                             </span>
                           </td>
-                          <td className="px-5 py-3.5 text-right font-mono text-gray-200">
+                          <td className="px-5 py-3.5 text-right font-mono text-[var(--text)]">
                             {order.amountSell}
                           </td>
                           <td className="px-5 py-3.5 text-right">
-                            <span className="inline-flex items-center gap-1.5 text-gray-500 text-xs">
-                              <Lock size={11} className="text-purple-500/60" />
+                            <span className="inline-flex items-center gap-1.5 text-[var(--text-muted)] text-xs">
+                              <Lock size={11} className="text-[var(--text)]/60" />
                               Encrypted
                             </span>
                           </td>
@@ -503,8 +536,8 @@ export default function TradePage() {
                                 setModalView("fill");
                               }}
                               className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium
-                                         bg-purple-500/10 border border-purple-500/20 text-purple-300
-                                         hover:bg-purple-500/20 hover:border-purple-500/30 transition-all"
+                                         bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)]
+                                         hover:bg-[var(--bg-alt)] hover:border-[var(--border-dash)] transition-all"
                             >
                               <ShoppingCart size={12} />
                               Fill Order
@@ -519,30 +552,30 @@ export default function TradePage() {
             )}
 
             {/* Footer note */}
-            <div className="px-5 py-3 border-t border-purple-500/5 flex items-center gap-2 text-[11px] text-gray-600">
-              <Lock size={10} className="text-purple-500/40" />
+            <div className="px-5 py-3 border-t border-[var(--border-dash)] flex items-center gap-2 text-[11px] text-[var(--text-muted)]">
+              <Lock size={10} className="text-[var(--text)]/40" />
               All prices are encrypted on-chain via FHE. Only order owners can view their own price.
             </div>
           </div>
 
           {/* ================= CREATE ORDER FORM (right 1/3) ================= */}
-          <div className="glass rounded-xl p-5 space-y-5 h-fit sticky top-24">
+          <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-5 space-y-5 h-fit sticky top-24">
             <div className="flex items-center gap-2">
-              <Plus size={16} className="text-purple-400" />
-              <h2 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">
+              <Plus size={16} className="text-[var(--text)]" />
+              <h2 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">
                 Create Order
               </h2>
             </div>
 
             {/* Side toggle */}
-            <div className="flex rounded-lg overflow-hidden border border-purple-500/10">
+            <div className="flex rounded-lg overflow-hidden border border-[var(--border-dash)]">
               <button
                 type="button"
                 onClick={() => setSide(0)}
                 className={`flex-1 py-2.5 text-sm font-bold tracking-wide transition-all ${
                   side === 0
-                    ? "bg-emerald-500/15 text-emerald-400 border-r border-emerald-500/20"
-                    : "text-gray-500 hover:text-gray-300 hover:bg-white/[0.03] border-r border-purple-500/10"
+                    ? "bg-[var(--bg-alt)] text-[var(--text)] border-r border-[var(--border-dash)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/[0.03] border-r border-[var(--border-dash)]"
                 }`}
               >
                 BUY
@@ -552,8 +585,8 @@ export default function TradePage() {
                 onClick={() => setSide(1)}
                 className={`flex-1 py-2.5 text-sm font-bold tracking-wide transition-all ${
                   side === 1
-                    ? "bg-red-500/15 text-red-400"
-                    : "text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]"
+                    ? "bg-[var(--bg-alt)] text-[var(--text-muted)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/[0.03]"
                 }`}
               >
                 SELL
@@ -573,23 +606,23 @@ export default function TradePage() {
 
             {/* Amount */}
             <div className="space-y-1.5">
-              <label className="text-xs text-gray-400 font-medium">Amount</label>
+              <label className="text-xs text-[var(--text-muted)] font-medium">Amount</label>
               <input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
                 min="0"
-                className="w-full rounded-lg px-3 py-2.5 bg-[#0a0b14] border border-purple-500/10
-                           text-sm text-gray-200 placeholder:text-gray-600
-                           focus:outline-none focus:border-purple-500/40 transition-colors"
+                className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                           text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
+                           focus:outline-none focus:border-[var(--border-dash)] transition-colors"
               />
             </div>
 
             {/* Price */}
             <div className="space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
-                <Lock size={10} className="text-purple-400" />
+              <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] font-medium">
+                <Lock size={10} className="text-[var(--text)]" />
                 Price per unit
               </label>
               <input
@@ -598,11 +631,11 @@ export default function TradePage() {
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="0"
                 min="0"
-                className="w-full rounded-lg px-3 py-2.5 bg-[#0a0b14] border border-purple-500/10
-                           text-sm text-gray-200 placeholder:text-gray-600
-                           focus:outline-none focus:border-purple-500/40 transition-colors"
+                className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                           text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
+                           focus:outline-none focus:border-[var(--border-dash)] transition-colors"
               />
-              <p className="text-[10px] text-purple-400/60 flex items-center gap-1">
+              <p className="text-[10px] text-[var(--text)]/60 flex items-center gap-1">
                 <Lock size={8} />
                 Encrypted on submit -- nobody sees your price
               </p>
@@ -621,8 +654,8 @@ export default function TradePage() {
                 txState === "signing" ||
                 txState === "confirming"
               }
-              className="w-full rounded-lg py-3 text-sm font-semibold text-white
-                         bg-gradient-to-r from-purple-600 to-blue-600
+              className="w-full rounded-lg py-3 text-sm font-semibold text-[var(--bg)]
+                         bg-[var(--text)]
                          hover:from-purple-500 hover:to-blue-500
                          disabled:opacity-40 disabled:cursor-not-allowed
                          transition-all duration-200 flex items-center justify-center gap-2"
@@ -651,8 +684,8 @@ export default function TradePage() {
             </button>
 
             {/* Privacy note */}
-            <div className="rounded-lg bg-purple-500/5 border border-purple-500/10 px-4 py-3 space-y-1">
-              <p className="text-[10px] text-purple-300/60 leading-relaxed">
+            <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3 space-y-1">
+              <p className="text-[10px] text-[var(--text)]/60 leading-relaxed">
                 Your price is encrypted client-side via cofhejs and submitted
                 as a ciphertext. The contract uses FHE.gte() to match orders
                 without decrypting either price.
@@ -664,16 +697,16 @@ export default function TradePage() {
 
       {/* ================= MY ORDERS ================= */}
       {account && myOrders.length > 0 && (
-        <div className="glass rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-purple-500/10">
-            <h2 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">
+        <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--border-dash)]">
+            <h2 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">
               My Orders
             </h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-xs text-gray-500 uppercase tracking-wider border-b border-purple-500/5">
+                <tr className="text-xs text-[var(--text-muted)] uppercase tracking-wider border-b border-[var(--border-dash)]">
                   <th className="text-left px-5 py-3 font-medium">ID</th>
                   <th className="text-left px-5 py-3 font-medium">Pair</th>
                   <th className="text-left px-5 py-3 font-medium">Side</th>
@@ -690,39 +723,39 @@ export default function TradePage() {
                   return (
                     <tr
                       key={order.id}
-                      className="border-b border-purple-500/5 hover:bg-white/[0.02] transition-colors"
+                      className="border-b border-[var(--border-dash)] hover:bg-white/[0.02] transition-colors"
                     >
-                      <td className="px-5 py-3.5 font-mono text-gray-400 text-xs">
+                      <td className="px-5 py-3.5 font-mono text-[var(--text-muted)] text-xs">
                         #{order.id}
                       </td>
-                      <td className="px-5 py-3.5 text-gray-200 font-medium">
+                      <td className="px-5 py-3.5 text-[var(--text)] font-medium">
                         {tokenSymbol(order.tokenSell)}/{tokenSymbol(order.tokenBuy)}
                       </td>
                       <td className="px-5 py-3.5">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-bold tracking-wide ${
                             isBuy
-                              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-                              : "bg-red-500/15 text-red-400 border border-red-500/20"
+                              ? "bg-[var(--bg-alt)] text-[var(--text)] border border-[var(--border-dash)]"
+                              : "bg-[var(--bg-alt)] text-[var(--text-muted)] border border-[var(--border-dash)]"
                           }`}
                         >
                           {isBuy ? "BUY" : "SELL"}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-right font-mono text-gray-200">
+                      <td className="px-5 py-3.5 text-right font-mono text-[var(--text)]">
                         {order.amountSell}
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         {order.unsealedPrice !== null ? (
-                          <span className="font-mono text-purple-300">
+                          <span className="font-mono text-[var(--text)]">
                             {order.unsealedPrice}
                           </span>
                         ) : (
                           <button
                             onClick={() => unsealPrice(order)}
                             disabled={unsealing || !initialized}
-                            className="inline-flex items-center gap-1.5 text-xs text-purple-400
-                                       hover:text-purple-300 transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 text-xs text-[var(--text)]
+                                       hover:text-[var(--text)] transition-colors disabled:opacity-50"
                           >
                             <Eye size={12} />
                             View Price
@@ -733,8 +766,8 @@ export default function TradePage() {
                         <button
                           onClick={() => handleCancelOrder(order.id)}
                           className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium
-                                     bg-red-500/10 border border-red-500/20 text-red-400
-                                     hover:bg-red-500/20 hover:border-red-500/30 transition-all"
+                                     bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text-muted)]
+                                     hover:bg-[var(--bg-alt)] hover:border-[var(--border-dash)] transition-all"
                         >
                           <Trash2 size={12} />
                           Cancel
@@ -758,6 +791,7 @@ export default function TradePage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            {...modalProps}
             onClick={() => {
               setModalView("none");
               setSelectedOrder(null);
@@ -770,12 +804,12 @@ export default function TradePage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="glass rounded-2xl w-full max-w-md p-6 space-y-5 border border-purple-500/20 shadow-2xl"
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-6 space-y-5 border border-[var(--border-dash)] shadow-2xl"
             >
               {/* Header */}
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
-                  <ShoppingCart size={18} className="text-purple-400" />
+                <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
+                  <ShoppingCart size={18} className="text-[var(--text)]" />
                   Fill Order #{selectedOrder.id}
                 </h3>
                 <button
@@ -783,36 +817,37 @@ export default function TradePage() {
                     setModalView("none");
                     setSelectedOrder(null);
                   }}
-                  className="text-gray-500 hover:text-gray-300 transition-colors p-1 rounded-lg hover:bg-white/5"
+                  aria-label="Close modal"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors p-1 rounded-lg hover:bg-white/5"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {/* Order details card */}
-              <div className="space-y-2.5 rounded-xl bg-[#0a0b14]/80 p-4 border border-purple-500/5">
+              <div className="space-y-2.5 rounded-xl bg-[var(--bg)]/80 p-4 border border-[var(--border-dash)]">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Pair</span>
-                  <span className="text-gray-200 font-medium">
+                  <span className="text-[var(--text-muted)]">Pair</span>
+                  <span className="text-[var(--text)] font-medium">
                     {tokenSymbol(selectedOrder.tokenSell)}/
                     {tokenSymbol(selectedOrder.tokenBuy)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Amount</span>
-                  <span className="font-mono text-gray-200">
+                  <span className="text-[var(--text-muted)]">Amount</span>
+                  <span className="font-mono text-[var(--text)]">
                     {selectedOrder.amountSell}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Maker</span>
-                  <span className="font-mono text-gray-400 text-xs">
+                  <span className="text-[var(--text-muted)]">Maker</span>
+                  <span className="font-mono text-[var(--text-muted)] text-xs">
                     {shortAddr(selectedOrder.maker)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">Maker&apos;s Price</span>
-                  <span className="inline-flex items-center gap-1 text-purple-400/80 text-xs">
+                  <span className="text-[var(--text-muted)]">Maker&apos;s Price</span>
+                  <span className="inline-flex items-center gap-1 text-[var(--text)]/80 text-xs">
                     <Lock size={11} />
                     Hidden
                   </span>
@@ -821,8 +856,8 @@ export default function TradePage() {
 
               {/* Taker price input */}
               <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
-                  <Lock size={10} className="text-purple-400" />
+                <label className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] font-medium">
+                  <Lock size={10} className="text-[var(--text)]" />
                   Your Price
                 </label>
                 <input
@@ -831,15 +866,15 @@ export default function TradePage() {
                   onChange={(e) => setTakerPrice(e.target.value)}
                   placeholder="Enter your price"
                   min="0"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[#0a0b14] border border-purple-500/10
-                             text-sm text-gray-200 placeholder:text-gray-600
-                             focus:outline-none focus:border-purple-500/40 transition-colors"
+                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                             text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
+                             focus:outline-none focus:border-[var(--border-dash)] transition-colors"
                 />
               </div>
 
               {/* Privacy explanation */}
-              <div className="rounded-lg bg-purple-500/5 border border-purple-500/10 px-4 py-3">
-                <p className="text-xs text-purple-300/80 leading-relaxed">
+              <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
+                <p className="text-xs text-[var(--text)]/80 leading-relaxed">
                   If your price &gt;= the maker&apos;s hidden price, the trade
                   executes via FHE. If not, nothing happens -- neither party
                   sees the other&apos;s price.
@@ -859,8 +894,8 @@ export default function TradePage() {
                   txState === "signing" ||
                   txState === "confirming"
                 }
-                className="w-full rounded-lg py-3 text-sm font-semibold text-white
-                           bg-gradient-to-r from-purple-600 to-blue-600
+                className="w-full rounded-lg py-3 text-sm font-semibold text-[var(--bg)]
+                           bg-[var(--text)]
                            hover:from-purple-500 hover:to-blue-500
                            disabled:opacity-40 disabled:cursor-not-allowed
                            transition-all duration-200 flex items-center justify-center gap-2"

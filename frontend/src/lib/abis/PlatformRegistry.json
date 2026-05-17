@@ -31,6 +31,16 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "InvalidInput",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -50,6 +60,11 @@
       }
     ],
     "name": "OwnableUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PlatformPaused",
     "type": "error"
   },
   {

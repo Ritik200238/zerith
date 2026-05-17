@@ -10,10 +10,20 @@
         "internalType": "address",
         "name": "_registry",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_claimNFT",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "Expired",
+    "type": "error"
   },
   {
     "inputs": [
@@ -33,6 +43,21 @@
   },
   {
     "inputs": [],
+    "name": "InvalidInput",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Paused",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
     "type": "error"
   },
@@ -45,6 +70,11 @@
       }
     ],
     "name": "SecurityZoneOutOfBounds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
     "type": "error"
   },
   {
@@ -153,15 +183,15 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "partyA",
-        "type": "address"
+        "internalType": "bytes32",
+        "name": "partyAHash",
+        "type": "bytes32"
       },
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "partyB",
-        "type": "address"
+        "internalType": "bytes32",
+        "name": "partyBHash",
+        "type": "bytes32"
       },
       {
         "indexed": false,
@@ -227,6 +257,19 @@
   {
     "inputs": [],
     "name": "MIN_DURATION",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "PLATFORM_FEE_BPS",
     "outputs": [
       {
         "internalType": "uint256",
@@ -311,6 +354,26 @@
         "internalType": "uint256",
         "name": "snipeExtension",
         "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "hasReserve",
+        "type": "bool"
+      },
+      {
+        "internalType": "euint128",
+        "name": "encReserve",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "euint64",
+        "name": "encReserveMet",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bool",
+        "name": "revealedReserveMet",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -370,6 +433,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "claimNFT",
+    "outputs": [
+      {
+        "internalType": "contract IAuctionClaim",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -411,6 +487,72 @@
       }
     ],
     "name": "createAuction",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "paymentToken",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "duration",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "snipeExtension",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "ctHash",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "securityZone",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint8",
+            "name": "utype",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes",
+            "name": "signature",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct InEuint128",
+        "name": "encReserveInput",
+        "type": "tuple"
+      }
+    ],
+    "name": "createBlindAuction",
     "outputs": [
       {
         "internalType": "uint256",
@@ -501,12 +643,54 @@
         "type": "uint256"
       }
     ],
+    "name": "getBlindStatus",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "hasReserve",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "revealedReserveMet",
+        "type": "bool"
+      },
+      {
+        "internalType": "euint64",
+        "name": "encReserveMetHandle",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      }
+    ],
     "name": "getMyBid",
     "outputs": [
       {
         "internalType": "euint128",
         "name": "",
         "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "hasAuctions",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -568,6 +752,26 @@
         "internalType": "uint256",
         "name": "auctionId",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint128",
+        "name": "bidValue",
+        "type": "uint128"
+      },
+      {
+        "internalType": "bytes",
+        "name": "bidSignature",
+        "type": "bytes"
+      },
+      {
+        "internalType": "address",
+        "name": "bidderValue",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "bidderSignature",
+        "type": "bytes"
       }
     ],
     "name": "revealWinner",
@@ -581,6 +785,65 @@
         "internalType": "address",
         "name": "winner",
         "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint128",
+        "name": "bidValue",
+        "type": "uint128"
+      },
+      {
+        "internalType": "bytes",
+        "name": "bidSignature",
+        "type": "bytes"
+      },
+      {
+        "internalType": "address",
+        "name": "bidderValue",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "bidderSignature",
+        "type": "bytes"
+      },
+      {
+        "internalType": "uint64",
+        "name": "reserveMetValue",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes",
+        "name": "reserveMetSignature",
+        "type": "bytes"
+      }
+    ],
+    "name": "revealWinnerBlind",
+    "outputs": [
+      {
+        "internalType": "uint128",
+        "name": "winningBid",
+        "type": "uint128"
+      },
+      {
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "reserveMet",
+        "type": "bool"
       }
     ],
     "stateMutability": "nonpayable",

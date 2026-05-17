@@ -4,7 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Check, X, ExternalLink } from "lucide-react";
 import { FHENIX_TESTNET } from "@/lib/constants";
 
-export type TxState = "idle" | "signing" | "confirming" | "success" | "error";
+export type TxState =
+  | "idle"
+  | "decrypting"   // fetching value+signature from Threshold Network
+  | "signing"      // user is signing the on-chain reveal tx
+  | "confirming"   // tx submitted, waiting for block confirmation
+  | "success"
+  | "error";
 
 interface TransactionStatusProps {
   state: TxState;
@@ -42,7 +48,7 @@ export function TransactionStatus({
         `}
       >
         <div className="flex items-center gap-2">
-          {(state === "signing" || state === "confirming") && (
+          {(state === "decrypting" || state === "signing" || state === "confirming") && (
             <Loader2 size={16} className="text-purple-400 animate-spin" />
           )}
           {state === "success" && (
@@ -66,8 +72,9 @@ export function TransactionStatus({
                     : "text-gray-200"
               }`}
             >
-              {state === "signing" && "Processing..."}
-              {state === "confirming" && "Processing..."}
+              {state === "decrypting" && "Verifying with Threshold Network..."}
+              {state === "signing" && "Waiting for wallet signature..."}
+              {state === "confirming" && "Confirming on-chain..."}
               {state === "success" && "Transaction confirmed"}
               {state === "error" && "Transaction failed"}
             </p>

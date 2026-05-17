@@ -24,14 +24,14 @@ const ICON_MAP = {
 };
 
 const COLOR_MAP = {
-  auction: "text-blue-400",
-  trade: "text-[var(--cipher-violet)]",
-  escrow: "text-[var(--cipher-cyan)]",
-  payment: "text-[var(--cipher-green)]",
-  system: "text-[var(--text-muted)]",
+  auction: "text-info",
+  trade: "text-accent2",
+  escrow: "text-accent1",
+  payment: "text-success",
+  system: "text-textMuted",
 };
 
-const STORAGE_KEY = "cipherdex-notifications";
+const STORAGE_KEY = "sigil-notifications";
 
 function loadNotifications(): Notification[] {
   try {
@@ -82,8 +82,8 @@ export function NotificationBell() {
       });
     };
 
-    window.addEventListener("cipherdex-notify" as string, handler as EventListener);
-    return () => window.removeEventListener("cipherdex-notify" as string, handler as EventListener);
+    window.addEventListener("sigil-notify" as string, handler as EventListener);
+    return () => window.removeEventListener("sigil-notify" as string, handler as EventListener);
   }, []);
 
   // Close on outside click
@@ -140,14 +140,15 @@ export function NotificationBell() {
   return (
     <div className="relative" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setOpen((p) => !p)}
-        className="relative p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)]
-                   hover:bg-white/[0.03] transition-all"
+        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+        className="relative p-2 rounded text-textMuted hover:text-text hover:bg-bgAlt transition-colors"
       >
-        <Bell size={18} />
+        <Bell size={16} />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[var(--cipher-violet)]
-                           flex items-center justify-center text-[9px] font-bold text-white">
+          <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-text
+                           flex items-center justify-center text-[9px] font-bold text-bg">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -156,29 +157,32 @@ export function NotificationBell() {
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            className="absolute right-0 top-full mt-2 w-80 glass-elevated rounded-xl overflow-hidden z-50"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="absolute right-0 top-full mt-2 w-80 bg-bgCard border border-dashed border-borderDash
+                       rounded shadow-[0_12px_32px_rgba(17,17,17,0.06)] overflow-hidden z-50"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)]">
-              <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                Notifications
+            <div className="flex items-center justify-between px-4 py-3 border-b border-dashed border-borderDash">
+              <span className="font-mono text-[10px] font-semibold text-textMuted uppercase tracking-[0.12em]">
+                — Notifications
               </span>
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
                   <button
+                    type="button"
                     onClick={markAllRead}
-                    className="text-[10px] text-[var(--cipher-violet)] hover:text-[var(--cipher-cyan)] transition-colors"
+                    className="text-[10px] text-text hover:text-accent2 transition-colors"
                   >
                     Mark all read
                   </button>
                 )}
                 {items.length > 0 && (
                   <button
+                    type="button"
                     onClick={clearAll}
-                    className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                    className="text-[10px] text-textMuted hover:text-text transition-colors"
                   >
                     Clear
                   </button>
@@ -189,9 +193,9 @@ export function NotificationBell() {
             {/* List */}
             <div className="max-h-80 overflow-y-auto">
               {items.length === 0 ? (
-                <div className="py-8 text-center">
-                  <Bell size={20} className="mx-auto text-[var(--text-muted)] mb-2" />
-                  <p className="text-xs text-[var(--text-muted)]">No notifications yet</p>
+                <div className="py-10 text-center">
+                  <Bell size={18} className="mx-auto text-textMuted mb-2 opacity-60" />
+                  <p className="text-xs text-textMuted">No notifications yet</p>
                 </div>
               ) : (
                 items.slice(0, 20).map((notif) => {
@@ -200,28 +204,29 @@ export function NotificationBell() {
 
                   return (
                     <button
+                      type="button"
                       key={notif.id}
                       onClick={() => handleClick(notif)}
                       className={`w-full text-left px-4 py-3 flex items-start gap-3 transition-colors
-                                  hover:bg-white/[0.02] border-b border-[var(--border-subtle)]
-                                  ${!notif.read ? "bg-[var(--cipher-violet)]/[0.03]" : ""}`}
+                                  hover:bg-bgCardHover border-b border-dashed border-borderDash last:border-b-0
+                                  ${!notif.read ? "bg-bgAlt/60" : ""}`}
                     >
-                      <Icon size={14} className={`${color} mt-0.5 shrink-0`} />
+                      <Icon size={13} className={`${color} mt-0.5 shrink-0`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className={`text-xs font-medium truncate ${
-                            notif.read ? "text-[var(--text-secondary)]" : "text-[var(--text-primary)]"
+                          <p className={`text-xs font-semibold truncate ${
+                            notif.read ? "text-textSecondary" : "text-text"
                           }`}>
                             {notif.title}
                           </p>
                           {!notif.read && (
-                            <div className="w-1.5 h-1.5 rounded-full bg-[var(--cipher-violet)] shrink-0" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent2 shrink-0" />
                           )}
                         </div>
-                        <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
+                        <p className="text-[10px] text-textMuted truncate mt-0.5">
                           {notif.message}
                         </p>
-                        <p className="text-[9px] text-[var(--text-muted)] mt-1">
+                        <p className="font-mono text-[9px] text-textMuted mt-1 uppercase tracking-wider">
                           {formatTime(notif.timestamp)}
                         </p>
                       </div>

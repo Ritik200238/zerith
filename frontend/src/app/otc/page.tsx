@@ -1,327 +1,963 @@
 "use client";
 
-import { useState } from "react";
-import { useWallet } from "@/providers/WalletProvider";
+// Skip Next.js static prerender — this page is entirely wallet-driven,
+// has zero static value, and prerender was hitting an opaque SSR error in
+// production build. Same is true for all wallet-bound pages but we only
+// disable on the ones that hit issues to keep build time reasonable.
+export const dynamic = "force-dynamic";
+
+/**
+ * OTC Desk — /otc
+ *
+ * Encrypted-price RFQ for large block trades. Requester posts an
+ * encrypted (amount, min-price, max-price) request. Quoters submit
+ * encrypted (price, amount) quotes. Requester accepts the best.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Users,
-  Plus,
-  Lock,
-  Clock,
-  MessageSquare,
-  ArrowRight,
-  Send,
-  X,
-  Anchor,
+  Users, Plus, X, Loader2, RefreshCw, Lock, Clock, CheckCircle2, AlertCircle,
+  Send, ArrowLeftRight,
 } from "lucide-react";
+import { useWallet } from "@/providers/WalletProvider";
+import { useCofhe } from "@/hooks/useCofhe";
+import { useEncrypt } from "@/hooks/useEncrypt";
+import { useUnseal } from "@/hooks/useUnseal";
+import { useContract, useReadContract } from "@/hooks/useContract";
+import { useBlockPoll, useAccountChangeReset } from "@/hooks/useBlockPoll";
+import { useToast, useModalEscape } from "@/components/shared/Toast";
+import { useTxFeedback } from "@/hooks/useTxFeedback";
+import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { FaucetButton } from "@/components/shared/FaucetButton";
+import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
+import { PrivacyLens } from "@/components/shared/PrivacyLens";
+import { CONTRACTS } from "@/lib/constants";
+import { parseAmount, isValidAddress, shortAddress, formatRemaining } from "@/lib/format";
 
-type RequestStatus = "ACTIVE" | "QUOTED" | "FILLED" | "EXPIRED";
-
-interface OTCRequest {
-  id: string;
-  poster: string;
-  tokenWanted: string;
-  tokenOffered: string;
+interface RequestData {
+  id: number;
+  requester: string;
+  tokenWant: string;
+  tokenOffer: string;
+  status: number; // 0 ACTIVE 1 MATCHED 2 CANCELLED 3 EXPIRED
   deadline: number;
-  status: RequestStatus;
   quoteCount: number;
 }
 
-const STATUS_STYLE: Record<RequestStatus, { label: string; color: string; bg: string }> = {
-  ACTIVE: { label: "Active", color: "text-indigo-400", bg: "bg-indigo-500/20" },
-  QUOTED: { label: "Quoted", color: "text-amber-400", bg: "bg-amber-500/20" },
-  FILLED: { label: "Filled", color: "text-emerald-400", bg: "bg-emerald-500/20" },
-  EXPIRED: { label: "Expired", color: "text-gray-400", bg: "bg-gray-500/20" },
+const STATUS_LABEL: Record<number, string> = { 0: "ACTIVE", 1: "MATCHED", 2: "CANCELLED", 3: "EXPIRED" };
+const STATUS_STYLE: Record<number, React.CSSProperties> = {
+  0: { color: "var(--text)", background: "var(--bg-card)", border: "1px dashed var(--border-dash)" },
+  1: { color: "var(--text)", background: "var(--bg-alt)", border: "1px dashed var(--border-dash)" },
+  2: { color: "var(--text-muted)", background: "var(--bg-alt)", border: "1px dashed var(--border-dash)" },
+  3: { color: "var(--text-muted)", background: "var(--bg-alt)", border: "1px dashed var(--border-dash)" },
 };
 
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
+type ModalView = "none" | "post" | "quote" | "quotes-picker";
 
-function formatDeadline(ts: number) {
-  const remaining = Math.max(0, ts - Math.floor(Date.now() / 1000));
-  if (remaining === 0) return "Expired";
-  const hours = Math.floor(remaining / 3600);
-  const mins = Math.floor((remaining % 3600) / 60);
-  return `${hours}h ${mins}m`;
+interface QuoteRow {
+  index: number;
+  quoter: string;
+  encQuotePrice: string;
+  encQuoteAmount: string;
+  accepted: boolean;
 }
 
 export default function OTCPage() {
   const { account } = useWallet();
-  const [requests] = useState<OTCRequest[]>([]);
-  const [showPostForm, setShowPostForm] = useState(false);
-  const [showQuoteForm, setShowQuoteForm] = useState<string | null>(null);
-  const [postForm, setPostForm] = useState({
-    tokenWanted: "cETH",
-    tokenOffered: "cUSDC",
-    encryptedAmount: "",
-    encryptedMinPrice: "",
-    encryptedMaxPrice: "",
-    deadline: "",
-  });
-  const [quoteForm, setQuoteForm] = useState({
-    encryptedPrice: "",
-    encryptedAmount: "",
-  });
+  const { initialized } = useCofhe();
+  const { encrypt } = useEncrypt();
+  const { unseal } = useUnseal();
+  const toast = useToast();
 
-  const handlePost = () => {
-    if (!account) return;
-    setShowPostForm(false);
-  };
+  const otcContract = useContract("OTCBoard");
+  const otcRead = useReadContract("OTCBoard");
 
-  const handleQuote = () => {
-    if (!account) return;
-    setShowQuoteForm(null);
+  const deployed = CONTRACTS.OTCBoard !== "0x0000000000000000000000000000000000000000";
+
+  const [requests, setRequests] = useState<RequestData[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [modalView, setModalView] = useState<ModalView>("none");
+  const [selectedRequest, setSelectedRequest] = useState<RequestData | null>(null);
+
+  // post request form
+  const [tokenWant, setTokenWant] = useState(CONTRACTS.ConfidentialToken);
+  const [tokenOffer, setTokenOffer] = useState(CONTRACTS.ConfidentialToken);
+  const [reqAmount, setReqAmount] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [reqDeadline, setReqDeadline] = useState("3600");
+
+  // quote form
+  const [quotePrice, setQuotePrice] = useState("");
+  const [quoteAmount, setQuoteAmount] = useState("");
+
+  const [txState, setTxState] = useState<TxState>("idle");
+  const [txHash, setTxHash] = useState<string | undefined>();
+  const [txError, setTxError] = useState<string | undefined>();
+  useTxFeedback(txState, { label: "OTC Desk", type: "trade", href: "/otc", txHash });
+
+  const modalProps = useModalEscape(modalView !== "none", () => setModalView("none"), "otc-modal-title");
+
+  /* ---------------------------------------------------------------- */
+  /* Fetch                                                             */
+  /* ---------------------------------------------------------------- */
+
+  const fetchRequests = useCallback(async () => {
+    if (!otcRead) return;
+    try {
+      const count = Number(await otcRead.getRequestCount());
+      const out: RequestData[] = [];
+      for (let i = 0; i < count; i++) {
+        try {
+          const r = await otcRead.getRequest(i);
+          out.push({
+            id: i,
+            requester: r[0],
+            tokenWant: r[1],
+            tokenOffer: r[2],
+            status: Number(r[3]),
+            deadline: Number(r[4]),
+            quoteCount: Number(r[5]),
+          });
+        } catch {
+          /* skip */
+        }
+      }
+      setRequests(out.reverse());
+    } catch {
+      /* noop */
+    }
+  }, [otcRead]);
+
+  const blockTick = useBlockPoll();
+  useEffect(() => {
+    if (deployed) fetchRequests();
+  }, [fetchRequests, refreshKey, blockTick, deployed]);
+  useAccountChangeReset(useCallback(() => setRefreshKey((k) => k + 1), []));
+
+  /* ---------------------------------------------------------------- */
+  /* Actions                                                           */
+  /* ---------------------------------------------------------------- */
+
+  const handlePost = useCallback(async () => {
+    if (!otcContract || !initialized) return;
+    if (!isValidAddress(tokenWant) || !isValidAddress(tokenOffer)) {
+      toast.error("Invalid tokens", "Both must be 0x + 40 hex");
+      return;
+    }
+    if (tokenWant === tokenOffer) {
+      toast.error("Invalid pair", "Tokens must differ");
+      return;
+    }
+    const amountBn = parseAmount(reqAmount);
+    const minBn = parseAmount(minPrice);
+    const maxBn = parseAmount(maxPrice);
+    if (amountBn === null || minBn === null || maxBn === null) {
+      toast.error("Invalid input", "Amount + prices must be positive numbers");
+      return;
+    }
+    const dur = Number(reqDeadline);
+    if (!Number.isFinite(dur) || dur < 60) {
+      toast.error("Invalid deadline", "≥ 60 seconds");
+      return;
+    }
+    setTxState("signing");
+    try {
+      const { Encryptable } = await import("cofhejs/web");
+      const enc = await encrypt([
+        Encryptable.uint128(amountBn),
+        Encryptable.uint128(minBn),
+        Encryptable.uint128(maxBn),
+      ]);
+      if (!enc) throw new Error("Encryption failed");
+
+      const deadlineTs = Math.floor(Date.now() / 1000) + dur;
+      const tx = await otcContract.postRequest(tokenWant, tokenOffer, enc[0], enc[1], enc[2], BigInt(deadlineTs));
+      setTxState("confirming");
+      setTxHash(tx.hash);
+      await tx.wait();
+      setTxState("success");
+      setReqAmount("");
+      setMinPrice("");
+      setMaxPrice("");
+      setModalView("none");
+      setRefreshKey((k) => k + 1);
+    } catch (err: unknown) {
+      setTxState("error");
+      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+      setTxError(msg);
+      toast.error("Post request failed", msg);
+    }
+  }, [otcContract, initialized, tokenWant, tokenOffer, reqAmount, minPrice, maxPrice, reqDeadline, encrypt, toast]);
+
+  const handleQuote = useCallback(async () => {
+    if (!otcContract || !initialized || !selectedRequest) return;
+    const priceBn = parseAmount(quotePrice);
+    const amtBn = parseAmount(quoteAmount);
+    if (priceBn === null || amtBn === null) {
+      toast.error("Invalid input", "Price and amount must be positive numbers");
+      return;
+    }
+    setTxState("signing");
+    try {
+      const { Encryptable } = await import("cofhejs/web");
+      const enc = await encrypt([Encryptable.uint128(priceBn), Encryptable.uint128(amtBn)]);
+      if (!enc) throw new Error("Encryption failed");
+      const tx = await otcContract.submitQuote(selectedRequest.id, enc[0], enc[1]);
+      setTxState("confirming");
+      setTxHash(tx.hash);
+      await tx.wait();
+      setTxState("success");
+      setQuotePrice("");
+      setQuoteAmount("");
+      setModalView("none");
+      setRefreshKey((k) => k + 1);
+    } catch (err: unknown) {
+      setTxState("error");
+      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+      setTxError(msg);
+      toast.error("Quote failed", msg);
+    }
+  }, [otcContract, initialized, selectedRequest, quotePrice, quoteAmount, encrypt, toast]);
+
+  const handleAccept = useCallback(
+    async (req: RequestData, quoteIndex: number) => {
+      if (!otcContract) return;
+      setTxState("signing");
+      try {
+        const tx = await otcContract.acceptQuote(req.id, quoteIndex);
+        setTxState("confirming");
+        setTxHash(tx.hash);
+        await tx.wait();
+        setTxState("success");
+        setRefreshKey((k) => k + 1);
+      } catch (err: unknown) {
+        setTxState("error");
+        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        setTxError(msg);
+        toast.error("Accept failed", msg);
+      }
+    },
+    [otcContract, toast],
+  );
+
+  const handleCancel = useCallback(
+    async (req: RequestData) => {
+      if (!otcContract) return;
+      setTxState("signing");
+      try {
+        const tx = await otcContract.cancelRequest(req.id);
+        setTxState("confirming");
+        setTxHash(tx.hash);
+        await tx.wait();
+        setTxState("success");
+        setRefreshKey((k) => k + 1);
+      } catch (err: unknown) {
+        setTxState("error");
+        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        setTxError(msg);
+        toast.error("Cancel failed", msg);
+      }
+    },
+    [otcContract, toast],
+  );
+
+  /** Permissionless sweep — anyone can mark a past-deadline request as EXPIRED. */
+  const handleExpire = useCallback(
+    async (req: RequestData) => {
+      if (!otcContract) return;
+      setTxState("signing");
+      try {
+        const tx = await otcContract.expireRequest(req.id);
+        setTxState("confirming");
+        setTxHash(tx.hash);
+        await tx.wait();
+        setTxState("success");
+        toast.success("Request expired", `Request #${req.id} swept to EXPIRED.`);
+        setRefreshKey((k) => k + 1);
+      } catch (err: unknown) {
+        setTxState("error");
+        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        setTxError(msg);
+        toast.error("Expire failed", msg);
+      }
+    },
+    [otcContract, toast],
+  );
+
+  /** Load all quotes for a request and open the picker modal. Fixes the audit
+   *  bug where requester could only "Accept first quote" (hardcoded index 0). */
+  const [quoteRows, setQuoteRows] = useState<QuoteRow[]>([]);
+  const openQuotesPicker = useCallback(
+    async (req: RequestData) => {
+      if (!otcRead) return;
+      setSelectedRequest(req);
+      setQuoteRows([]);
+      setModalView("quotes-picker");
+      try {
+        const rows: QuoteRow[] = [];
+        for (let i = 0; i < req.quoteCount; i++) {
+          const q = await otcRead.getQuote(req.id, i);
+          rows.push({
+            index: i,
+            quoter: q[0],
+            encQuotePrice: q[1].toString(),
+            encQuoteAmount: q[2].toString(),
+            accepted: q[3],
+          });
+        }
+        setQuoteRows(rows);
+      } catch (err: unknown) {
+        toast.error("Could not load quotes", err instanceof Error ? err.message.slice(0, 200) : "Read failed");
+      }
+    },
+    [otcRead, toast],
+  );
+
+  /* ---------------------------------------------------------------- */
+  /* Render                                                            */
+  /* ---------------------------------------------------------------- */
+
+  if (!deployed) {
+    return (
+      <main className="mx-auto px-5 md:px-10 py-12 max-w-[1180px]">
+        <ComingSoonBanner feature="OTC Desk" shipDate="Wave 4 deploy" />
+      </main>
+    );
+  }
+
+  return (
+    <main
+      className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body"
+      style={{ background: "var(--bg)", color: "var(--text)" }}
+    >
+      <header className="mb-10 space-y-6">
+        <div
+          className="font-mono text-[11px] uppercase tracking-[0.1em]"
+          style={{ color: "var(--text-muted)" }}
+        >
+          — OTC Desk
+        </div>
+        <div className="flex items-end justify-between flex-wrap gap-6">
+          <div className="max-w-2xl">
+            <h1
+              className="font-display font-bold tracking-tight leading-[1.02] mb-4"
+              style={{ fontSize: "clamp(38px, 5vw, 64px)", letterSpacing: "-0.04em" }}
+            >
+              Large trades,{" "}
+              <em className="font-serif italic font-normal">hidden quotes</em>.
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
+              Post an encrypted RFQ with a price range. Receive encrypted quotes from anyone.
+              Pick the best, swap atomically. Other quoters never see competing prices —
+              competition without leakage.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <FaucetButton />
+            <button
+              onClick={() => setRefreshKey((k) => k + 1)}
+              aria-label="Refresh"
+              className="p-3 transition-colors"
+              style={{
+                border: "1px dashed var(--border-dash)",
+                borderRadius: 8,
+                color: "var(--text-muted)",
+              }}
+            >
+              <RefreshCw size={14} />
+            </button>
+            <button
+              onClick={() => setModalView("post")}
+              disabled={!account}
+              className="flex items-center gap-2 px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+              style={{ background: "var(--text)", color: "var(--bg)", borderRadius: 8 }}
+            >
+              <Plus size={14} /> New request
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <hr style={{ border: "none", borderTop: "1px dashed var(--border-dash)" }} className="mb-10" />
+
+      {/* PRIVACY LENS — bound to the most recent request, or example data if none exist */}
+      <section className="mb-10">
+        <div className="font-mono text-[11px] uppercase tracking-[0.1em] mb-4" style={{ color: "var(--text-muted)" }}>
+          — Privacy lens · sample OTC request
+        </div>
+        {(() => {
+          const r = requests[0];
+          const want = r ? shortAddress(r.tokenWant) : "0xToken…A";
+          const offer = r ? shortAddress(r.tokenOffer) : "0xToken…B";
+          const requester = r ? shortAddress(r.requester) : "0x…";
+          return (
+            <PrivacyLens
+              title="What each role sees about an OTC request"
+              rows={[
+                {
+                  label: "Token pair",
+                  meValue: `${want} / ${offer}`,
+                  counterpartyValue: `${want} / ${offer}`,
+                  observerValue: `${want} / ${offer}`,
+                  encrypted: false,
+                },
+                {
+                  label: "Requester",
+                  meValue: requester,
+                  counterpartyValue: requester,
+                  observerValue: requester,
+                  encrypted: false,
+                },
+                {
+                  label: "Order size",
+                  meValue: "Your exact size",
+                  counterpartyValue: "🔒 sealed (only the matched amount is revealed post-trade)",
+                  observerValue: "🔒 sealed",
+                  encrypted: true,
+                },
+                {
+                  label: "Price range",
+                  meValue: "Your min / max",
+                  counterpartyValue: "🔒 sealed (their quote settles iff in range, zero otherwise)",
+                  observerValue: "🔒 sealed",
+                  encrypted: true,
+                },
+                {
+                  label: "Quote price (when quoter)",
+                  meValue: "Your quoted price (unsealable by you)",
+                  counterpartyValue: "Your quote — readable; their range — sealed",
+                  observerValue: "🔒 sealed",
+                  encrypted: true,
+                },
+                {
+                  label: "Match outcome",
+                  meValue: r && r.status === 1 ? "MATCHED" : r ? "Pending" : "—",
+                  counterpartyValue: r && r.status === 1 ? "MATCHED" : r ? "Pending" : "—",
+                  observerValue: r && r.status === 1 ? "MATCHED" : r ? "Pending" : "—",
+                  encrypted: false,
+                },
+              ]}
+            />
+          );
+        })()}
+      </section>
+
+      <TransactionStatus state={txState} txHash={txHash} error={txError} onDismiss={() => setTxState("idle")} />
+
+      <section className="grid gap-4">
+        {requests.length === 0 ? (
+          <div
+            className="p-12 text-center"
+            style={{
+              background: "var(--bg-card)",
+              border: "1px dashed var(--border-dash)",
+              borderRadius: 4,
+            }}
+          >
+            <ArrowLeftRight size={24} className="mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
+            <p
+              className="font-mono text-[11px] uppercase tracking-[0.1em]"
+              style={{ color: "var(--text-muted)" }}
+            >
+              No OTC requests yet
+            </p>
+          </div>
+        ) : (
+          requests.map((r) => {
+            const style = STATUS_STYLE[r.status];
+            const isMine = account && account.toLowerCase() === r.requester.toLowerCase();
+            return (
+              <article
+                key={r.id}
+                className="p-6"
+                style={{
+                  background: "var(--bg-card)",
+                  border: "1px dashed var(--border-dash)",
+                  borderRadius: 4,
+                }}
+              >
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="text-[11px] font-mono"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      #{r.id}
+                    </span>
+                    <span
+                      className="px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.1em] font-medium"
+                      style={{ ...style, borderRadius: 4 }}
+                    >
+                      {STATUS_LABEL[r.status]}
+                    </span>
+                    <span
+                      className="text-[11px] font-mono"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      by {shortAddress(r.requester)}
+                    </span>
+                    {isMine && (
+                      <span
+                        className="text-[10px] font-mono uppercase tracking-[0.1em]"
+                        style={{ color: "var(--text)" }}
+                      >
+                        yours
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className="text-[11px] flex items-center gap-1.5 font-mono"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    <Clock size={11} />
+                    {r.status === 0 ? formatRemaining(r.deadline) : "ended"}
+                  </span>
+                </div>
+                <div className="mt-5 grid md:grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <div
+                      className="font-mono text-[10px] uppercase tracking-[0.1em] mb-1"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Want
+                    </div>
+                    <div className="font-mono" style={{ color: "var(--text)" }}>
+                      {shortAddress(r.tokenWant)}
+                    </div>
+                  </div>
+                  <div>
+                    <div
+                      className="font-mono text-[10px] uppercase tracking-[0.1em] mb-1"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Offer
+                    </div>
+                    <div className="font-mono" style={{ color: "var(--text)" }}>
+                      {shortAddress(r.tokenOffer)}
+                    </div>
+                  </div>
+                  <div>
+                    <div
+                      className="font-mono text-[10px] uppercase tracking-[0.1em] mb-1"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Quotes
+                    </div>
+                    <div
+                      className="font-display text-lg font-semibold"
+                      style={{ color: "var(--text)" }}
+                    >
+                      {r.quoteCount}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-5 flex items-center gap-2 flex-wrap">
+                  {r.status === 0 && account && !isMine && (
+                    <button
+                      onClick={() => {
+                        setSelectedRequest(r);
+                        setModalView("quote");
+                      }}
+                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-80"
+                      style={{ background: "var(--text)", color: "var(--bg)", borderRadius: 8 }}
+                    >
+                      <Send size={11} /> Submit quote
+                    </button>
+                  )}
+                  {r.status === 0 && isMine && r.quoteCount > 0 && (
+                    <button
+                      onClick={() => openQuotesPicker(r)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-80"
+                      style={{ background: "var(--text)", color: "var(--bg)", borderRadius: 8 }}
+                    >
+                      <CheckCircle2 size={11} /> Choose quote ({r.quoteCount})
+                    </button>
+                  )}
+                  {r.status === 0 && isMine && (
+                    <button
+                      onClick={() => handleCancel(r)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors"
+                      style={{
+                        background: "transparent",
+                        border: "1px dashed var(--border-dash)",
+                        color: "var(--text-muted)",
+                        borderRadius: 8,
+                      }}
+                    >
+                      <X size={11} /> Cancel
+                    </button>
+                  )}
+                  {r.status === 0 && r.deadline > 0 && Math.floor(Date.now() / 1000) >= r.deadline && (
+                    <button
+                      onClick={() => handleExpire(r)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium transition-colors"
+                      style={{
+                        background: "transparent",
+                        border: "1px dashed var(--border-dash)",
+                        color: "var(--text-muted)",
+                        borderRadius: 8,
+                      }}
+                      title="Anyone can sweep expired requests"
+                    >
+                      <Clock size={11} /> Sweep expired
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })
+        )}
+      </section>
+
+      <AnimatePresence>
+        {modalView !== "none" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm p-4"
+            style={{ background: "rgba(17, 17, 17, 0.4)" }}
+            onClick={() => setModalView("none")}
+            {...modalProps}
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md p-7 space-y-5 max-h-[90vh] overflow-y-auto"
+              style={{
+                background: "var(--bg-card)",
+                border: "1px dashed var(--border-dash)",
+                borderRadius: 4,
+              }}
+            >
+              {modalView === "post" && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h3
+                      id="otc-modal-title"
+                      className="font-display text-xl font-semibold flex items-center gap-2"
+                      style={{ letterSpacing: "-0.02em" }}
+                    >
+                      <Users size={16} style={{ color: "var(--text-muted)" }} /> New OTC request
+                    </h3>
+                    <button
+                      onClick={() => setModalView("none")}
+                      aria-label="Close modal"
+                      className="p-1 rounded-lg transition-colors hover:opacity-80"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  {[
+                    { label: "Token you want", value: tokenWant, set: setTokenWant, placeholder: "0x...", mono: true },
+                    { label: "Token you offer", value: tokenOffer, set: setTokenOffer, placeholder: "0x...", mono: true },
+                  ].map((f) => (
+                    <div key={f.label} className="space-y-2">
+                      <label
+                        className="font-mono text-[10px] uppercase tracking-[0.1em]"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        {f.label}
+                      </label>
+                      <input
+                        value={f.value}
+                        onChange={(e) => f.set(e.target.value)}
+                        placeholder={f.placeholder}
+                        className={`w-full px-3 py-2.5 text-sm focus:outline-none ${f.mono ? "font-mono" : ""}`}
+                        style={{
+                          background: "var(--bg)",
+                          border: "1px dashed var(--border-dash)",
+                          borderRadius: 4,
+                          color: "var(--text)",
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <div className="space-y-2">
+                    <label
+                      className="font-mono text-[10px] uppercase tracking-[0.1em] flex items-center gap-1.5"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      <Lock size={10} /> Amount wanted [ENCRYPTED]
+                    </label>
+                    <input
+                      value={reqAmount}
+                      onChange={(e) => setReqAmount(e.target.value)}
+                      placeholder="500"
+                      className="w-full px-3 py-2.5 text-sm focus:outline-none"
+                      style={{
+                        background: "var(--bg)",
+                        border: "1px dashed var(--border-dash)",
+                        borderRadius: 4,
+                        color: "var(--text)",
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "Min price", value: minPrice, set: setMinPrice, placeholder: "100" },
+                      { label: "Max price", value: maxPrice, set: setMaxPrice, placeholder: "200" },
+                    ].map((f) => (
+                      <div key={f.label} className="space-y-2">
+                        <label
+                          className="font-mono text-[10px] uppercase tracking-[0.1em] flex items-center gap-1.5"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          <Lock size={10} /> {f.label}
+                        </label>
+                        <input
+                          value={f.value}
+                          onChange={(e) => f.set(e.target.value)}
+                          placeholder={f.placeholder}
+                          className="w-full px-3 py-2.5 text-sm focus:outline-none"
+                          style={{
+                            background: "var(--bg)",
+                            border: "1px dashed var(--border-dash)",
+                            borderRadius: 4,
+                            color: "var(--text)",
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <label
+                      className="font-mono text-[10px] uppercase tracking-[0.1em]"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      Deadline (seconds from now)
+                    </label>
+                    <input
+                      value={reqDeadline}
+                      onChange={(e) => setReqDeadline(e.target.value)}
+                      type="number"
+                      min={60}
+                      className="w-full px-3 py-2.5 text-sm focus:outline-none"
+                      style={{
+                        background: "var(--bg)",
+                        border: "1px dashed var(--border-dash)",
+                        borderRadius: 4,
+                        color: "var(--text)",
+                      }}
+                    />
+                  </div>
+                  {!initialized && (
+                    <div
+                      className="p-3 flex items-center gap-2 text-xs"
+                      style={{
+                        background: "var(--bg-alt)",
+                        border: "1px dashed var(--border-dash)",
+                        borderRadius: 4,
+                      }}
+                    >
+                      <AlertCircle size={12} className="shrink-0" style={{ color: "var(--text-muted)" }} />
+                      <span style={{ color: "var(--text-muted)" }}>Initializing FHE encryption…</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={handlePost}
+                    disabled={!initialized || !reqAmount || !minPrice || !maxPrice || txState === "signing" || txState === "confirming"}
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+                    style={{ background: "var(--text)", color: "var(--bg)", borderRadius: 8 }}
+                  >
+                    {txState === "signing" || txState === "confirming" ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <CheckCircle2 size={14} />
+                    )}
+                    Encrypt &amp; post
+                  </button>
+                </>
+              )}
+
+              {modalView === "quote" && selectedRequest && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h3
+                      className="font-display text-xl font-semibold flex items-center gap-2"
+                      style={{ letterSpacing: "-0.02em" }}
+                    >
+                      <Send size={16} style={{ color: "var(--text-muted)" }} /> Submit quote
+                    </h3>
+                    <button
+                      onClick={() => setModalView("none")}
+                      aria-label="Close modal"
+                      className="p-1 rounded-lg transition-colors hover:opacity-80"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  {[
+                    { label: "Price per unit [ENCRYPTED]", value: quotePrice, set: setQuotePrice, placeholder: "150" },
+                    { label: "Amount offered [ENCRYPTED]", value: quoteAmount, set: setQuoteAmount, placeholder: "500" },
+                  ].map((f) => (
+                    <div key={f.label} className="space-y-2">
+                      <label
+                        className="font-mono text-[10px] uppercase tracking-[0.1em] flex items-center gap-1.5"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        <Lock size={10} /> {f.label}
+                      </label>
+                      <input
+                        value={f.value}
+                        onChange={(e) => f.set(e.target.value)}
+                        placeholder={f.placeholder}
+                        className="w-full px-3 py-2.5 text-sm focus:outline-none"
+                        style={{
+                          background: "var(--bg)",
+                          border: "1px dashed var(--border-dash)",
+                          borderRadius: 4,
+                          color: "var(--text)",
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <button
+                    onClick={handleQuote}
+                    disabled={!initialized || !quotePrice || !quoteAmount || txState === "signing" || txState === "confirming"}
+                    className="w-full flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+                    style={{ background: "var(--text)", color: "var(--bg)", borderRadius: 8 }}
+                  >
+                    {txState === "signing" || txState === "confirming" ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Send size={14} />
+                    )}
+                    Encrypt &amp; submit
+                  </button>
+                </>
+              )}
+
+              {modalView === "quotes-picker" && selectedRequest && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h3
+                      className="font-display text-xl font-semibold flex items-center gap-2"
+                      style={{ letterSpacing: "-0.02em" }}
+                    >
+                      <CheckCircle2 size={16} style={{ color: "var(--text-muted)" }} />
+                      Choose a quote
+                    </h3>
+                    <button
+                      onClick={() => setModalView("none")}
+                      aria-label="Close modal"
+                      className="p-1 rounded-lg transition-colors hover:opacity-80"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    Quote prices are encrypted on-chain. Tap <em>Unseal</em> to view each one locally
+                    (your permit grants access), then accept the best.
+                  </p>
+                  {quoteRows.length === 0 ? (
+                    <div className="py-8 text-center font-mono text-[11px]" style={{ color: "var(--text-muted)" }}>
+                      Loading quotes…
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {quoteRows.map((q) => (
+                        <QuoteRowCard
+                          key={q.index}
+                          row={q}
+                          unseal={unseal}
+                          onAccept={() => {
+                            handleAccept(selectedRequest, q.index);
+                            setModalView("none");
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </main>
+  );
+}
+
+/** Single quote row in the picker modal. Lets the requester unseal price+amount
+ *  client-side (cofhejs uses their permit, granted at submitQuote time via FHE.allow)
+ *  and accept the best one. */
+function QuoteRowCard({
+  row,
+  unseal,
+  onAccept,
+}: {
+  row: QuoteRow;
+  unseal: (h: bigint, t: number) => Promise<bigint | null>;
+  onAccept: () => void;
+}) {
+  const [price, setPrice] = useState<string | null>(null);
+  const [amount, setAmount] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const handleUnseal = async () => {
+    setBusy(true);
+    try {
+      const p = await unseal(BigInt(row.encQuotePrice), 6); // Uint128
+      const a = await unseal(BigInt(row.encQuoteAmount), 6);
+      if (p !== null) setPrice(p.toString());
+      if (a !== null) setAmount(a.toString());
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <div className="space-y-6 max-w-6xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-indigo-600/20 flex items-center justify-center">
-            <Users size={20} className="text-indigo-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold gradient-text">Private OTC Board</h1>
-            <p className="text-sm text-gray-400">
-              Large-block trades with hidden request amounts
-            </p>
-          </div>
+    <div
+      className="p-3 flex items-center justify-between gap-3"
+      style={{ border: "1px dashed var(--border-dash)", borderRadius: 4, background: "var(--bg-card)" }}
+    >
+      <div className="space-y-1 min-w-0">
+        <div className="font-mono text-[10px] uppercase tracking-[0.1em]" style={{ color: "var(--text-muted)" }}>
+          QUOTER · {row.quoter.slice(0, 6)}…{row.quoter.slice(-4)}
         </div>
-        {account && (
+        <div className="text-sm">
+          Price:&nbsp;
+          {price !== null ? (
+            <span className="font-mono" style={{ color: "var(--text)" }}>{price}</span>
+          ) : (
+            <span className="font-mono" style={{ color: "var(--text-muted)" }}>🔒 sealed</span>
+          )}
+          &nbsp;·&nbsp;Amount:&nbsp;
+          {amount !== null ? (
+            <span className="font-mono" style={{ color: "var(--text)" }}>{amount}</span>
+          ) : (
+            <span className="font-mono" style={{ color: "var(--text-muted)" }}>🔒 sealed</span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {price === null && (
           <button
-            onClick={() => setShowPostForm(!showPostForm)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-sm font-medium hover:bg-indigo-600/30 transition-colors"
+            onClick={handleUnseal}
+            disabled={busy}
+            className="px-3 py-1.5 text-[11px] font-medium transition-opacity hover:opacity-80 disabled:opacity-40"
+            style={{ border: "1px dashed var(--border-dash)", borderRadius: 6 }}
           >
-            <Plus size={16} />
-            Post Request
+            {busy ? "…" : "Unseal"}
           </button>
         )}
+        <button
+          onClick={onAccept}
+          disabled={row.accepted}
+          className="px-3 py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+          style={{ background: "var(--text)", color: "var(--bg)", borderRadius: 6 }}
+        >
+          {row.accepted ? "Accepted" : "Accept"}
+        </button>
       </div>
-
-      {/* Whale Note */}
-      <div className="glass rounded-xl p-4 flex items-start gap-3 border-l-2 border-indigo-500/50">
-        <Anchor size={16} className="text-indigo-400 mt-0.5 shrink-0" />
-        <p className="text-xs text-gray-400">
-          Order sizes are encrypted — trade large volumes without moving the market. Counterparties
-          see your request exists but not the size. Quotes are verified with{" "}
-          <span className="text-indigo-300 font-mono">FHE.gte()</span> and{" "}
-          <span className="text-indigo-300 font-mono">FHE.lte()</span> to stay within your range.
-        </p>
-      </div>
-
-      {/* Post Request Form */}
-      {showPostForm && (
-        <div className="glass rounded-xl p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-200">Post OTC Request</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-gray-400 block mb-1.5">Token Wanted</label>
-              <select
-                value={postForm.tokenWanted}
-                onChange={(e) => setPostForm({ ...postForm, tokenWanted: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-sm text-gray-200 focus:border-indigo-500/40 focus:outline-none"
-              >
-                <option value="cETH">cETH</option>
-                <option value="cUSDC">cUSDC</option>
-                <option value="cDAI">cDAI</option>
-                <option value="cWBTC">cWBTC</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-400 block mb-1.5">Token Offered</label>
-              <select
-                value={postForm.tokenOffered}
-                onChange={(e) => setPostForm({ ...postForm, tokenOffered: e.target.value })}
-                className="w-full px-3 py-2.5 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-sm text-gray-200 focus:border-indigo-500/40 focus:outline-none"
-              >
-                <option value="cUSDC">cUSDC</option>
-                <option value="cETH">cETH</option>
-                <option value="cDAI">cDAI</option>
-                <option value="cWBTC">cWBTC</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-400 block mb-1.5">
-                Encrypted Amount
-                <Lock size={10} className="inline ml-1 text-indigo-400" />
-              </label>
-              <input
-                type="number"
-                value={postForm.encryptedAmount}
-                onChange={(e) => setPostForm({ ...postForm, encryptedAmount: e.target.value })}
-                placeholder="Hidden from others"
-                className="w-full px-3 py-2.5 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-sm text-gray-200 placeholder:text-gray-600 focus:border-indigo-500/40 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-400 block mb-1.5">Deadline (hours)</label>
-              <input
-                type="number"
-                value={postForm.deadline}
-                onChange={(e) => setPostForm({ ...postForm, deadline: e.target.value })}
-                placeholder="e.g. 24"
-                className="w-full px-3 py-2.5 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-sm text-gray-200 placeholder:text-gray-600 focus:border-indigo-500/40 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-400 block mb-1.5">
-                Encrypted Min Price
-                <Lock size={10} className="inline ml-1 text-indigo-400" />
-              </label>
-              <input
-                type="number"
-                value={postForm.encryptedMinPrice}
-                onChange={(e) => setPostForm({ ...postForm, encryptedMinPrice: e.target.value })}
-                placeholder="Minimum acceptable"
-                className="w-full px-3 py-2.5 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-sm text-gray-200 placeholder:text-gray-600 focus:border-indigo-500/40 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-gray-400 block mb-1.5">
-                Encrypted Max Price
-                <Lock size={10} className="inline ml-1 text-indigo-400" />
-              </label>
-              <input
-                type="number"
-                value={postForm.encryptedMaxPrice}
-                onChange={(e) => setPostForm({ ...postForm, encryptedMaxPrice: e.target.value })}
-                placeholder="Maximum acceptable"
-                className="w-full px-3 py-2.5 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-sm text-gray-200 placeholder:text-gray-600 focus:border-indigo-500/40 focus:outline-none"
-              />
-            </div>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={handlePost}
-              className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm font-medium hover:from-indigo-500 hover:to-purple-500 transition-all"
-            >
-              Post Request
-            </button>
-            <button
-              onClick={() => setShowPostForm(false)}
-              className="px-5 py-2.5 rounded-lg border border-gray-700 text-gray-400 text-sm hover:text-gray-200 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Request Grid */}
-      {!account ? (
-        <div className="glass rounded-xl p-12 text-center space-y-3">
-          <Lock size={32} className="text-indigo-400/50 mx-auto" />
-          <p className="text-gray-400 text-sm">Connect your wallet to view and post OTC requests</p>
-        </div>
-      ) : requests.length === 0 ? (
-        <div className="glass rounded-xl p-12 text-center space-y-3">
-          <Users size={32} className="text-indigo-400/30 mx-auto" />
-          <p className="text-gray-400 text-sm">No OTC requests posted yet. Be the first to post a private trade request.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {requests.map((req) => {
-            const statusConf = STATUS_STYLE[req.status];
-            return (
-              <div key={req.id} className="glass rounded-xl p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 font-mono">{truncateAddress(req.poster)}</span>
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${statusConf.color} ${statusConf.bg}`}>
-                    {statusConf.label}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-200">Want</span>
-                    <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 text-xs font-mono">
-                      {req.tokenWanted}
-                    </span>
-                  </div>
-                  <ArrowRight size={14} className="text-gray-600" />
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-200">Offer</span>
-                    <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 text-xs font-mono">
-                      {req.tokenOffered}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Lock size={10} className="text-purple-400" />
-                    Amount encrypted
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock size={10} />
-                    {formatDeadline(req.deadline)}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <MessageSquare size={10} />
-                    {req.quoteCount} quotes
-                  </div>
-                </div>
-                {req.status === "ACTIVE" && req.poster.toLowerCase() !== account?.toLowerCase() && (
-                  <>
-                    {showQuoteForm === req.id ? (
-                      <div className="pt-2 border-t border-purple-500/10 space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-xs text-gray-400 block mb-1">
-                              Quote Price <Lock size={8} className="inline text-indigo-400" />
-                            </label>
-                            <input
-                              type="number"
-                              value={quoteForm.encryptedPrice}
-                              onChange={(e) => setQuoteForm({ ...quoteForm, encryptedPrice: e.target.value })}
-                              placeholder="Your price"
-                              className="w-full px-2.5 py-2 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-xs text-gray-200 placeholder:text-gray-600 focus:border-indigo-500/40 focus:outline-none"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-400 block mb-1">
-                              Quote Amount <Lock size={8} className="inline text-indigo-400" />
-                            </label>
-                            <input
-                              type="number"
-                              value={quoteForm.encryptedAmount}
-                              onChange={(e) => setQuoteForm({ ...quoteForm, encryptedAmount: e.target.value })}
-                              placeholder="Your amount"
-                              className="w-full px-2.5 py-2 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-xs text-gray-200 placeholder:text-gray-600 focus:border-indigo-500/40 focus:outline-none"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleQuote}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-xs hover:bg-indigo-600/30 transition-colors"
-                          >
-                            <Send size={10} />
-                            Submit Quote
-                          </button>
-                          <button
-                            onClick={() => setShowQuoteForm(null)}
-                            className="px-3 py-1.5 rounded-lg border border-gray-700 text-gray-500 text-xs hover:text-gray-300 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowQuoteForm(req.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-xs font-medium hover:bg-indigo-600/30 transition-colors"
-                      >
-                        <MessageSquare size={12} />
-                        Submit Quote
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

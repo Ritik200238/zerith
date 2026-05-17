@@ -2,11 +2,14 @@
 
 import { useWallet } from "@/providers/WalletProvider";
 import { useCofhe } from "@/hooks/useCofhe";
+import { FHENIX_TESTNET } from "@/lib/constants";
 import { Wallet, LogOut, AlertTriangle, Loader2 } from "lucide-react";
 
 /**
- * Wallet connection button with status indicators.
- * Shows: connect prompt | connecting spinner | wrong chain warning | connected address + FHE status
+ * Wallet connection control — editorial style.
+ * - Disconnected: dark primary "Connect Wallet" button
+ * - Wrong chain: outline button prompting network switch
+ * - Connected: short address chip + FHE pulse dot + disconnect
  */
 export function WalletConnect() {
   const { account, connecting, isCorrectChain, error, connect, disconnect, switchToFhenix } =
@@ -18,23 +21,20 @@ export function WalletConnect() {
     return (
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={connect}
           disabled={connecting}
-          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
-                     bg-gradient-to-r from-purple-600 to-blue-600 text-white
-                     hover:from-purple-500 hover:to-blue-500
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     transition-all duration-200"
+          className="btn btn-primary btn-sm"
         >
           {connecting ? (
-            <Loader2 size={16} className="animate-spin" />
+            <Loader2 size={14} className="animate-spin" />
           ) : (
-            <Wallet size={16} />
+            <Wallet size={14} />
           )}
-          {connecting ? "Connecting..." : "Connect Wallet"}
+          <span>{connecting ? "Connecting..." : "Connect Wallet"}</span>
         </button>
         {error && (
-          <span className="text-xs text-red-400 max-w-48 truncate" title={error}>
+          <span className="text-xs text-danger max-w-48 truncate" title={error}>
             {error}
           </span>
         )}
@@ -47,61 +47,62 @@ export function WalletConnect() {
     return (
       <div className="flex items-center gap-2">
         <button
+          type="button"
           onClick={switchToFhenix}
-          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
-                     bg-amber-600/20 border border-amber-500/40 text-amber-300
-                     hover:bg-amber-600/30 transition-all duration-200"
+          className="btn btn-outline btn-sm"
         >
-          <AlertTriangle size={16} />
-          Switch to Fhenix
+          <AlertTriangle size={14} className="text-warning" />
+          <span>Switch to {FHENIX_TESTNET.name}</span>
         </button>
         <button
+          type="button"
           onClick={disconnect}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+          className="p-2 rounded text-textMuted hover:text-text hover:bg-bgAlt transition-colors"
           title="Disconnect"
+          aria-label="Disconnect wallet"
         >
-          <LogOut size={16} />
+          <LogOut size={14} />
         </button>
       </div>
     );
   }
 
   // Connected + correct chain
-  const shortAddr = `${account.slice(0, 6)}...${account.slice(-4)}`;
+  const shortAddr = `${account.slice(0, 6)}…${account.slice(-4)}`;
+
+  const fheLabel = initialized ? "FHE Ready" : initializing ? "Initializing" : "FHE Offline";
+  const fheColor = initialized ? "bg-success" : initializing ? "bg-warning animate-pulse" : "bg-textMuted";
 
   return (
-    <div className="flex items-center gap-3">
-      {/* FHE Status indicator */}
-      <div className="flex items-center gap-1.5">
-        <div
-          className={`w-2 h-2 rounded-full ${
-            initialized
-              ? "bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.6)]"
-              : initializing
-                ? "bg-amber-400 animate-pulse"
-                : "bg-gray-500"
-          }`}
-        />
-        <span className="text-xs text-gray-400">
-          {initialized ? "FHE Ready" : initializing ? "Initializing FHE..." : "FHE Offline"}
+    <div className="flex items-center gap-2">
+      {/* FHE status pip */}
+      <div
+        className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded border border-dashed border-borderDash bg-bgCard"
+        title={fheLabel}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${fheColor}`} />
+        <span className="font-mono text-[10px] uppercase tracking-wider text-textMuted">
+          {fheLabel}
         </span>
       </div>
 
       {/* Address chip */}
       <div
-        className="flex items-center gap-2 rounded-lg px-3 py-2
-                    glass text-sm font-mono text-gray-200"
+        className="flex items-center gap-2 px-3 py-1.5 rounded border border-dashed border-borderDash bg-bgCard font-mono text-xs text-text"
+        title={account}
       >
-        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+        <span className="w-1.5 h-1.5 rounded-full bg-success" />
         {shortAddr}
       </div>
 
       <button
+        type="button"
         onClick={disconnect}
-        className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+        className="p-2 rounded text-textMuted hover:text-text hover:bg-bgAlt transition-colors"
         title="Disconnect"
+        aria-label="Disconnect wallet"
       >
-        <LogOut size={16} />
+        <LogOut size={14} />
       </button>
     </div>
   );

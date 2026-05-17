@@ -30,6 +30,13 @@ import AuctionClaimAbi from "./abis/AuctionClaim.json";
 import TokenVestingAbi from "./abis/TokenVesting.json";
 import AllowlistGateAbi from "./abis/AllowlistGate.json";
 import ReferralsAbi from "./abis/Referrals.json";
+import OrganizationAbi from "./abis/Organization.json";
+import EncryptedStreamingAbi from "./abis/EncryptedStreaming.json";
+import ConfidentialMultisigAbi from "./abis/ConfidentialMultisig.json";
+import EncryptedRoyaltyAbi from "./abis/EncryptedRoyalty.json";
+import ConfidentialWrapperAbi from "./abis/ConfidentialWrapper.json";
+import EncryptedRaffleAbi from "./abis/EncryptedRaffle.json";
+import ProofOfReservesAbi from "./abis/ProofOfReserves.json";
 
 /** Map contract names to their ABIs */
 export const ABIS: Record<ContractName, ethers.InterfaceAbi> = {
@@ -53,6 +60,13 @@ export const ABIS: Record<ContractName, ethers.InterfaceAbi> = {
   TokenVesting: TokenVestingAbi as unknown as ethers.InterfaceAbi,
   AllowlistGate: AllowlistGateAbi as unknown as ethers.InterfaceAbi,
   Referrals: ReferralsAbi as unknown as ethers.InterfaceAbi,
+  Organization: OrganizationAbi as unknown as ethers.InterfaceAbi,
+  EncryptedStreaming: EncryptedStreamingAbi as unknown as ethers.InterfaceAbi,
+  ConfidentialMultisig: ConfidentialMultisigAbi as unknown as ethers.InterfaceAbi,
+  EncryptedRoyalty: EncryptedRoyaltyAbi as unknown as ethers.InterfaceAbi,
+  ConfidentialWrapper: ConfidentialWrapperAbi as unknown as ethers.InterfaceAbi,
+  EncryptedRaffle: EncryptedRaffleAbi as unknown as ethers.InterfaceAbi,
+  ProofOfReserves: ProofOfReservesAbi as unknown as ethers.InterfaceAbi,
 };
 
 /**

@@ -2,22 +2,58 @@
 
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
+import { OnboardingModal } from "@/components/shared/OnboardingModal";
+import { SystemStatus } from "@/components/shared/SystemStatus";
 
+/**
+ * Zerith editorial app shell.
+ * - Warm off-white canvas (var(--bg))
+ * - Fixed left sidebar (68px collapsed, 240px hover-expanded) on md+
+ * - Fixed top navbar (64px) with dashed bottom border
+ * - Responsive content max-width 1180px on wide screens, fluid below
+ * - Global mounts: OnboardingModal (first-visit), SystemStatus (footer bar)
+ *   Toast is already mounted inside Providers.
+ */
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grain">
-      {/* Ambient background glows */}
-      <div className="ambient-glow w-[600px] h-[600px] bg-[var(--cipher-violet)] opacity-[0.03] -top-40 -left-40" />
-      <div className="ambient-glow w-[500px] h-[500px] bg-[var(--cipher-cyan)] opacity-[0.02] top-1/2 -right-60" style={{ animationDelay: "4s" }} />
-      <div className="ambient-glow w-[400px] h-[400px] bg-[var(--cipher-blue)] opacity-[0.02] -bottom-20 left-1/3" style={{ animationDelay: "2s" }} />
-
+    <div className="min-h-screen bg-bg text-text relative">
       <Sidebar />
       <Navbar />
-      <main className="ml-[68px] mt-14 min-h-[calc(100vh-3.5rem)] relative z-10">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+
+      <main
+        className="md:ml-[68px] min-h-[calc(100vh-var(--nav-height))] relative z-10"
+        style={{ marginTop: "var(--nav-height)" }}
+      >
+        <div className="mx-auto w-full max-w-container px-5 md:px-10 py-10 md:py-14">
           {children}
         </div>
+
+        {/* Editorial footer with live system pulse */}
+        <footer
+          className="md:ml-0 mt-16"
+          style={{ borderTop: "1px dashed var(--border-dash)" }}
+        >
+          <div className="mx-auto w-full max-w-container px-5 md:px-10 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted">
+                — System Status
+              </span>
+            </div>
+            <SystemStatus />
+          </div>
+          <div className="mx-auto w-full max-w-container px-5 md:px-10 pb-6 flex items-center justify-between">
+            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted">
+              CipherDEX · Fhenix FHE
+            </span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted">
+              v1.0 · Buildathon
+            </span>
+          </div>
+        </footer>
       </main>
+
+      {/* Global mounts */}
+      <OnboardingModal />
     </div>
   );
 }

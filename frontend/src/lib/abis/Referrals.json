@@ -1,379 +1,370 @@
-{
-  "_format": "hh-sol-artifact-1",
-  "contractName": "Referrals",
-  "sourceName": "contracts/core/Referrals.sol",
-  "abi": [
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_vault",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "constructor"
-    },
-    {
-      "inputs": [],
-      "name": "InvalidInput",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "InvalidState",
-      "type": "error"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "int32",
-          "name": "value",
-          "type": "int32"
-        }
-      ],
-      "name": "SecurityZoneOutOfBounds",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "Unauthorized",
-      "type": "error"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "codeHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "ReferralDeactivated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "codeHash",
-          "type": "bytes32"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "referrer",
-          "type": "address"
-        }
-      ],
-      "name": "ReferralLinkCreated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "codeHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "ReferralRewardPaid",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "bytes32",
-          "name": "codeHash",
-          "type": "bytes32"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        }
-      ],
-      "name": "ReferralUsed",
-      "type": "event"
-    },
-    {
-      "inputs": [],
-      "name": "DEFAULT_REWARD_BPS",
-      "outputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "MAX_REWARD_BPS",
-      "outputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "referralCode",
-          "type": "string"
-        },
-        {
-          "internalType": "uint16",
-          "name": "rewardBps",
-          "type": "uint16"
-        }
-      ],
-      "name": "createLink",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "deactivateLink",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "codeHash",
-          "type": "bytes32"
-        }
-      ],
-      "name": "getLinkStats",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "referrer",
-          "type": "address"
-        },
-        {
-          "internalType": "uint16",
-          "name": "rewardBps",
-          "type": "uint16"
-        },
-        {
-          "internalType": "uint256",
-          "name": "referralCount",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "active",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "getMyEarnings",
-      "outputs": [
-        {
-          "internalType": "euint64",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        }
-      ],
-      "name": "getReferralRewardBps",
-      "outputs": [
-        {
-          "internalType": "uint16",
-          "name": "",
-          "type": "uint16"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        }
-      ],
-      "name": "isReferred",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "name": "links",
-      "outputs": [
-        {
-          "internalType": "address",
-          "name": "referrer",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "codeHash",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "uint16",
-          "name": "rewardBps",
-          "type": "uint16"
-        },
-        {
-          "internalType": "euint64",
-          "name": "encTotalEarned",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "uint256",
-          "name": "referralCount",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bool",
-          "name": "active",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "internalType": "address",
-          "name": "token",
-          "type": "address"
-        },
-        {
-          "internalType": "uint64",
-          "name": "platformFee",
-          "type": "uint64"
-        }
-      ],
-      "name": "payReferralReward",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "referrerToCode",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "string",
-          "name": "referralCode",
-          "type": "string"
-        }
-      ],
-      "name": "useReferralCode",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "userReferredBy",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "vault",
-      "outputs": [
-        {
-          "internalType": "contract ISettlementVault",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    }
-  ],
-  "bytecode": "0x6080604090808252346102ae5780611277803803809161001f8285610388565b83396020928391810103126102ae57516001600160a01b038116908190036102ae57801561032d57600380546001600160a01b03191691909117905581516100668161033e565b5f81528251906100758261036d565b60038252606036848401375f61008a8361044b565b5260056100968361046c565b525f6100a18361047c565b528351806100e96100d6631888debd60e01b9485845260056004850152601a6024850152608060448501526084840190610418565b6003199586848303016064850152610418565b0390848173ea30c4b8b44078bbf8a6ef5b9f1ec1626c7848d993815f865af19081156102f6575f91610300575b505f558451906101258261033e565b5f8252846101918751936101388561036d565b60038552606036848701375f61014d8661044b565b5260066101598661046c565b525f6101648661047c565b526101a18951958693849389855260066004860152601a6024860152608060448601526084850190610418565b9089848303016064850152610418565b03815f855af180156102f65785925f916102c3575b509261023492936001555f8751916101cd8361033e565b8183526102438951976101df8961036d565b60038952606036898b0137836101f48a61044b565b52836101ff8a61046c565b528361020a8a61047c565b528a51988997889687958652866004870152601a6024870152608060448701526084860190610418565b91848303016064850152610418565b03925af19182156102b9575f92610287575b50506002556102645f546103ab565b61026f6001546103ab565b61027a6002546103ab565b51610dea908161048d8239f35b90809250813d83116102b2575b61029e8183610388565b810103126102ae57515f80610255565b5f80fd5b503d610294565b83513d5f823e3d90fd5b83819492503d83116102ef575b6102da8183610388565b810103126102ae5790518491906102346101b6565b503d6102d0565b86513d5f823e3d90fd5b90508481813d8311610326575b6103178183610388565b810103126102ae57515f610116565b503d61030d565b825163b4fa3fb360e01b8152600490fd5b602081019081106001600160401b0382111761035957604052565b634e487b7160e01b5f52604160045260245ffd5b608081019081106001600160401b0382111761035957604052565b601f909101601f19168101906001600160401b0382119082101761035957604052565b73ea30c4b8b44078bbf8a6ef5b9f1ec1626c7848d990813b156102ae575f91604483926040519485938492631974142760e21b845260048401523060248401525af1801561040d576103fa5750565b6001600160401b03811161035957604052565b6040513d5f823e3d90fd5b9081518082526020808093019301915f5b828110610437575050505090565b835185529381019392810192600101610429565b8051156104585760200190565b634e487b7160e01b5f52603260045260245ffd5b8051600110156104585760400190565b805160021015610458576060019056fe6080604090808252600480361015610015575f80fd5b5f3560e01c9182630d73b284146104e85750816322754d8b146104a15781632ab2d1841461044a5781632e306bc2146104135781633393efb0146103c757816333a8433a146102985781633995a59c1461022b578163711616b71461020f5781638f18b675146101df578163b2fccc7f1461017157508063d570581314610155578063f0bc6cfb1461011c578063f4cb660a146100e55763fbfa77cf146100ba575f80fd5b346100e1575f3660031901126100e15760035490516001600160a01b039091168152602090f35b5f80fd5b50346100e15760203660031901126100e1576020906001600160a01b0361010a6106fe565b165f5260058252805f20549051908152f35b50346100e15760203660031901126100e1576020906001600160a01b036101416106fe565b165f5260068252805f205415159051908152f35b50346100e1575f3660031901126100e157602090516103e88152f35b9050346100e15760203660031901126100e15760c09181355f5281602052805f2060018060a01b038154169260018201549261ffff6002840154169060ff600560038601549486015495015416948151968752602087015285015260608401526080830152151560a0820152f35b82346100e15760203660031901126100e15760209061ffff6102076102026106fe565b610b54565b915191168152f35b82346100e1575f3660031901126100e157602090516113888152f35b82346100e1575f3660031901126100e157335f526005602052805f205491821561028a5790600591835f526020525f200160ff1981541690557f8e8dcce837682659365cd54521113a9e1d183d48cd11a043b6de29eacd8f6e3f5f80a2005b905163baf3f0f760e01b8152fd5b9050346100e1576020806003193601126100e157813567ffffffffffffffff81116100e1576102ca90369084016106d0565b6102eb83865183819483830196873781015f83820152038084520182610774565b51902092835f52828252805f209160018060a01b0383541680156103b75760ff600585015416156103a757331461039757335f5260068152815f20546103875783929160068692335f52525f205501908154905f1982146103745750600101905533907f67a235468064f57d2147212170077b7fd080e1626a38c7d9f4ac9c0226ee96f75f80a3005b601190634e487b7160e01b5f525260245ffd5b815163baf3f0f760e01b81528490fd5b815163b4fa3fb360e01b81528490fd5b825163baf3f0f760e01b81528590fd5b825163b4fa3fb360e01b81528590fd5b346100e15760603660031901126100e1576103e06106fe565b6024356001600160a01b03811681036100e1576044359067ffffffffffffffff821682036100e15761041192610796565b005b82346100e15760203660031901126100e1576020906001600160a01b036104386106fe565b165f5260068252805f20549051908152f35b82346100e15760203660031901126100e15781608092355f5280602052815f2060018060a01b038154169260ff600561ffff6002850154169484015493015416928151948552602085015283015215156060820152f35b82346100e1575f3660031901126100e157335f526005602052805f205480156104da57916020925f5282526003815f2001549051908152f35b505163baf3f0f760e01b8152fd5b8390346100e157816003193601126100e15767ffffffffffffffff9183358381116100e15761051a90369086016106d0565b9290936024359461ffff94858716968781036100e1579381156106c2575061138887116106b257610570949596156106a8575b855194859160209681889283830196873781015f83820152038084520182610774565b51902094855f5286845260018060a01b039283865f20541661069857335f5260058552855f2054610698576105a3610cb0565b906105ad82610b8c565b6105b73383610bf6565b86519360c08501908111858210176106855792600596959492899a9288958a52338552878501928b8452808b8701921682526060860192835260808601935f855260a087019860018a528d5f52868b528c5f209751166bffffffffffffffffffffffff60a01b8854161787555160018701556002860191511661ffff198254161790555160038401555190820155019051151560ff80198354169116179055335f52525f205533907f396be077be620a2ffb15ab4307770eef45e16675a89ca5c4c2303af164d5da9e5f80a3005b60418a634e487b7160e01b5f525260245ffd5b855163baf3f0f760e01b81528890fd5b6103e8935061054d565b845163b4fa3fb360e01b81528890fd5b63b4fa3fb360e01b81528890fd5b9181601f840112156100e15782359167ffffffffffffffff83116100e157602083818601950101116100e157565b600435906001600160a01b03821682036100e157565b67ffffffffffffffff811161072857604052565b634e487b7160e01b5f52604160045260245ffd5b6020810190811067ffffffffffffffff82111761072857604052565b6080810190811067ffffffffffffffff82111761072857604052565b90601f8019910116810190811067ffffffffffffffff82111761072857604052565b91905f9160018060a01b038094165f5260209360068552604091825f2054958615610b4b57865f52600491828252845f209160ff60058401541615610b405767ffffffffffffffff80921661ffff60028501541690818102918183041490151715610b2d5761271083910416908115610b215761086d928751926108198461073c565b5f845288519061082882610758565b600382526060368584013761083c82610d73565b52600561084882610d94565b525f61085382610da4565b528851948591631888debd60e01b95868452898401610c7a565b0392828573ea30c4b8b44078bbf8a6ef5b9f1ec1626c7848d995815f885af1948515610ab7575f95610af2575b506003860191825486908015610ae4575b8715610ad4575b8b51926060840190811184821017610ac1578c61092688958d95600598956109389585526002835284368a8501376108e983610d73565b526108f382610d94565b528251926109008461073c565b5f8452519788968796875286015260086024860152608060448601526084850190610c47565b83810360031901606485015290610c47565b03815f885af1928315610ab7575f93610a83575b505061095d82610968938355610b8c565b548685541690610bf6565b61097182610b8c565b846003541690803b156100e15786516346ce4e4960e11b81528581018481526001600160a01b039093166020840152915f91839182908490829060400103925af18015610a7957610a66575b506109cc846003541682610bf6565b83806003541692541693823b15610a62576084928895949286928851998a978896630e78047f60e21b88523390880152602487015216604485015260648401525af1908115610a595750610a42575b50807f3cc0a0fb417e68039764a3c023fddbfd48351f675f960bced5193d83e49be09491a2565b610a4c8291610714565b610a56575f610a1b565b80fd5b513d84823e3d90fd5b8780fd5b610a71919750610714565b5f955f6109bd565b86513d5f823e3d90fd5b90809350813d8311610ab0575b610a9a8183610774565b810103126100e15761095d61096892519261094c565b503d610a90565b89513d5f823e3d90fd5b60418b634e487b7160e01b5f525260245ffd5b9050610ade610cb0565b906108b2565b50610aed610cb0565b6108ab565b9094508281813d8311610b1a575b610b0a8183610774565b810103126100e15751935f61089a565b503d610b00565b50505050505050505050565b601185634e487b7160e01b5f525260245ffd5b505050505050505050565b50505050505050565b6001600160a01b03165f908152600660205260409020548015610b87575f52600460205261ffff600260405f2001541690565b505f90565b73ea30c4b8b44078bbf8a6ef5b9f1ec1626c7848d9803b156100e157604051631974142760e21b815260048101929092523060248301525f908290818381604481015b03925af18015610beb57610be05750565b610be990610714565b565b6040513d5f823e3d90fd5b73ea30c4b8b44078bbf8a6ef5b9f1ec1626c7848d991823b156100e157604051631974142760e21b815260048101929092526001600160a01b03166024820152905f90829081838160448101610bcf565b9081518082526020808093019301915f5b828110610c66575050505090565b835185529381019392810192600101610c58565b9091610c9f610cad9360058452601a6020850152608060408501526080840190610c47565b916060818403910152610c47565b90565b610d196020604051610cc18161073c565b5f815260405190610cd182610758565b60038252606036848401375f610ce683610d73565b526005610cf283610d94565b525f610cfd83610da4565b52604051631888debd60e01b8152938492839260048401610c7a565b03815f73ea30c4b8b44078bbf8a6ef5b9f1ec1626c7848d95af1908115610beb575f91610d44575090565b90506020813d602011610d6b575b81610d5f60209383610774565b810103126100e1575190565b3d9150610d52565b805115610d805760200190565b634e487b7160e01b5f52603260045260245ffd5b805160011015610d805760400190565b805160021015610d80576060019056fea26469706673582212203c63a306d86396d6c0917b11ae20d9e3617aa4b07ba1ecf1e66fd861bd92c1a264736f6c63430008190033",
-  "deployedBytecode": "0x6080604090808252600480361015610015575f80fd5b5f3560e01c9182630d73b284146104e85750816322754d8b146104a15781632ab2d1841461044a5781632e306bc2146104135781633393efb0146103c757816333a8433a146102985781633995a59c1461022b578163711616b71461020f5781638f18b675146101df578163b2fccc7f1461017157508063d570581314610155578063f0bc6cfb1461011c578063f4cb660a146100e55763fbfa77cf146100ba575f80fd5b346100e1575f3660031901126100e15760035490516001600160a01b039091168152602090f35b5f80fd5b50346100e15760203660031901126100e1576020906001600160a01b0361010a6106fe565b165f5260058252805f20549051908152f35b50346100e15760203660031901126100e1576020906001600160a01b036101416106fe565b165f5260068252805f205415159051908152f35b50346100e1575f3660031901126100e157602090516103e88152f35b9050346100e15760203660031901126100e15760c09181355f5281602052805f2060018060a01b038154169260018201549261ffff6002840154169060ff600560038601549486015495015416948151968752602087015285015260608401526080830152151560a0820152f35b82346100e15760203660031901126100e15760209061ffff6102076102026106fe565b610b54565b915191168152f35b82346100e1575f3660031901126100e157602090516113888152f35b82346100e1575f3660031901126100e157335f526005602052805f205491821561028a5790600591835f526020525f200160ff1981541690557f8e8dcce837682659365cd54521113a9e1d183d48cd11a043b6de29eacd8f6e3f5f80a2005b905163baf3f0f760e01b8152fd5b9050346100e1576020806003193601126100e157813567ffffffffffffffff81116100e1576102ca90369084016106d0565b6102eb83865183819483830196873781015f83820152038084520182610774565b51902092835f52828252805f209160018060a01b0383541680156103b75760ff600585015416156103a757331461039757335f5260068152815f20546103875783929160068692335f52525f205501908154905f1982146103745750600101905533907f67a235468064f57d2147212170077b7fd080e1626a38c7d9f4ac9c0226ee96f75f80a3005b601190634e487b7160e01b5f525260245ffd5b815163baf3f0f760e01b81528490fd5b815163b4fa3fb360e01b81528490fd5b825163baf3f0f760e01b81528590fd5b825163b4fa3fb360e01b81528590fd5b346100e15760603660031901126100e1576103e06106fe565b6024356001600160a01b03811681036100e1576044359067ffffffffffffffff821682036100e15761041192610796565b005b82346100e15760203660031901126100e1576020906001600160a01b036104386106fe565b165f5260068252805f20549051908152f35b82346100e15760203660031901126100e15781608092355f5280602052815f2060018060a01b038154169260ff600561ffff6002850154169484015493015416928151948552602085015283015215156060820152f35b82346100e1575f3660031901126100e157335f526005602052805f205480156104da57916020925f5282526003815f2001549051908152f35b505163baf3f0f760e01b8152fd5b8390346100e157816003193601126100e15767ffffffffffffffff9183358381116100e15761051a90369086016106d0565b9290936024359461ffff94858716968781036100e1579381156106c2575061138887116106b257610570949596156106a8575b855194859160209681889283830196873781015f83820152038084520182610774565b51902094855f5286845260018060a01b039283865f20541661069857335f5260058552855f2054610698576105a3610cb0565b906105ad82610b8c565b6105b73383610bf6565b86519360c08501908111858210176106855792600596959492899a9288958a52338552878501928b8452808b8701921682526060860192835260808601935f855260a087019860018a528d5f52868b528c5f209751166bffffffffffffffffffffffff60a01b8854161787555160018701556002860191511661ffff198254161790555160038401555190820155019051151560ff80198354169116179055335f52525f205533907f396be077be620a2ffb15ab4307770eef45e16675a89ca5c4c2303af164d5da9e5f80a3005b60418a634e487b7160e01b5f525260245ffd5b855163baf3f0f760e01b81528890fd5b6103e8935061054d565b845163b4fa3fb360e01b81528890fd5b63b4fa3fb360e01b81528890fd5b9181601f840112156100e15782359167ffffffffffffffff83116100e157602083818601950101116100e157565b600435906001600160a01b03821682036100e157565b67ffffffffffffffff811161072857604052565b634e487b7160e01b5f52604160045260245ffd5b6020810190811067ffffffffffffffff82111761072857604052565b6080810190811067ffffffffffffffff82111761072857604052565b90601f8019910116810190811067ffffffffffffffff82111761072857604052565b91905f9160018060a01b038094165f5260209360068552604091825f2054958615610b4b57865f52600491828252845f209160ff60058401541615610b405767ffffffffffffffff80921661ffff60028501541690818102918183041490151715610b2d5761271083910416908115610b215761086d928751926108198461073c565b5f845288519061082882610758565b600382526060368584013761083c82610d73565b52600561084882610d94565b525f61085382610da4565b528851948591631888debd60e01b95868452898401610c7a565b0392828573ea30c4b8b44078bbf8a6ef5b9f1ec1626c7848d995815f885af1948515610ab7575f95610af2575b506003860191825486908015610ae4575b8715610ad4575b8b51926060840190811184821017610ac1578c61092688958d95600598956109389585526002835284368a8501376108e983610d73565b526108f382610d94565b528251926109008461073c565b5f8452519788968796875286015260086024860152608060448601526084850190610c47565b83810360031901606485015290610c47565b03815f885af1928315610ab7575f93610a83575b505061095d82610968938355610b8c565b548685541690610bf6565b61097182610b8c565b846003541690803b156100e15786516346ce4e4960e11b81528581018481526001600160a01b039093166020840152915f91839182908490829060400103925af18015610a7957610a66575b506109cc846003541682610bf6565b83806003541692541693823b15610a62576084928895949286928851998a978896630e78047f60e21b88523390880152602487015216604485015260648401525af1908115610a595750610a42575b50807f3cc0a0fb417e68039764a3c023fddbfd48351f675f960bced5193d83e49be09491a2565b610a4c8291610714565b610a56575f610a1b565b80fd5b513d84823e3d90fd5b8780fd5b610a71919750610714565b5f955f6109bd565b86513d5f823e3d90fd5b90809350813d8311610ab0575b610a9a8183610774565b810103126100e15761095d61096892519261094c565b503d610a90565b89513d5f823e3d90fd5b60418b634e487b7160e01b5f525260245ffd5b9050610ade610cb0565b906108b2565b50610aed610cb0565b6108ab565b9094508281813d8311610b1a575b610b0a8183610774565b810103126100e15751935f61089a565b503d610b00565b50505050505050505050565b601185634e487b7160e01b5f525260245ffd5b505050505050505050565b50505050505050565b6001600160a01b03165f908152600660205260409020548015610b87575f52600460205261ffff600260405f2001541690565b505f90565b73ea30c4b8b44078bbf8a6ef5b9f1ec1626c7848d9803b156100e157604051631974142760e21b815260048101929092523060248301525f908290818381604481015b03925af18015610beb57610be05750565b610be990610714565b565b6040513d5f823e3d90fd5b73ea30c4b8b44078bbf8a6ef5b9f1ec1626c7848d991823b156100e157604051631974142760e21b815260048101929092526001600160a01b03166024820152905f90829081838160448101610bcf565b9081518082526020808093019301915f5b828110610c66575050505090565b835185529381019392810192600101610c58565b9091610c9f610cad9360058452601a6020850152608060408501526080840190610c47565b916060818403910152610c47565b90565b610d196020604051610cc18161073c565b5f815260405190610cd182610758565b60038252606036848401375f610ce683610d73565b526005610cf283610d94565b525f610cfd83610da4565b52604051631888debd60e01b8152938492839260048401610c7a565b03815f73ea30c4b8b44078bbf8a6ef5b9f1ec1626c7848d95af1908115610beb575f91610d44575090565b90506020813d602011610d6b575b81610d5f60209383610774565b810103126100e1575190565b3d9150610d52565b805115610d805760200190565b634e487b7160e01b5f52603260045260245ffd5b805160011015610d805760400190565b805160021015610d80576060019056fea26469706673582212203c63a306d86396d6c0917b11ae20d9e3617aa4b07ba1ecf1e66fd861bd92c1a264736f6c63430008190033",
-  "linkReferences": {},
-  "deployedLinkReferences": {}
-}
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_vault",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidInput",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "int32",
+        "name": "value",
+        "type": "int32"
+      }
+    ],
+    "name": "SecurityZoneOutOfBounds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "codeHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ReferralDeactivated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "codeHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      }
+    ],
+    "name": "ReferralLinkCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "codeHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "ReferralRewardPaid",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "codeHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "ReferralUsed",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "DEFAULT_REWARD_BPS",
+    "outputs": [
+      {
+        "internalType": "uint16",
+        "name": "",
+        "type": "uint16"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_REWARD_BPS",
+    "outputs": [
+      {
+        "internalType": "uint16",
+        "name": "",
+        "type": "uint16"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "referralCode",
+        "type": "string"
+      },
+      {
+        "internalType": "uint16",
+        "name": "rewardBps",
+        "type": "uint16"
+      }
+    ],
+    "name": "createLink",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "deactivateLink",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "codeHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getLinkStats",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      },
+      {
+        "internalType": "uint16",
+        "name": "rewardBps",
+        "type": "uint16"
+      },
+      {
+        "internalType": "uint256",
+        "name": "referralCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "active",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getMyEarnings",
+    "outputs": [
+      {
+        "internalType": "euint64",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "getReferralRewardBps",
+    "outputs": [
+      {
+        "internalType": "uint16",
+        "name": "",
+        "type": "uint16"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "isReferred",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "links",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "codeHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint16",
+        "name": "rewardBps",
+        "type": "uint16"
+      },
+      {
+        "internalType": "euint64",
+        "name": "encTotalEarned",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "referralCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "active",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "token",
+        "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "platformFee",
+        "type": "uint64"
+      }
+    ],
+    "name": "payReferralReward",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "referrerToCode",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "referralCode",
+        "type": "string"
+      }
+    ],
+    "name": "useReferralCode",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "userReferredBy",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vault",
+    "outputs": [
+      {
+        "internalType": "contract ISettlementVault",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

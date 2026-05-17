@@ -16,6 +16,11 @@
     "type": "constructor"
   },
   {
+    "inputs": [],
+    "name": "Expired",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint8",
@@ -33,6 +38,21 @@
   },
   {
     "inputs": [],
+    "name": "InvalidInput",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Paused",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
     "type": "error"
   },
@@ -45,6 +65,11 @@
       }
     ],
     "name": "SecurityZoneOutOfBounds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
     "type": "error"
   },
   {
@@ -128,15 +153,15 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "partyA",
-        "type": "address"
+        "internalType": "bytes32",
+        "name": "partyAHash",
+        "type": "bytes32"
       },
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "partyB",
-        "type": "address"
+        "internalType": "bytes32",
+        "name": "partyBHash",
+        "type": "bytes32"
       },
       {
         "indexed": false,

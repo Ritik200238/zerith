@@ -1,258 +1,505 @@
 "use client";
 
-import { useState } from "react";
-import { useWallet } from "@/providers/WalletProvider";
+/**
+ * Batch (Clearing-Price) Auction — /batch
+ *
+ * Admin creates a round. Users submit encrypted buy/sell orders. After
+ * deadline, admin closes & computes clearing price on ciphertext using a
+ * provided price ladder. Settle distributes tokens.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Layers,
-  Lock,
-  Clock,
-  TrendingUp,
-  TrendingDown,
-  Info,
-  ArrowRight,
-  ShoppingCart,
-  Tag,
+  Layers, Plus, X, Loader2, RefreshCw, Lock, Clock, Eye,
+  CheckCircle2, AlertCircle, ShoppingCart, ShoppingBag, Hammer,
 } from "lucide-react";
+import { useWallet } from "@/providers/WalletProvider";
+import { useCofhe } from "@/hooks/useCofhe";
+import { useEncrypt } from "@/hooks/useEncrypt";
+import { useDecryptForTx } from "@/hooks/useDecryptForTx";
+import { useContract, useReadContract } from "@/hooks/useContract";
+import { useBlockPoll, useAccountChangeReset } from "@/hooks/useBlockPoll";
+import { useToast, useModalEscape } from "@/components/shared/Toast";
+import { useTxFeedback } from "@/hooks/useTxFeedback";
+import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { FaucetButton } from "@/components/shared/FaucetButton";
+import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
+import { CONTRACTS } from "@/lib/constants";
+import { parseAmount, formatAmount, formatRemaining } from "@/lib/format";
 
-type RoundStatus = "COLLECTING" | "COMPUTING" | "SETTLED";
-
-interface AuctionRound {
-  id: string;
-  tokenPair: string;
-  status: RoundStatus;
-  deadline: number;
-  buyOrderCount: number;
-  sellOrderCount: number;
-  clearingPrice: string | null;
-  fillCount: number | null;
+interface RoundData {
+  id: number;
+  tokenA: string;
+  tokenB: string;
+  startTime: number;
+  endTime: number;
+  status: number;
+  clearingPrice: string;
+  buyCount: number;
+  sellCount: number;
 }
 
-const STATUS_STYLE: Record<RoundStatus, { label: string; color: string; bg: string }> = {
-  COLLECTING: { label: "Collecting", color: "text-amber-400", bg: "bg-amber-500/20" },
-  COMPUTING: { label: "Computing", color: "text-blue-400", bg: "bg-blue-500/20" },
-  SETTLED: { label: "Settled", color: "text-emerald-400", bg: "bg-emerald-500/20" },
+const STATUS_LABEL: Record<number, string> = { 0: "COLLECTING", 1: "CLOSED", 2: "CLEARING", 3: "SETTLED" };
+const STATUS_STYLE: Record<number, { bg: string; text: string }> = {
+  0: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]" },
+  1: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]" },
+  2: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]" },
+  3: { bg: "bg-gray-500/15", text: "text-[var(--text-muted)]" },
 };
 
-function formatCountdown(deadline: number) {
-  const remaining = Math.max(0, deadline - Math.floor(Date.now() / 1000));
-  const mins = Math.floor(remaining / 60);
-  const secs = remaining % 60;
-  return `${mins}m ${secs.toString().padStart(2, "0")}s`;
-}
+type ModalView = "none" | "create" | "buy" | "sell";
 
 export default function BatchPage() {
   const { account } = useWallet();
-  const [rounds] = useState<AuctionRound[]>([]);
-  const [orderType, setOrderType] = useState<"BUY" | "SELL">("BUY");
-  const [showOrderForm, setShowOrderForm] = useState(false);
-  const [formData, setFormData] = useState({
-    roundId: "",
-    encryptedPrice: "",
-    amount: "",
-  });
+  const { initialized } = useCofhe();
+  const { encrypt } = useEncrypt();
+  const toast = useToast();
 
-  const handleSubmitOrder = () => {
-    if (!account) return;
-    setShowOrderForm(false);
-  };
+  const batchContract = useContract("BatchAuction");
+  const batchRead = useReadContract("BatchAuction");
+  const { decrypt: decryptForTx } = useDecryptForTx();
+
+  const deployed = CONTRACTS.BatchAuction !== "0x0000000000000000000000000000000000000000";
+
+  const [rounds, setRounds] = useState<RoundData[]>([]);
+  const [admin, setAdmin] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [modalView, setModalView] = useState<ModalView>("none");
+  const [selectedRound, setSelectedRound] = useState<RoundData | null>(null);
+
+  const [tokenA, setTokenA] = useState(CONTRACTS.ConfidentialToken);
+  const [tokenB, setTokenB] = useState(CONTRACTS.ConfidentialToken);
+  const [duration, setDuration] = useState("3600");
+  const [orderPrice, setOrderPrice] = useState("");
+  const [orderAmount, setOrderAmount] = useState("");
+  const [priceLadder, setPriceLadder] = useState("100,200,500");
+
+  const [txState, setTxState] = useState<TxState>("idle");
+  const [txHash, setTxHash] = useState<string | undefined>();
+  const [txError, setTxError] = useState<string | undefined>();
+  useTxFeedback(txState, { label: "Batch Auction", type: "auction", href: "/batch", txHash });
+
+  const modalProps = useModalEscape(modalView !== "none", () => setModalView("none"), "batch-modal-title");
+
+  const fetchRounds = useCallback(async () => {
+    if (!batchRead) return;
+    try {
+      const adminAddr = await batchRead.admin();
+      setAdmin(adminAddr);
+      const count = Number(await batchRead.getRoundCount());
+      const out: RoundData[] = [];
+      for (let i = 0; i < count; i++) {
+        try {
+          const r = await batchRead.getRound(i);
+          out.push({
+            id: i,
+            tokenA: r[0],
+            tokenB: r[1],
+            startTime: Number(r[2]),
+            endTime: Number(r[3]),
+            status: Number(r[4]),
+            clearingPrice: r[5].toString(),
+            buyCount: Number(r[6]),
+            sellCount: Number(r[7]),
+          });
+        } catch {
+          /* skip */
+        }
+      }
+      setRounds(out.reverse());
+    } catch {
+      /* noop */
+    }
+  }, [batchRead]);
+
+  const blockTick = useBlockPoll();
+  useEffect(() => {
+    if (deployed) fetchRounds();
+  }, [fetchRounds, refreshKey, blockTick, deployed]);
+  useAccountChangeReset(useCallback(() => setRefreshKey((k) => k + 1), []));
+
+  const isAdmin = !!(admin && account && admin.toLowerCase() === account.toLowerCase());
+
+  const handleCreate = useCallback(async () => {
+    if (!batchContract) return;
+    const dur = Number(duration);
+    if (!Number.isFinite(dur) || dur < 60) {
+      toast.error("Invalid duration", "≥ 60 seconds");
+      return;
+    }
+    if (tokenA === tokenB) {
+      toast.error("Invalid pair", "tokenA and tokenB must differ");
+      return;
+    }
+    setTxState("signing");
+    try {
+      const tx = await batchContract.createRound(tokenA, tokenB, BigInt(dur));
+      setTxState("confirming");
+      setTxHash(tx.hash);
+      await tx.wait();
+      setTxState("success");
+      setModalView("none");
+      setRefreshKey((k) => k + 1);
+    } catch (err: unknown) {
+      setTxState("error");
+      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+      setTxError(msg);
+      toast.error("Create failed", msg);
+    }
+  }, [batchContract, duration, tokenA, tokenB, toast]);
+
+  const handleSubmitOrder = useCallback(
+    async (side: "buy" | "sell") => {
+      if (!batchContract || !initialized || !selectedRound) return;
+      const priceBn = parseAmount(orderPrice);
+      const amount = Number(orderAmount);
+      if (priceBn === null) {
+        toast.error("Invalid price", "Positive number");
+        return;
+      }
+      if (!Number.isFinite(amount) || amount <= 0) {
+        toast.error("Invalid amount", "Positive integer");
+        return;
+      }
+      setTxState("signing");
+      try {
+        const { Encryptable } = await import("cofhejs/web");
+        const enc = await encrypt([Encryptable.uint128(priceBn)]);
+        if (!enc) throw new Error("Encryption failed");
+        const fn = side === "buy" ? "submitBuyOrder" : "submitSellOrder";
+        const tx = await batchContract[fn](selectedRound.id, enc[0], BigInt(amount));
+        setTxState("confirming");
+        setTxHash(tx.hash);
+        await tx.wait();
+        setTxState("success");
+        setOrderPrice("");
+        setOrderAmount("");
+        setModalView("none");
+        setRefreshKey((k) => k + 1);
+      } catch (err: unknown) {
+        setTxState("error");
+        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        setTxError(msg);
+        toast.error(`${side} order failed`, msg);
+      }
+    },
+    [batchContract, initialized, selectedRound, orderPrice, orderAmount, encrypt, toast],
+  );
+
+  const handleCloseAndCompute = useCallback(
+    async (round: RoundData) => {
+      if (!batchContract) return;
+      const ladder = priceLadder.split(",").map((s) => BigInt(s.trim())).filter((n) => n > BigInt(0));
+      if (ladder.length === 0) {
+        toast.error("Invalid ladder", "Provide comma-separated prices");
+        return;
+      }
+      setTxState("signing");
+      try {
+        const tx = await batchContract.closeAndCompute(round.id, ladder);
+        setTxState("confirming");
+        setTxHash(tx.hash);
+        await tx.wait();
+        setTxState("success");
+        setRefreshKey((k) => k + 1);
+      } catch (err: unknown) {
+        setTxState("error");
+        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        setTxError(msg);
+        toast.error("Close failed", msg);
+      }
+    },
+    [batchContract, priceLadder, toast],
+  );
+
+  /** Reveal clearing price via TN signature. CLEARING status only. */
+  const handleReveal = useCallback(
+    async (round: RoundData) => {
+      if (!batchContract || !batchRead) return;
+      setTxState("decrypting");
+      try {
+        const handleBn = BigInt(await batchRead.getEncClearingPrice(round.id));
+        const result = await decryptForTx(handleBn);
+        if (!result) throw new Error("Reveal failed — TN signature not available");
+
+        setTxState("signing");
+        const tx = await batchContract.revealClearingPrice(
+          round.id,
+          BigInt(result.decryptedValue),
+          result.signature,
+        );
+        setTxState("confirming");
+        setTxHash(tx.hash);
+        await tx.wait();
+        setTxState("success");
+        setRefreshKey((k) => k + 1);
+      } catch (err: unknown) {
+        setTxState("error");
+        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        setTxError(msg);
+        toast.error("Reveal failed", msg);
+      }
+    },
+    [batchContract, batchRead, decryptForTx, toast],
+  );
+
+  const handleSettle = useCallback(
+    async (round: RoundData) => {
+      if (!batchContract) return;
+      setTxState("signing");
+      try {
+        const tx = await batchContract.settleRound(round.id);
+        setTxState("confirming");
+        setTxHash(tx.hash);
+        await tx.wait();
+        setTxState("success");
+        setRefreshKey((k) => k + 1);
+      } catch (err: unknown) {
+        setTxState("error");
+        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        setTxError(msg);
+        toast.error("Settle failed", msg);
+      }
+    },
+    [batchContract, toast],
+  );
+
+  if (!deployed) {
+    return (
+      <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
+        <ComingSoonBanner feature="Batch Auction" shipDate="Wave 4 deploy" />
+      </main>
+    );
+  }
 
   return (
-    <div className="space-y-6 max-w-6xl">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-amber-600/20 flex items-center justify-center">
-          <Layers size={20} className="text-amber-400" />
+    <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
+      <header className="mb-10 space-y-6">
+        <div
+          className="font-mono text-[11px] uppercase tracking-[0.1em]"
+          style={{ color: "var(--text-muted)" }}
+        >
+          — Batch / clearing auctions
         </div>
-        <div>
-          <h1 className="text-2xl font-bold gradient-text">Batch Auction</h1>
-          <p className="text-sm text-gray-400">
-            Fair clearing price computed over encrypted orders
-          </p>
-        </div>
-      </div>
-
-      {/* How It Works */}
-      <div className="glass rounded-xl p-5 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-amber-300">
-          <Info size={14} />
-          How Batch Auctions Work
-        </div>
-        <div className="flex items-center gap-2 text-xs text-gray-400">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-300">
-            <Lock size={12} />
-            Prices encrypted
-          </div>
-          <ArrowRight size={14} className="text-gray-600" />
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-300">
-            <Layers size={12} />
-            Clearing computed
-          </div>
-          <ArrowRight size={14} className="text-gray-600" />
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-300">
-            <TrendingUp size={12} />
-            Same price for all
-          </div>
-        </div>
-        <p className="text-xs text-gray-500">
-          All order prices are encrypted during collection. A clearing price is computed via an
-          on-chain price ladder, and everyone trades at the same fair price. Maximum 5 orders per
-          round, 3 price steps.
-        </p>
-      </div>
-
-      {/* Active Rounds */}
-      {!account ? (
-        <div className="glass rounded-xl p-12 text-center space-y-3">
-          <Lock size={32} className="text-amber-400/50 mx-auto" />
-          <p className="text-gray-400 text-sm">Connect your wallet to participate in batch auctions</p>
-        </div>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider">
-              Auction Rounds
-            </h2>
-            <button
-              onClick={() => setShowOrderForm(!showOrderForm)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600/20 border border-amber-500/30 text-amber-300 text-sm font-medium hover:bg-amber-600/30 transition-colors"
+        <div className="flex items-end justify-between flex-wrap gap-6">
+          <div className="max-w-2xl">
+            <h1
+              className="font-display font-bold tracking-tight leading-[1.02] mb-4"
+              style={{ fontSize: "clamp(38px, 5vw, 64px)", letterSpacing: "-0.04em" }}
             >
-              <Tag size={14} />
-              Submit Order
-            </button>
+              One price.{" "}<em className="font-serif italic font-normal">Settles everyone</em>.
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
+              All bidders submit encrypted bids. The contract finds the uniform clearing price and matches all qualifying bids.
+            </p>
           </div>
-
-          {/* Submit Order Form */}
-          {showOrderForm && (
-            <div className="glass rounded-xl p-6 space-y-4">
-              <h2 className="text-lg font-semibold text-gray-200">Submit Batch Order</h2>
-              <div className="flex gap-2 mb-2">
-                <button
-                  onClick={() => setOrderType("BUY")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    orderType === "BUY"
-                      ? "bg-emerald-600/20 border border-emerald-500/30 text-emerald-300"
-                      : "bg-gray-800/50 border border-gray-700 text-gray-400 hover:text-gray-200"
-                  }`}
-                >
-                  <ShoppingCart size={14} />
-                  Buy Order
-                </button>
-                <button
-                  onClick={() => setOrderType("SELL")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    orderType === "SELL"
-                      ? "bg-red-600/20 border border-red-500/30 text-red-300"
-                      : "bg-gray-800/50 border border-gray-700 text-gray-400 hover:text-gray-200"
-                  }`}
-                >
-                  <TrendingDown size={14} />
-                  Sell Order
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-gray-400 block mb-1.5">Round ID</label>
-                  <input
-                    type="text"
-                    value={formData.roundId}
-                    onChange={(e) => setFormData({ ...formData, roundId: e.target.value })}
-                    placeholder="Active round ID"
-                    className="w-full px-3 py-2.5 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-sm text-gray-200 placeholder:text-gray-600 focus:border-amber-500/40 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-gray-400 block mb-1.5">Amount</label>
-                  <input
-                    type="number"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    placeholder="Token amount"
-                    className="w-full px-3 py-2.5 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-sm text-gray-200 placeholder:text-gray-600 focus:border-amber-500/40 focus:outline-none"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="text-xs text-gray-400 block mb-1.5">
-                    Encrypted Price
-                    <Lock size={10} className="inline ml-1 text-amber-400" />
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.encryptedPrice}
-                    onChange={(e) => setFormData({ ...formData, encryptedPrice: e.target.value })}
-                    placeholder="Your price (encrypted on-chain)"
-                    className="w-full px-3 py-2.5 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-sm text-gray-200 placeholder:text-gray-600 focus:border-amber-500/40 focus:outline-none"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleSubmitOrder}
-                  className={`px-5 py-2.5 rounded-lg text-white text-sm font-medium transition-all ${
-                    orderType === "BUY"
-                      ? "bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500"
-                      : "bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500"
-                  }`}
-                >
-                  Submit {orderType === "BUY" ? "Buy" : "Sell"} Order
-                </button>
-                <button
-                  onClick={() => setShowOrderForm(false)}
-                  className="px-5 py-2.5 rounded-lg border border-gray-700 text-gray-400 text-sm hover:text-gray-200 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+        <div className="flex items-center gap-2">
+          <FaucetButton />
+          <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/5 transition-colors">
+            <RefreshCw size={16} />
+          </button>
+          {isAdmin && (
+            <button onClick={() => setModalView("create")}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+                         bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                         text-[var(--bg)] hover:shadow-lg transition-all">
+              <Plus size={14} /> New round
+            </button>
           )}
+        </div>
+      </div>
+        </header>
 
-          {/* Rounds Grid */}
-          {rounds.length === 0 ? (
-            <div className="glass rounded-xl p-12 text-center space-y-3">
-              <Layers size={32} className="text-amber-400/30 mx-auto" />
-              <p className="text-gray-400 text-sm">No active auction rounds. Rounds are created by the protocol when orders accumulate.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {rounds.map((round) => {
-                const statusConf = STATUS_STYLE[round.status];
-                return (
-                  <div key={round.id} className="glass rounded-xl p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-200">{round.tokenPair}</span>
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${statusConf.color} ${statusConf.bg}`}>
-                        {statusConf.label}
-                      </span>
-                    </div>
-                    {round.status === "COLLECTING" && (
-                      <div className="flex items-center gap-2 text-xs text-amber-300">
-                        <Clock size={12} />
-                        {formatCountdown(round.deadline)}
-                      </div>
-                    )}
-                    <div className="flex gap-4 text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <ShoppingCart size={12} className="text-emerald-400" />
-                        <span className="text-gray-400">{round.buyOrderCount} buys</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <TrendingDown size={12} className="text-red-400" />
-                        <span className="text-gray-400">{round.sellOrderCount} sells</span>
-                      </div>
-                    </div>
-                    {round.status === "SETTLED" && round.clearingPrice && (
-                      <div className="pt-2 border-t border-purple-500/10">
-                        <p className="text-xs text-gray-500">Clearing Price</p>
-                        <p className="text-lg font-bold text-emerald-400">${round.clearingPrice}</p>
-                        <p className="text-xs text-gray-500 mt-1">{round.fillCount} orders filled</p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
+      {!isAdmin && admin && (
+        <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs mb-4">
+          <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
+          <span className="text-[var(--text-muted)]">
+            Only admin (<code className="font-mono">{admin.slice(0,6)}…{admin.slice(-4)}</code>) creates rounds. You can submit orders to existing rounds.
+          </span>
+        </div>
       )}
-    </div>
+
+      <TransactionStatus state={txState} txHash={txHash} error={txError} onDismiss={() => setTxState("idle")} />
+
+      <section className="mt-6 grid gap-3">
+        {rounds.length === 0 ? (
+          <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-8 text-center">
+            <Layers size={28} className="text-[var(--text-muted)] mx-auto mb-2" />
+            <p className="text-sm text-[var(--text-secondary)]">No rounds yet</p>
+          </div>
+        ) : (
+          rounds.map((r) => {
+            const style = STATUS_STYLE[r.status];
+            const expired = r.endTime < Math.floor(Date.now() / 1000);
+            return (
+              <article key={r.id} style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-[var(--text-muted)]">#{r.id}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${style.bg} ${style.text}`}>
+                      {STATUS_LABEL[r.status]}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-[var(--text-muted)] flex items-center gap-1.5">
+                    <Clock size={12} />
+                    {r.status === 0 ? formatRemaining(r.endTime) : "ended"}
+                  </span>
+                </div>
+                <div className="mt-3 grid md:grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Buy / sell orders</div>
+                    <div className="font-mono text-[var(--text)]">{r.buyCount} / {r.sellCount}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Clearing price</div>
+                    <div className="font-mono text-[var(--text-secondary)] flex items-center gap-1">
+                      {r.status >= 2 && r.clearingPrice !== "0"
+                        ? formatAmount(r.clearingPrice)
+                        : <><Lock size={11} className="text-[var(--text)]" /> encrypted</>}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Status</div>
+                    <div className="text-[10px] text-[var(--text-secondary)]">{STATUS_LABEL[r.status]}</div>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center gap-2 flex-wrap">
+                  {r.status === 0 && !expired && account && (
+                    <>
+                      <button onClick={() => { setSelectedRound(r); setModalView("buy"); }}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                        <ShoppingCart size={11} /> Submit buy
+                      </button>
+                      <button onClick={() => { setSelectedRound(r); setModalView("sell"); }}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
+                        <ShoppingBag size={11} /> Submit sell
+                      </button>
+                    </>
+                  )}
+                  {r.status === 0 && expired && isAdmin && (
+                    <div className="flex items-center gap-2 flex-wrap w-full">
+                      <input value={priceLadder} onChange={(e) => setPriceLadder(e.target.value)}
+                        placeholder="100,200,500"
+                        className="flex-1 bg-[var(--bg-alt)] rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      <button onClick={() => handleCloseAndCompute(r)}
+                        className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                        <Hammer size={11} /> Close & compute
+                      </button>
+                    </div>
+                  )}
+                  {r.status === 2 && (
+                    <button onClick={() => handleReveal(r)}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      <Eye size={11} /> Reveal clearing price (TN)
+                    </button>
+                  )}
+                  {r.status === 2 && r.clearingPrice !== "0" && isAdmin && (
+                    <button onClick={() => handleSettle(r)}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      <CheckCircle2 size={11} /> Settle round
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })
+        )}
+      </section>
+
+      <AnimatePresence>
+        {modalView !== "none" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setModalView("none")} {...modalProps}>
+            <motion.div onClick={(e) => e.stopPropagation()}
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4">
+
+              {modalView === "create" && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h3 id="batch-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
+                      <Layers size={18} className="text-[var(--text)]" /> New round
+                    </h3>
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-[var(--text-muted)] font-medium">Token A (sell side)</label>
+                    <input value={tokenA} onChange={(e) => setTokenA(e.target.value)} placeholder="0x..."
+                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-[var(--text-muted)] font-medium">Token B (buy side)</label>
+                    <input value={tokenB} onChange={(e) => setTokenB(e.target.value)} placeholder="0x..."
+                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-[var(--text-muted)] font-medium">Duration (seconds)</label>
+                    <input value={duration} onChange={(e) => setDuration(e.target.value)} type="number" min={60}
+                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                  </div>
+                  <button onClick={handleCreate} disabled={!duration || txState === "signing" || txState === "confirming"}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                               bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                               text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
+                    {txState === "signing" || txState === "confirming"
+                      ? <Loader2 size={14} className="animate-spin" />
+                      : <CheckCircle2 size={14} />}
+                    Create round
+                  </button>
+                </>
+              )}
+
+              {(modalView === "buy" || modalView === "sell") && selectedRound && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
+                      {modalView === "buy"
+                        ? <><ShoppingCart size={18} className="text-[var(--text)]" /> Submit buy order</>
+                        : <><ShoppingBag size={18} className="text-[var(--text-muted)]" /> Submit sell order</>}
+                    </h3>
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-[var(--text-muted)] font-medium flex items-center gap-1">
+                      <Lock size={11} className="text-[var(--text)]" />
+                      {modalView === "buy" ? "Max price you'll pay" : "Min price you'll accept"} (encrypted)
+                    </label>
+                    <input value={orderPrice} onChange={(e) => setOrderPrice(e.target.value)} placeholder="100"
+                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-[var(--text-muted)] font-medium">Amount (public)</label>
+                    <input value={orderAmount} onChange={(e) => setOrderAmount(e.target.value)} type="number" min={1}
+                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                  </div>
+                  {!initialized && (
+                    <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                      <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
+                      <span className="text-[var(--text-muted)]">Initializing FHE encryption…</span>
+                    </div>
+                  )}
+                  <button onClick={() => handleSubmitOrder(modalView)} disabled={!initialized || !orderPrice || !orderAmount || txState === "signing" || txState === "confirming"}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                               bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                               text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
+                    {txState === "signing" || txState === "confirming"
+                      ? <Loader2 size={14} className="animate-spin" />
+                      : <CheckCircle2 size={14} />}
+                    Submit
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </main>
   );
 }

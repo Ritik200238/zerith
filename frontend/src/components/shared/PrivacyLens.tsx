@@ -1,16 +1,27 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, Lock, Hash } from "lucide-react";
+/**
+ * PrivacyLens — renders a row of values whose appearance switches based on
+ * the global PrivacyLensProvider mode (me / counterparty / observer).
+ *
+ * Local two-mode toggles were a 2026-05 audit gap. This new version reads
+ * the global context so the toggle in the Navbar drives every PrivacyLens
+ * on the page in sync.
+ */
 
-interface PrivacyLensRow {
+import { motion, AnimatePresence } from "framer-motion";
+import { Eye, Lock, Hash, User, Users, Globe2 } from "lucide-react";
+import { usePrivacyLens, pickByMode } from "@/providers/PrivacyLensProvider";
+
+export interface PrivacyLensRow {
   label: string;
-  /** What the chain sees — ciphertext hash or public value */
-  chainValue: string;
-  /** What the owner sees — unsealed plaintext */
-  ownerValue: string;
-  /** Whether this value is encrypted on-chain */
+  /** What I see — full plaintext via unseal permit. */
+  meValue: string;
+  /** What a counterparty I'm trading with sees (e.g. their own quote price, range I allowed). */
+  counterpartyValue?: string;
+  /** What a public observer sees — ciphertext hash or "🔒 sealed". */
+  observerValue: string;
+  /** Whether this value is encrypted on-chain. Drives the styling. */
   encrypted: boolean;
 }
 
@@ -19,74 +30,98 @@ interface PrivacyLensProps {
   title?: string;
 }
 
-/**
- * Split-screen component showing what the chain sees vs what the owner sees.
- * Toggling flips between ciphertext hashes and unsealed values.
- */
 export function PrivacyLens({ rows, title = "Privacy Lens" }: PrivacyLensProps) {
-  const [showOwner, setShowOwner] = useState(false);
+  const { mode } = usePrivacyLens();
+
+  const Icon = mode === "me" ? User : mode === "counterparty" ? Users : Globe2;
+  const modeLabel =
+    mode === "me" ? "Your view" : mode === "counterparty" ? "Counterparty view" : "Observer view";
 
   return (
-    <div className="glass rounded-xl overflow-hidden">
+    <div
+      style={{
+        background: "var(--bg-card)",
+        border: "1px dashed var(--border-dash)",
+        borderRadius: 4,
+      }}
+      className="overflow-hidden"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-subtle)]">
+      <div
+        className="flex items-center justify-between px-5 py-3"
+        style={{ borderBottom: "1px dashed var(--border-dash)" }}
+      >
         <div className="flex items-center gap-2">
-          {showOwner ? (
-            <Eye size={14} className="text-[var(--cipher-cyan)]" />
-          ) : (
-            <EyeOff size={14} className="text-[var(--cipher-violet)]" />
-          )}
-          <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+          <Eye className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
+          <span className="mono" style={{ color: "var(--text-muted)" }}>
             {title}
           </span>
         </div>
-        <button
-          onClick={() => setShowOwner((p) => !p)}
-          className={`
-            flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all duration-300
-            ${showOwner
-              ? "bg-[var(--cipher-cyan)]/10 border border-[var(--cipher-cyan)]/20 text-[var(--cipher-cyan)]"
-              : "bg-[var(--cipher-violet)]/10 border border-[var(--cipher-violet)]/20 text-[var(--cipher-violet)]"
-            }
-          `}
+        <div
+          className="flex items-center gap-1.5 mono"
+          style={{ color: "var(--text)" }}
         >
-          {showOwner ? <Eye size={10} /> : <Lock size={10} />}
-          {showOwner ? "Your View" : "Chain View"}
-        </button>
+          <Icon className="w-3 h-3" />
+          {modeLabel.toUpperCase()}
+        </div>
       </div>
 
       {/* Rows */}
-      <div className="divide-y divide-[var(--border-subtle)]">
-        {rows.map((row, i) => (
-          <div key={i} className="px-5 py-3 flex items-center justify-between">
-            <span className="text-xs text-[var(--text-muted)] font-medium">{row.label}</span>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={showOwner ? "owner" : "chain"}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.2 }}
-                className="flex items-center gap-1.5"
-              >
-                {row.encrypted && !showOwner ? (
-                  <>
-                    <Hash size={10} className="text-[var(--cipher-violet)]/60" />
-                    <span className="font-mono-cipher text-xs text-[var(--cipher-violet)]/70 max-w-[200px] truncate">
-                      {row.chainValue}
-                    </span>
-                  </>
-                ) : (
-                  <span className={`text-sm font-semibold ${
-                    showOwner && row.encrypted ? "text-[var(--cipher-cyan)]" : "text-[var(--text-primary)]"
-                  }`}>
-                    {showOwner ? row.ownerValue : row.chainValue}
-                  </span>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        ))}
+      <div>
+        {rows.map((row, i) => {
+          const value = pickByMode(mode, {
+            me: row.meValue,
+            counterparty: row.counterpartyValue ?? row.observerValue,
+            observer: row.observerValue,
+          });
+          const isHashView = row.encrypted && mode === "observer";
+          return (
+            <div
+              key={i}
+              className="px-5 py-3 flex items-center justify-between gap-3"
+              style={i < rows.length - 1 ? { borderBottom: "1px dashed var(--border-dash)" } : undefined}
+            >
+              <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                {row.label}
+              </span>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={mode + "-" + i}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.18 }}
+                  className="flex items-center gap-1.5 min-w-0"
+                >
+                  {isHashView ? (
+                    <>
+                      <Hash className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
+                      <span
+                        className="font-mono text-xs max-w-[220px] truncate"
+                        style={{ color: "var(--text-muted)" }}
+                        title={value}
+                      >
+                        {value}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      {row.encrypted && mode === "counterparty" && value === (row.observerValue) && (
+                        <Lock className="w-3 h-3" style={{ color: "var(--text-muted)" }} />
+                      )}
+                      <span
+                        className="text-sm font-semibold"
+                        style={{ color: "var(--text)" }}
+                      >
+                        {value}
+                      </span>
+                    </>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

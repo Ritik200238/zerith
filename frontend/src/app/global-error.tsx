@@ -7,11 +7,73 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body style={{ background: "#0a0b14", color: "#f0f0f5", fontFamily: "system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", margin: 0 }}>
-        <div style={{ textAlign: "center" }}>
-          <h2 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>Something went wrong</h2>
-          <button onClick={() => reset()} style={{ padding: "8px 16px", background: "#8b5cf6", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "0.875rem" }}>
+    <html lang="en">
+      <body
+        style={{
+          background: "#FAFAF7",
+          color: "#111111",
+          fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+          margin: 0,
+          padding: "0 20px",
+        }}
+      >
+        <div style={{ textAlign: "center", maxWidth: 480 }}>
+          <div
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "#6B6B66",
+              marginBottom: 24,
+            }}
+          >
+            — Error
+          </div>
+          <h2
+            style={{
+              fontFamily: "'Space Grotesk', system-ui, sans-serif",
+              fontSize: "clamp(32px, 4vw, 48px)",
+              fontWeight: 700,
+              letterSpacing: "-0.03em",
+              lineHeight: 1.08,
+              marginBottom: 16,
+            }}
+          >
+            Something went{" "}
+            <em
+              style={{
+                fontFamily: "'Instrument Serif', Georgia, serif",
+                fontStyle: "italic",
+                fontWeight: 400,
+              }}
+            >
+              wrong
+            </em>
+            .
+          </h2>
+          <p style={{ color: "#3D3D3A", marginBottom: 32, lineHeight: 1.6 }}>
+            CipherDEX hit an unexpected error. The protocol is fine — try again or
+            refresh the page.
+          </p>
+          <button
+            onClick={() => reset()}
+            style={{
+              padding: "12px 24px",
+              background: "#111111",
+              color: "#FAFAF7",
+              border: "none",
+              borderRadius: 8,
+              cursor: "pointer",
+              fontSize: 14,
+              fontWeight: 600,
+              fontFamily: "inherit",
+            }}
+          >
             Try again
           </button>
         </div>

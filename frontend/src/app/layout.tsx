@@ -3,10 +3,15 @@ import { Providers } from "@/components/layout/Providers";
 import { AppShell } from "@/components/layout/AppShell";
 import "./globals.css";
 
+// Fonts loaded via <link> instead of next/font/google because this project
+// builds with `next build --webpack` (per package.json), and next/font/google
+// requires the SWC/Turbopack font loader. The CSS variables --font-display etc.
+// are defined in globals.css and consumed by Tailwind config.
+
 export const metadata: Metadata = {
-  title: "CipherDEX - Confidential P2P Trading",
+  title: "CipherDEX — Private Finance Infrastructure on Fhenix FHE",
   description:
-    "Fully encrypted peer-to-peer trading protocol on Fhenix FHE. Trade with complete privacy.",
+    "Launch tokens, pay contributors, trade privately, hire talent. Every bid, payment, and trade encrypted on-chain with Fhenix FHE.",
 };
 
 export default function RootLayout({
@@ -15,10 +20,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" data-theme="light">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
-          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>

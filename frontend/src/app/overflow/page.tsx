@@ -22,12 +22,22 @@ import { useWallet } from "@/providers/WalletProvider";
 import { useCofhe } from "@/hooks/useCofhe";
 import { useEncrypt } from "@/hooks/useEncrypt";
 import { useUnseal } from "@/hooks/useUnseal";
+import { useDecryptForTx } from "@/hooks/useDecryptForTx";
+import { useBlockPoll } from "@/hooks/useBlockPoll";
+import { useToast, useModalEscape } from "@/components/shared/Toast";
+import { useAccountChangeReset } from "@/hooks/useBlockPoll";
 import { useContract, useReadContract } from "@/hooks/useContract";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { RevealAnimation } from "@/components/shared/RevealAnimation";
-import { CONTRACTS } from "@/lib/constants";
+import {
+  SignatureDrawer,
+  type SignatureProof,
+} from "@/components/shared/SignatureDrawer";
+import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
+import { parseAmount } from "@/lib/format";
+import { useTxFeedback } from "@/hooks/useTxFeedback";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -55,9 +65,9 @@ type ModalView = "none" | "create" | "deposit";
 
 const STATUS_LABEL: Record<number, string> = { 0: "OPEN", 1: "SETTLED", 2: "CANCELLED" };
 const STATUS_STYLE: Record<number, { bg: string; text: string; border: string }> = {
-  0: { bg: "bg-emerald-500/15", text: "text-emerald-400", border: "border-emerald-500/20" },
-  1: { bg: "bg-blue-500/15",    text: "text-blue-400",    border: "border-blue-500/20" },
-  2: { bg: "bg-red-500/15",     text: "text-red-400",     border: "border-red-500/20" },
+  0: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
+  1: { bg: "bg-[var(--bg-alt)]",    text: "text-[var(--text)]",    border: "border-[var(--border-dash)]" },
+  2: { bg: "bg-[var(--bg-alt)]",     text: "text-[var(--text-muted)]",     border: "border-[var(--border-dash)]" },
 };
 
 const DURATION_OPTS = [
@@ -101,7 +111,7 @@ function CountdownBadge({ deadline }: { deadline: number }) {
   const now = Math.floor(Date.now() / 1000);
   const ended = deadline <= now;
   return (
-    <span className={`font-mono text-xs ${ended ? "text-gray-500" : "text-cyan-400"}`}>{str}</span>
+    <span className={`font-mono text-xs ${ended ? "text-[var(--text-muted)]" : "text-[var(--text)]"}`}>{str}</span>
   );
 }
 
@@ -122,6 +132,7 @@ export default function OverflowSalePage() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const [modalView, setModalView] = useState<ModalView>("none");
+  const modalProps = useModalEscape(modalView !== "none", () => setModalView("none"));
   const [selectedSale, setSelectedSale] = useState<SaleData | null>(null);
 
   /* ---- create form ---- */
@@ -134,9 +145,15 @@ export default function OverflowSalePage() {
   const [depositAmount, setDepositAmount] = useState("");
   const [revealAlloc, setRevealAlloc] = useState(false);
 
+  const { decrypt: decryptForTx } = useDecryptForTx();
+
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash] = useState<string | undefined>();
+  useTxFeedback(txState, { label: "Overflow Sale", type: "auction", href: "/overflow", txHash });
   const [txError, setTxError] = useState<string | undefined>();
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerProof, setDrawerProof] = useState<SignatureProof | null>(null);
 
   const busyRef = useRef<Set<string>>(new Set());
   const deployed = CONTRACTS.OverflowSale !== "0x0000000000000000000000000000000000000000";
@@ -179,17 +196,26 @@ export default function OverflowSalePage() {
     }
   }, [saleRead]);
 
-  useEffect(() => { fetchSales(); }, [fetchSales, refreshKey]);
+  const blockTick = useBlockPoll();
+  useEffect(() => { fetchSales(); }, [fetchSales, refreshKey, blockTick]);
+
+  useAccountChangeReset(useCallback(() => {
+    setSales((prev) => prev.map((s) => ({ ...s, myAllocation: null })));
+    setRefreshKey((k) => k + 1);
+  }, []));
 
   /* ---- tx helpers ---- */
 
+  const toast = useToast();
+
   function handleTxError(err: unknown) {
+    const isRejection = err instanceof Error && err.message.includes("user rejected");
+    const message = isRejection
+      ? "You rejected the transaction in your wallet"
+      : err instanceof Error ? err.message.slice(0, 200) : "Transaction failed";
     setTxState("error");
-    setTxError(
-      err instanceof Error
-        ? err.message.includes("user rejected") ? "Transaction rejected" : err.message.slice(0, 120)
-        : "Transaction failed",
-    );
+    setTxError(message);
+    toast.error(isRejection ? "Transaction cancelled" : "Transaction failed", message);
   }
 
   const guardedAction = useCallback(
@@ -219,8 +245,15 @@ export default function OverflowSalePage() {
     setTxError(undefined);
     setTxHash(undefined);
     try {
+      const supplyBn = parseAmount(cSupply);
+      const priceBn = parseAmount(cPrice);
+      if (supplyBn === null || priceBn === null) {
+        toast.error("Invalid input", "Supply and price must be positive numbers");
+        setTxState("idle");
+        return;
+      }
       const tx = await saleContract.createSale(
-        cToken, cPayToken, BigInt(cSupply), BigInt(cPrice), BigInt(cDuration),
+        cToken, cPayToken, supplyBn, priceBn, BigInt(cDuration),
       );
       setTxState("confirming");
       setTxHash(tx.hash);
@@ -240,8 +273,15 @@ export default function OverflowSalePage() {
     setTxError(undefined);
     setTxHash(undefined);
     try {
+      const depositBn = parseAmount(depositAmount);
+      if (depositBn === null) {
+        toast.error("Invalid amount", "Deposit must be a positive number");
+        setTxState("idle");
+        return;
+      }
       const { Encryptable } = await import("cofhejs/web");
-      const enc = await encrypt([Encryptable.uint128(BigInt(depositAmount))]);
+      // Audit fix B3: OverflowSale.deposit expects InEuint64
+      const enc = await encrypt([Encryptable.uint64(depositBn)]);
       if (!enc) throw new Error("Encryption failed");
       const tx = await saleContract.deposit(selectedSale.id, enc[0]);
       setTxState("confirming");
@@ -257,20 +297,118 @@ export default function OverflowSalePage() {
     }
   }, [saleContract, initialized, selectedSale, depositAmount, encrypt]);
 
+  /**
+   * Two-stage settle (audit fix D-OS1):
+   *   1. settle(id) — marks total demand publicly decryptable via FHE.allowGlobal
+   *   2. anyone fetches TN signature for total demand
+   *   3. finalizeSettlement(id, totalDemand, signature) — verifies + transitions
+   */
   const handleSettle = useCallback(
     (id: number) => guardedAction(`settle-${id}`, async () => {
-      const tx = await saleContract!.settle(id);
-      setTxState("confirming"); setTxHash(tx.hash); await tx.wait(); setTxState("success");
+      if (!saleContract) throw new Error("Sale contract not ready");
+
+      // Step 1: signal settle (marks publicly decryptable)
+      setTxState("signing");
+      const settleTx = await saleContract.settle(id);
+      setTxState("confirming");
+      setTxHash(settleTx.hash);
+      await settleTx.wait();
+
+      // Step 2: read encrypted total handle
+      const sale = await saleContract.sales(id);
+      const totalHandle = sale.totalDeposited as unknown as string;
+
+      // Step 3: TN signature
+      setTxState("decrypting");
+      const proof = await decryptForTx(totalHandle);
+      if (!proof) throw new Error("Total demand decryption failed");
+
+      // Step 4: finalize on-chain
+      setTxState("signing");
+      const finTx = await saleContract.finalizeSettlement(id, proof.decryptedValue, proof.signature);
+      setTxState("confirming");
+      setTxHash(finTx.hash);
+      await finTx.wait();
+      setTxState("success");
+
+      setDrawerProof({
+        ctHash: totalHandle,
+        decryptedValue: `${proof.decryptedValue.toString()} (total demand)`,
+        signature: proof.signature,
+        txHash: finTx.hash,
+        chainId: FHENIX_TESTNET.chainId,
+        label: "Sale total demand",
+      });
+      setDrawerOpen(true);
     }),
-    [saleContract, guardedAction],
+    [saleContract, guardedAction, decryptForTx],
   );
 
+  /**
+   * Per-depositor claim (audit fix D-OS2):
+   * Frontend scans deposits to find caller's unclaimed deposit, then runs
+   * the 3-step verifiable claim (claimAllocation → decryptForTx → finalize).
+   */
   const handleClaim = useCallback(
-    (id: number) => guardedAction(`claim-${id}`, async () => {
-      const tx = await saleContract!.claim(id);
-      setTxState("confirming"); setTxHash(tx.hash); await tx.wait(); setTxState("success");
-    }),
-    [saleContract, guardedAction],
+    (saleId: number) =>
+      guardedAction(`claim-${saleId}`, async () => {
+        if (!saleContract || !account) throw new Error("Not ready");
+
+        // Find the caller's first unclaimed deposit index
+        let depositIndex = -1;
+        // Try up to 50 deposits per sale
+        for (let i = 0; i < 50; i++) {
+          try {
+            const dep = await saleContract.deposits(saleId, i);
+            if (
+              dep.depositor.toLowerCase() === account.toLowerCase() &&
+              !dep.claimed
+            ) {
+              depositIndex = i;
+              break;
+            }
+          } catch {
+            break; // out of bounds = no more deposits
+          }
+        }
+        if (depositIndex === -1) throw new Error("No unclaimed deposit found");
+
+        setTxState("signing");
+        const claimTx = await saleContract.claimAllocation(saleId, depositIndex);
+        setTxState("confirming");
+        setTxHash(claimTx.hash);
+        await claimTx.wait();
+
+        const dep = await saleContract.deposits(saleId, depositIndex);
+        const amountHandle = dep.encAmount as unknown as string;
+
+        setTxState("decrypting");
+        const proof = await decryptForTx(amountHandle);
+        if (!proof) throw new Error("Deposit decryption failed");
+
+        setTxState("signing");
+        const finTx = await saleContract.finalizeClaimAllocation(
+          saleId,
+          depositIndex,
+          proof.decryptedValue,
+          proof.signature,
+        );
+        setTxState("confirming");
+        setTxHash(finTx.hash);
+        await finTx.wait();
+        setTxState("success");
+
+        setDrawerProof({
+          ctHash: amountHandle,
+          decryptedValue: `${proof.decryptedValue.toString()} (your deposit)`,
+          signature: proof.signature,
+          txHash: finTx.hash,
+          chainId: FHENIX_TESTNET.chainId,
+          label: "Your deposit allocation",
+        });
+        setDrawerOpen(true);
+      }),
+    [saleContract, guardedAction, decryptForTx],
   );
 
   const handleUnsealAllocation = useCallback(async (sale: SaleData) => {
@@ -294,27 +432,34 @@ export default function OverflowSalePage() {
   /* ================================================================ */
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-10 max-w-[1180px] mx-auto px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-teal-600/20 flex items-center justify-center">
-            <Droplets size={20} className="text-teal-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold gradient-text">Overflow Sale</h1>
-            <p className="text-sm text-gray-400">
-              Fixed price, pro-rata allocation if oversubscribed
+      <div className="mb-10 space-y-6">
+        <div
+          className="font-mono text-[11px] uppercase tracking-[0.1em]"
+          style={{ color: "var(--text-muted)" }}
+        >
+          — Overflow / fixed-price sale
+        </div>
+        <div className="flex items-end justify-between flex-wrap gap-6">
+          <div className="max-w-2xl">
+            <h1
+              className="font-display font-bold tracking-tight leading-[1.02] mb-4"
+              style={{ fontSize: "clamp(38px, 5vw, 64px)", letterSpacing: "-0.04em" }}
+            >
+              Fixed price.{" "}<em className="font-serif italic font-normal">Pro-rata when overfilled</em>.
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
+              Buyers commit encrypted amounts at a public fixed price. If total demand exceeds supply, allocations pro-rate fairly.
             </p>
           </div>
-        </div>
         <div className="flex items-center gap-3">
           <FaucetButton />
           {account && (
             <button
               onClick={() => { setModalView("create"); setTxState("idle"); }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg
-                         bg-gradient-to-r from-teal-600 to-cyan-600 text-white text-sm font-medium
+                         bg-gradient-to-r from-teal-600 to-cyan-600 text-[var(--bg)] text-sm font-medium
                          hover:from-teal-500 hover:to-cyan-500 transition-all"
             >
               <Plus size={16} />
@@ -325,12 +470,12 @@ export default function OverflowSalePage() {
       </div>
 
       {!account && (
-        <div className="glass rounded-xl p-10 text-center space-y-3">
+        <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-10 text-center space-y-3">
           <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-teal-600/30 to-cyan-600/30 flex items-center justify-center">
             <Droplets size={24} className="text-teal-400" />
           </div>
-          <h2 className="text-lg font-semibold text-gray-200">Connect your wallet</h2>
-          <p className="text-sm text-gray-400 max-w-md mx-auto">
+          <h2 className="text-lg font-semibold text-[var(--text)]">Connect your wallet</h2>
+          <p className="text-sm text-[var(--text-muted)] max-w-md mx-auto">
             Participate in token sales with encrypted deposit amounts.
             If oversubscribed, tokens are allocated pro-rata.
           </p>
@@ -338,11 +483,11 @@ export default function OverflowSalePage() {
       )}
 
       {account && !deployed && (
-        <div className="glass rounded-xl p-5 border-amber-500/20 flex items-start gap-3">
-          <AlertCircle size={18} className="text-amber-400 mt-0.5 shrink-0" />
+        <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-5 border-[var(--border-dash)] flex items-start gap-3">
+          <AlertCircle size={18} className="text-[var(--text-muted)] mt-0.5 shrink-0" />
           <div>
-            <p className="text-sm font-medium text-amber-300">OverflowSale contract not deployed yet</p>
-            <p className="text-xs text-gray-400 mt-1">Deploy the contracts and update the address in constants.ts.</p>
+            <p className="text-sm font-medium text-[var(--text-muted)]">OverflowSale contract not deployed yet</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">Deploy the contracts and update the address in constants.ts.</p>
           </div>
         </div>
       )}
@@ -363,14 +508,15 @@ export default function OverflowSalePage() {
 
       {account && (
         <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-500">{sales.length} sale{sales.length !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-[var(--text-muted)]">{sales.length} sale{sales.length !== 1 ? "s" : ""}</p>
           <button onClick={() => setRefreshKey((k) => k + 1)} disabled={loading}
-            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-teal-300 transition-colors disabled:opacity-50">
+            className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-teal-300 transition-colors disabled:opacity-50">
             <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
             {loading ? "Loading..." : "Refresh"}
           </button>
         </div>
-      )}
+      )}</div>
+      
 
       {/* Sale grid */}
       {account && (
@@ -380,9 +526,9 @@ export default function OverflowSalePage() {
               <Loader2 size={24} className="text-teal-400 animate-spin" />
             </div>
           ) : sales.length === 0 ? (
-            <div className="glass rounded-xl py-20 text-center space-y-3">
-              <Droplets size={36} className="mx-auto text-gray-600" />
-              <p className="text-sm text-gray-500">No overflow sales yet</p>
+            <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="py-20 text-center space-y-3">
+              <Droplets size={36} className="mx-auto text-[var(--text-muted)]" />
+              <p className="text-sm text-[var(--text-muted)]">No overflow sales yet</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -397,16 +543,16 @@ export default function OverflowSalePage() {
                     key={sale.id}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="glass rounded-xl overflow-hidden hover:border-teal-500/25 transition-all"
+                    style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="overflow-hidden hover:border-teal-500/25 transition-all"
                   >
                     <div className="px-5 py-4 border-b border-teal-500/5 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-gray-500">#{sale.id}</span>
+                        <span className="font-mono text-xs text-[var(--text-muted)]">#{sale.id}</span>
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}`}>
                           {STATUS_LABEL[sale.status]}
                         </span>
                         {sale.oversubscribed && sale.status === 1 && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-amber-500/15 text-amber-400 border-amber-500/20">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-[var(--bg-alt)] text-[var(--text-muted)] border-[var(--border-dash)]">
                             OVERSUBSCRIBED
                           </span>
                         )}
@@ -419,26 +565,26 @@ export default function OverflowSalePage() {
                     <div className="px-5 py-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs text-gray-500">Supply</p>
-                          <p className="text-lg font-bold text-gray-100">
+                          <p className="text-xs text-[var(--text-muted)]">Supply</p>
+                          <p className="text-lg font-bold text-[var(--text)]">
                             {sale.totalSupply}{" "}
                             <span className="text-sm font-medium text-teal-400">{tokenSymbol(sale.token)}</span>
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs text-gray-500">Price</p>
-                          <p className="text-sm font-bold text-gray-100 font-mono-cipher">
+                          <p className="text-xs text-[var(--text-muted)]">Price</p>
+                          <p className="text-sm font-bold text-[var(--text)] font-mono-cipher">
                             {sale.pricePerToken}
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-4 text-xs">
-                        <div className="flex items-center gap-1.5 text-gray-400">
-                          <Timer size={12} className="text-cyan-500/60" />
+                        <div className="flex items-center gap-1.5 text-[var(--text-muted)]">
+                          <Timer size={12} className="text-[var(--text)]/60" />
                           <CountdownBadge deadline={sale.deadline} />
                         </div>
-                        <div className="flex items-center gap-1.5 text-gray-400">
+                        <div className="flex items-center gap-1.5 text-[var(--text-muted)]">
                           <Users size={12} className="text-teal-500/60" />
                           {sale.depositCount} deposit{sale.depositCount !== 1 ? "s" : ""}
                         </div>
@@ -452,7 +598,7 @@ export default function OverflowSalePage() {
                         </div>
                       )}
 
-                      <div className="flex items-center gap-1.5 text-[10px] text-gray-600">
+                      <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
                         <Lock size={10} className="text-teal-500/40" />
                         Deposit amounts encrypted with FHE
                       </div>
@@ -463,7 +609,7 @@ export default function OverflowSalePage() {
                         <button
                           onClick={() => { setSelectedSale(sale); setDepositAmount(""); setModalView("deposit"); setTxState("idle"); }}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
-                                     bg-gradient-to-r from-teal-600 to-cyan-600 text-white hover:from-teal-500 hover:to-cyan-500 transition-all"
+                                     bg-gradient-to-r from-teal-600 to-cyan-600 text-[var(--bg)] hover:from-teal-500 hover:to-cyan-500 transition-all"
                         >
                           <Lock size={12} /> Deposit
                         </button>
@@ -471,22 +617,22 @@ export default function OverflowSalePage() {
                       {sale.status === 0 && mine && ended && (
                         <button onClick={() => handleSettle(sale.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
-                                     bg-blue-500/15 border border-blue-500/20 text-blue-300 hover:bg-blue-500/25 transition-all">
+                                     bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
                           <CheckCircle2 size={12} /> Settle
                         </button>
                       )}
                       {sale.status === 1 && !mine && (
                         <button onClick={() => handleClaim(sale.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
-                                     bg-emerald-500/15 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/25 transition-all">
+                                     bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
                           <Download size={12} /> Claim Tokens
                         </button>
                       )}
                       {sale.status === 1 && sale.myAllocation === null && !mine && (
                         <button onClick={() => handleUnsealAllocation(sale)}
                           disabled={unsealing}
-                          className="rounded-lg px-3 py-2 text-xs font-medium bg-white/[0.03] border border-teal-500/10 text-gray-400
-                                     hover:text-gray-200 hover:bg-white/[0.06] transition-all disabled:opacity-50">
+                          className="rounded-lg px-3 py-2 text-xs font-medium bg-white/[0.03] border border-teal-500/10 text-[var(--text-muted)]
+                                     hover:text-[var(--text)] hover:bg-white/[0.06] transition-all disabled:opacity-50">
                           {unsealing ? <Loader2 size={12} className="animate-spin" /> : <PieChart size={12} />}
                           {unsealing ? "..." : "Allocation"}
                         </button>
@@ -505,34 +651,35 @@ export default function OverflowSalePage() {
         {modalView === "create" && (
           <motion.div key="create-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            {...modalProps}
             onClick={() => setModalView("none")}>
             <motion.div key="create-card"
               initial={{ scale: 0.95, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="glass rounded-2xl w-full max-w-lg p-6 space-y-5 border border-teal-500/20 shadow-2xl max-h-[90vh] overflow-y-auto">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-lg p-6 space-y-5 border border-teal-500/20 shadow-2xl max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                   <Droplets size={18} className="text-teal-400" /> Create Overflow Sale
                 </h3>
-                <button onClick={() => setModalView("none")} className="text-gray-500 hover:text-gray-300 p-1 rounded-lg hover:bg-white/5 transition-colors">
+                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5 transition-colors">
                   <X size={18} />
                 </button>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium">Token to Sell</label>
+                <label className="text-xs text-[var(--text-muted)] font-medium">Token to Sell</label>
                 <select value={cToken} onChange={(e) => setCToken(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2.5 bg-[#0a0b14] border border-teal-500/10 text-sm text-gray-200 focus:outline-none focus:border-teal-500/40 transition-colors">
+                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-teal-500/10 text-sm text-[var(--text)] focus:outline-none focus:border-teal-500/40 transition-colors">
                   {TOKEN_OPTIONS.map((t) => <option key={t.address} value={t.address}>{t.symbol}</option>)}
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium">Payment Token</label>
+                <label className="text-xs text-[var(--text-muted)] font-medium">Payment Token</label>
                 <select value={cPayToken} onChange={(e) => setCPayToken(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2.5 bg-[#0a0b14] border border-teal-500/10 text-sm text-gray-200 focus:outline-none focus:border-teal-500/40 transition-colors">
+                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-teal-500/10 text-sm text-[var(--text)] focus:outline-none focus:border-teal-500/40 transition-colors">
                   <option value="">Select token</option>
                   {TOKEN_OPTIONS.map((t) => <option key={t.address} value={t.address}>{t.symbol}</option>)}
                 </select>
@@ -540,26 +687,26 @@ export default function OverflowSalePage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs text-gray-400 font-medium">Total Supply</label>
+                  <label className="text-xs text-[var(--text-muted)] font-medium">Total Supply</label>
                   <input type="number" value={cSupply} onChange={(e) => setCSupply(e.target.value)} placeholder="10000" min="0"
-                    className="w-full rounded-lg px-3 py-2.5 bg-[#0a0b14] border border-teal-500/10 text-sm text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-teal-500/40 transition-colors" />
+                    className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-teal-500/10 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-teal-500/40 transition-colors" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs text-gray-400 font-medium">Price per Token</label>
+                  <label className="text-xs text-[var(--text-muted)] font-medium">Price per Token</label>
                   <input type="number" value={cPrice} onChange={(e) => setCPrice(e.target.value)} placeholder="100" min="0"
-                    className="w-full rounded-lg px-3 py-2.5 bg-[#0a0b14] border border-teal-500/10 text-sm text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-teal-500/40 transition-colors" />
+                    className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-teal-500/10 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-teal-500/40 transition-colors" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium">Duration</label>
+                <label className="text-xs text-[var(--text-muted)] font-medium">Duration</label>
                 <div className="grid grid-cols-2 gap-2">
                   {DURATION_OPTS.map((d) => (
                     <button key={d.value} type="button" onClick={() => setCDuration(d.value)}
                       className={`rounded-lg px-3 py-2 text-xs font-medium border transition-all ${
                         cDuration === d.value
                           ? "bg-teal-600/15 border-teal-500/30 text-teal-300"
-                          : "bg-[#0a0b14] border-teal-500/10 text-gray-400 hover:border-teal-500/20"
+                          : "bg-[var(--bg)] border-teal-500/10 text-[var(--text-muted)] hover:border-teal-500/20"
                       }`}>
                       {d.label}
                     </button>
@@ -570,7 +717,7 @@ export default function OverflowSalePage() {
               <button onClick={handleCreate}
                 disabled={txState === "signing" || txState === "confirming" || !cSupply || !cPrice || !cPayToken}
                 className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
-                           bg-gradient-to-r from-teal-600 to-cyan-600 text-white hover:from-teal-500 hover:to-cyan-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                           bg-gradient-to-r from-teal-600 to-cyan-600 text-[var(--bg)] hover:from-teal-500 hover:to-cyan-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {txState === "signing" || txState === "confirming" ? (
                   <><Loader2 size={16} className="animate-spin" /> Processing...</>
                 ) : (
@@ -587,34 +734,35 @@ export default function OverflowSalePage() {
         {modalView === "deposit" && selectedSale && (
           <motion.div key="deposit-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            {...modalProps}
             onClick={() => setModalView("none")}>
             <motion.div key="deposit-card"
               initial={{ scale: 0.95, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="glass rounded-2xl w-full max-w-md p-6 space-y-5 border border-teal-500/20 shadow-2xl">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-6 space-y-5 border border-teal-500/20 shadow-2xl">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                   <Lock size={18} className="text-teal-400" /> Deposit
                 </h3>
-                <button onClick={() => setModalView("none")} className="text-gray-500 hover:text-gray-300 p-1 rounded-lg hover:bg-white/5 transition-colors">
+                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5 transition-colors">
                   <X size={18} />
                 </button>
               </div>
 
               <div className="rounded-lg bg-teal-500/5 border border-teal-500/10 px-4 py-3 space-y-1">
-                <p className="text-xs text-gray-500">Sale #{selectedSale.id}</p>
-                <p className="text-sm font-semibold text-gray-100">
+                <p className="text-xs text-[var(--text-muted)]">Sale #{selectedSale.id}</p>
+                <p className="text-sm font-semibold text-[var(--text)]">
                   {selectedSale.totalSupply} {tokenSymbol(selectedSale.token)} @ {selectedSale.pricePerToken} each
                 </p>
-                <p className="text-xs text-gray-500">{selectedSale.depositCount} deposits so far</p>
+                <p className="text-xs text-[var(--text-muted)]">{selectedSale.depositCount} deposits so far</p>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium">Deposit Amount</label>
+                <label className="text-xs text-[var(--text-muted)] font-medium">Deposit Amount</label>
                 <input type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} placeholder="0" min="0"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[#0a0b14] border border-teal-500/10 text-sm text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-teal-500/40 transition-colors" />
+                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-teal-500/10 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-teal-500/40 transition-colors" />
               </div>
 
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-teal-500/5 border border-teal-500/10">
@@ -627,7 +775,7 @@ export default function OverflowSalePage() {
               <button onClick={handleDeposit}
                 disabled={txState === "signing" || txState === "confirming" || encrypting || !depositAmount}
                 className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
-                           bg-gradient-to-r from-teal-600 to-cyan-600 text-white hover:from-teal-500 hover:to-cyan-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                           bg-gradient-to-r from-teal-600 to-cyan-600 text-[var(--bg)] hover:from-teal-500 hover:to-cyan-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {encrypting ? (
                   <><Loader2 size={16} className="animate-spin" /> Encrypting deposit...</>
                 ) : txState === "signing" || txState === "confirming" ? (
@@ -640,6 +788,12 @@ export default function OverflowSalePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <SignatureDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        proof={drawerProof}
+      />
     </div>
   );
 }

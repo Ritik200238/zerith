@@ -89,12 +89,23 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       } else {
         setAccount(accounts[0]);
         prov.getSigner().then(setSigner).catch(() => setSigner(null));
+        // Audit fix E1: notify pages so they can clear cross-account state
+        // (e.g. unsealed bid amounts, in-progress encryption, cached handles)
+        window.dispatchEvent(new CustomEvent("sigil-account-changed", { detail: accounts[0] }));
       }
     };
 
-    const handleChainChanged = () => {
-      // Reload to avoid stale state after chain switch
-      window.location.reload();
+    const handleChainChanged = (...args: unknown[]) => {
+      // Audit fix E2: previously did window.location.reload() which nuked
+      // every modal mid-form (auction creation with 20 recipients, etc.).
+      // Now: re-init provider/signer in place so user keeps their state.
+      const newChainIdHex = args[0] as string;
+      const newChainId = parseInt(newChainIdHex, 16);
+      setIsCorrectChain(newChainId === FHENIX_TESTNET.chainId);
+      const fresh = new ethers.BrowserProvider(ethereum);
+      setProvider(fresh);
+      fresh.getSigner().then(setSigner).catch(() => setSigner(null));
+      window.dispatchEvent(new CustomEvent("sigil-chain-changed", { detail: newChainId }));
     };
 
     ethereum.on("accountsChanged", handleAccountsChanged);

@@ -1,228 +1,323 @@
 "use client";
 
-import { useState } from "react";
-import { useWallet } from "@/providers/WalletProvider";
+/**
+ * Encrypted Reputation — /reputation
+ *
+ * Submit encrypted ratings (1-5) for counterparties you've traded with.
+ * View your own encrypted score (sum of received ratings) via permit.
+ *
+ * Note: rating requires a previously recorded trade with the counterparty
+ * (recorded by an authorized feature contract on settle). Without a trade,
+ * the contract reverts.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Star,
-  Lock,
-  Eye,
-  EyeOff,
-  Send,
-  User,
-  BarChart3,
-  Activity,
-  ArrowLeftRight,
+  Star, Plus, X, Loader2, RefreshCw, Lock, Eye, CheckCircle2, AlertCircle,
 } from "lucide-react";
-
-interface TradeEvent {
-  id: string;
-  counterparty: string;
-  type: string;
-  timestamp: number;
-}
-
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
-
-function formatTime(ts: number) {
-  const diff = Math.floor(Date.now() / 1000) - ts;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
+import { useWallet } from "@/providers/WalletProvider";
+import { useCofhe } from "@/hooks/useCofhe";
+import { useEncrypt } from "@/hooks/useEncrypt";
+import { useUnseal } from "@/hooks/useUnseal";
+import { useContract, useReadContract } from "@/hooks/useContract";
+import { useBlockPoll, useAccountChangeReset } from "@/hooks/useBlockPoll";
+import { useToast, useModalEscape } from "@/components/shared/Toast";
+import { useTxFeedback } from "@/hooks/useTxFeedback";
+import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { FaucetButton } from "@/components/shared/FaucetButton";
+import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
+import { CONTRACTS } from "@/lib/constants";
+import { isValidAddress } from "@/lib/format";
 
 export default function ReputationPage() {
   const { account } = useWallet();
-  const [ratingRevealed, setRatingRevealed] = useState(false);
-  const [tradeEvents] = useState<TradeEvent[]>([]);
-  const [rateForm, setRateForm] = useState({
-    counterparty: "",
-    rating: 0,
-  });
+  const { initialized } = useCofhe();
+  const { encrypt } = useEncrypt();
+  const { unseal } = useUnseal();
+  const toast = useToast();
 
-  const starCount = 5;
+  // getMyReputation depends on msg.sender — use signer-bound for that.
+  // getTradeCount(user) takes explicit address — read provider is fine.
+  const repContract = useContract("Reputation");
+  const repRead = useContract("Reputation");
+  const repReadProvider = useReadContract("Reputation");
 
-  const handleRate = () => {
-    if (!account || !rateForm.counterparty || rateForm.rating === 0) return;
-    setRateForm({ counterparty: "", rating: 0 });
-  };
+  const deployed = CONTRACTS.Reputation !== "0x0000000000000000000000000000000000000000";
+
+  const [tradeCount, setTradeCount] = useState<number>(0);
+  const [encScoreHandle, setEncScoreHandle] = useState<string | null>(null);
+  const [unsealedScore, setUnsealedScore] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  // submit form
+  const [counterparty, setCounterparty] = useState("");
+  const [rating, setRating] = useState(5);
+  const [tradeId, setTradeId] = useState("");
+
+  const [txState, setTxState] = useState<TxState>("idle");
+  const [txHash, setTxHash] = useState<string | undefined>();
+  const [txError, setTxError] = useState<string | undefined>();
+  useTxFeedback(txState, { label: "Reputation", type: "system", href: "/reputation", txHash });
+
+  const modalProps = useModalEscape(modalOpen, () => setModalOpen(false), "reputation-modal-title");
+
+  const fetchData = useCallback(async () => {
+    if (!account) return;
+    try {
+      if (repReadProvider) {
+        const tc = Number(await repReadProvider.getTradeCount(account));
+        setTradeCount(tc);
+      }
+      if (repRead) {
+        try {
+          const handle = await repRead.getMyReputation();
+          setEncScoreHandle(handle.toString());
+        } catch {
+          setEncScoreHandle(null);
+        }
+      }
+    } catch {
+      /* noop */
+    }
+  }, [repRead, repReadProvider, account]);
+
+  const blockTick = useBlockPoll();
+  useEffect(() => {
+    if (deployed) fetchData();
+  }, [fetchData, refreshKey, blockTick, deployed]);
+  useAccountChangeReset(useCallback(() => {
+    setEncScoreHandle(null);
+    setUnsealedScore(null);
+    setRefreshKey((k) => k + 1);
+  }, []));
+
+  const handleComputeReputation = useCallback(async () => {
+    if (!repContract) return;
+    setTxState("signing");
+    try {
+      const tx = await repContract.computeMyReputation();
+      setTxState("confirming");
+      setTxHash(tx.hash);
+      await tx.wait();
+      setTxState("success");
+      setRefreshKey((k) => k + 1);
+    } catch (err: unknown) {
+      setTxState("error");
+      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+      setTxError(msg);
+      toast.error("Compute failed", msg);
+    }
+  }, [repContract, toast]);
+
+  const handleSubmitRating = useCallback(async () => {
+    if (!repContract || !initialized) return;
+    if (!isValidAddress(counterparty)) {
+      toast.error("Invalid counterparty", "Must be 0x + 40 hex");
+      return;
+    }
+    if (rating < 1 || rating > 5) {
+      toast.error("Invalid rating", "Must be 1-5");
+      return;
+    }
+    const tid = Number(tradeId);
+    if (!Number.isFinite(tid) || tid < 0) {
+      toast.error("Invalid trade ID", "Provide the trade ID this rating belongs to");
+      return;
+    }
+    setTxState("signing");
+    try {
+      const { Encryptable } = await import("cofhejs/web");
+      const enc = await encrypt([Encryptable.uint8(BigInt(rating))]);
+      if (!enc) throw new Error("Encryption failed");
+      const tx = await repContract.submitRating(counterparty, enc[0], BigInt(tid));
+      setTxState("confirming");
+      setTxHash(tx.hash);
+      await tx.wait();
+      setTxState("success");
+      setCounterparty("");
+      setTradeId("");
+      setModalOpen(false);
+      setRefreshKey((k) => k + 1);
+    } catch (err: unknown) {
+      setTxState("error");
+      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+      setTxError(msg);
+      toast.error("Submit rating failed", msg);
+    }
+  }, [repContract, initialized, counterparty, rating, tradeId, encrypt, toast]);
+
+  const handleRevealScore = useCallback(async () => {
+    if (!encScoreHandle) return;
+    const v = await unseal(BigInt(encScoreHandle), 5); // euint64
+    if (v !== null) setUnsealedScore(v.toString());
+  }, [encScoreHandle, unseal]);
+
+  if (!deployed) {
+    return (
+      <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
+        <ComingSoonBanner feature="Encrypted Reputation" shipDate="Wave 4 deploy" />
+      </main>
+    );
+  }
+
+  const avgScore = unsealedScore && tradeCount > 0
+    ? (Number(unsealedScore) / tradeCount).toFixed(2)
+    : null;
 
   return (
-    <div className="space-y-6 max-w-6xl">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-orange-600/20 flex items-center justify-center">
-          <Star size={20} className="text-orange-400" />
+    <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
+      <header className="mb-10 space-y-6">
+        <div
+          className="font-mono text-[11px] uppercase tracking-[0.1em]"
+          style={{ color: "var(--text-muted)" }}
+        >
+          — Reputation
         </div>
-        <div>
-          <h1 className="text-2xl font-bold gradient-text">Reputation</h1>
-          <p className="text-sm text-gray-400">
-            Encrypted trader ratings averaged on-chain
-          </p>
-        </div>
-      </div>
-
-      {/* Privacy Note */}
-      <div className="glass rounded-xl p-4 flex items-start gap-3 border-l-2 border-orange-500/50">
-        <Lock size={16} className="text-orange-400 mt-0.5 shrink-0" />
-        <p className="text-xs text-gray-400">
-          Individual ratings are never exposed — only you can see your aggregate score. Ratings
-          are encrypted with <span className="text-orange-300 font-mono">euint8</span> and
-          averaged using <span className="text-orange-300 font-mono">FHE.div(totalScore, count)</span>.
-          If the Reputation contract fails, trading continues unaffected.
-        </p>
-      </div>
-
-      {!account ? (
-        <div className="glass rounded-xl p-12 text-center space-y-3">
-          <Lock size={32} className="text-orange-400/50 mx-auto" />
-          <p className="text-gray-400 text-sm">Connect your wallet to view your reputation</p>
-        </div>
-      ) : (
-        <>
-          {/* Your Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="glass rounded-xl p-5 space-y-2">
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <BarChart3 size={12} />
-                Trade Count
-              </div>
-              <p className="text-2xl font-bold text-gray-100">0</p>
-              <p className="text-xs text-gray-500">Completed trades (public)</p>
-            </div>
-            <div className="glass rounded-xl p-5 space-y-2">
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <Star size={12} />
-                Average Rating
-              </div>
-              {ratingRevealed ? (
-                <div className="flex items-center gap-2">
-                  <p className="text-2xl font-bold text-gray-100">-.-</p>
-                  <span className="text-xs text-gray-500">/ 5.0</span>
-                  <button onClick={() => setRatingRevealed(false)}>
-                    <EyeOff size={14} className="text-gray-500 hover:text-gray-300 transition-colors" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setRatingRevealed(true)}
-                  className="flex items-center gap-2 group"
-                >
-                  <Lock size={18} className="text-purple-400" />
-                  <span className="text-sm text-purple-300 group-hover:text-purple-200 transition-colors">
-                    Click to view
-                  </span>
-                  <Eye size={14} className="text-purple-400" />
-                </button>
-              )}
-            </div>
-            <div className="glass rounded-xl p-5 space-y-2">
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <Star size={12} />
-                Star Visualization
-              </div>
-              <div className="flex items-center gap-1 pt-1">
-                {Array.from({ length: starCount }).map((_, i) => (
-                  <Star
-                    key={i}
-                    size={20}
-                    className={ratingRevealed ? "text-gray-600" : "text-gray-700"}
-                    fill={ratingRevealed ? "transparent" : "transparent"}
-                  />
-                ))}
-              </div>
-              <p className="text-xs text-gray-500">
-                {ratingRevealed ? "No ratings yet" : "Click to view"}
-              </p>
-            </div>
-          </div>
-
-          {/* Rate a Trader */}
-          <div className="glass rounded-xl p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-gray-200 flex items-center gap-2">
-              <User size={18} className="text-orange-400" />
-              Rate a Trader
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs text-gray-400 block mb-1.5">Counterparty Address</label>
-                <input
-                  type="text"
-                  value={rateForm.counterparty}
-                  onChange={(e) => setRateForm({ ...rateForm, counterparty: e.target.value })}
-                  placeholder="0x..."
-                  className="w-full px-3 py-2.5 rounded-lg bg-[#0a0b14] border border-purple-500/15 text-sm text-gray-200 placeholder:text-gray-600 focus:border-orange-500/40 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-400 block mb-1.5">
-                  Encrypted Rating
-                  <Lock size={10} className="inline ml-1 text-orange-400" />
-                </label>
-                <div className="flex items-center gap-2 pt-1">
-                  {Array.from({ length: starCount }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setRateForm({ ...rateForm, rating: i + 1 })}
-                      className="transition-colors"
-                    >
-                      <Star
-                        size={24}
-                        className={i < rateForm.rating ? "text-orange-400" : "text-gray-600 hover:text-gray-400"}
-                        fill={i < rateForm.rating ? "currentColor" : "transparent"}
-                      />
-                    </button>
-                  ))}
-                  <span className="text-xs text-gray-500 ml-2">
-                    {rateForm.rating > 0 ? `${rateForm.rating}/5` : "Select"}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={handleRate}
-              disabled={!rateForm.counterparty || rateForm.rating === 0}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-gradient-to-r from-orange-600 to-amber-600 text-white text-sm font-medium hover:from-orange-500 hover:to-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        <div className="flex items-end justify-between flex-wrap gap-6">
+          <div className="max-w-2xl">
+            <h1
+              className="font-display font-bold tracking-tight leading-[1.02] mb-4"
+              style={{ fontSize: "clamp(38px, 5vw, 64px)", letterSpacing: "-0.04em" }}
             >
-              <Send size={14} />
-              Submit Encrypted Rating
+              Encrypted ratings.{" "}<em className="font-serif italic font-normal">Composable credit</em>.
+            </h1>
+            <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
+              Build a reputation score across every CipherDEX feature. Ratings encrypted — only counterparties you choose can read.
+            </p>
+          </div>
+        <div className="flex items-center gap-2">
+          <FaucetButton />
+          <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/5 transition-colors">
+            <RefreshCw size={16} />
+          </button>
+          <button onClick={() => setModalOpen(true)} disabled={!account}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+                       bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                       text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all">
+            <Plus size={14} /> Submit rating
+          </button>
+        </div>
+      </div>
+        </header>
+
+      <TransactionStatus state={txState} txHash={txHash} error={txError} onDismiss={() => setTxState("idle")} />
+
+      <section className="grid md:grid-cols-2 gap-4 mt-6">
+        <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-5">
+          <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-2">
+            Your trade count
+          </div>
+          <div className="text-3xl font-mono text-[var(--text)]">{tradeCount}</div>
+          <p className="text-[10px] text-[var(--text-muted)] mt-1">Public — visible from settlement events.</p>
+        </div>
+
+        <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-5">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
+              Encrypted reputation score
+            </div>
+            <button onClick={handleComputeReputation} disabled={txState === "signing" || txState === "confirming"}
+              className="text-[10px] text-[var(--text)] hover:text-[var(--text)] transition-colors disabled:opacity-40">
+              recompute
             </button>
           </div>
+          {!encScoreHandle ? (
+            <p className="text-sm text-[var(--text-muted)]">
+              <Lock size={14} className="inline text-[var(--text)] mr-1" />
+              No score yet. Click recompute after receiving ratings.
+            </p>
+          ) : unsealedScore !== null ? (
+            <>
+              <div className="text-3xl font-mono text-[var(--text)]">{unsealedScore}</div>
+              {avgScore && (
+                <p className="text-[11px] text-[var(--text)] mt-1">
+                  avg ~{avgScore} / 5 across {tradeCount} ratings
+                </p>
+              )}
+              <button onClick={() => setUnsealedScore(null)}
+                className="mt-2 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
+                Hide
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="text-2xl font-mono text-[var(--text)]">•••</div>
+              <button onClick={handleRevealScore}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
+                <Eye size={12} /> Reveal to me
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
 
-          {/* Recent Trades */}
-          <div className="space-y-3">
-            <h2 className="text-sm font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
-              <Activity size={14} />
-              Recent Trades
-            </h2>
-            {tradeEvents.length === 0 ? (
-              <div className="glass rounded-xl p-8 text-center">
-                <p className="text-gray-500 text-sm">No trade events recorded yet</p>
+      <AnimatePresence>
+        {modalOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setModalOpen(false)} {...modalProps}>
+            <motion.div onClick={(e) => e.stopPropagation()}
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4">
+
+              <div className="flex items-center justify-between">
+                <h3 id="reputation-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
+                  <Star size={18} className="text-[var(--text)]" /> Submit rating
+                </h3>
+                <button onClick={() => setModalOpen(false)} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                  <X size={18} />
+                </button>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {tradeEvents.map((event) => (
-                  <div key={event.id} className="glass rounded-xl p-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-purple-500/15 flex items-center justify-center">
-                        <ArrowLeftRight size={12} className="text-purple-400" />
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-300">{event.type}</p>
-                        <p className="text-xs text-gray-500 font-mono">
-                          with {truncateAddress(event.counterparty)}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-500">{formatTime(event.timestamp)}</span>
-                  </div>
-                ))}
+              <div className="space-y-1.5">
+                <label className="text-xs text-[var(--text-muted)] font-medium">Counterparty (the trader you&apos;re rating)</label>
+                <input value={counterparty} onChange={(e) => setCounterparty(e.target.value)} placeholder="0x..."
+                  className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
               </div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-[var(--text-muted)] font-medium">Trade ID</label>
+                <input value={tradeId} onChange={(e) => setTradeId(e.target.value)} type="number" min={0}
+                  placeholder="ID of the settled trade between you two"
+                  className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                <p className="text-[10px] text-[var(--text-muted)]">Required — the contract verifies you actually traded with this party for this ID.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-[var(--text-muted)] font-medium flex items-center gap-1">
+                  <Lock size={11} className="text-[var(--text)]" /> Rating (encrypted)
+                </label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button key={n} onClick={() => setRating(n)} aria-label={`${n} stars`}
+                      className={`p-2 rounded-lg transition-colors ${
+                        rating >= n ? "text-[var(--text-muted)] bg-[var(--bg-alt)]" : "text-[var(--text-muted)] hover:bg-white/5"
+                      }`}>
+                      <Star size={16} fill={rating >= n ? "currentColor" : "none"} />
+                    </button>
+                  ))}
+                  <span className="ml-2 text-sm font-mono text-[var(--text-secondary)]">{rating} / 5</span>
+                </div>
+              </div>
+              {!initialized && (
+                <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                  <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
+                  <span className="text-[var(--text-muted)]">Initializing FHE encryption…</span>
+                </div>
+              )}
+              <button onClick={handleSubmitRating} disabled={!initialized || !counterparty || !tradeId || txState === "signing" || txState === "confirming"}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                           bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                           text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
+                {txState === "signing" || txState === "confirming"
+                  ? <Loader2 size={14} className="animate-spin" />
+                  : <CheckCircle2 size={14} />}
+                Encrypt & submit
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </main>
   );
 }

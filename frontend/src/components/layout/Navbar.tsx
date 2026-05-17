@@ -1,54 +1,53 @@
 "use client";
 
+import Link from "next/link";
 import { WalletConnect } from "@/components/shared/WalletConnect";
 import { FaucetButton } from "@/components/shared/FaucetButton";
-import { FHENIX_TESTNET } from "@/lib/constants";
-import { useWallet } from "@/providers/WalletProvider";
-import { useCofhe } from "@/hooks/useCofhe";
-import { Shield, Radio } from "lucide-react";
+import { PermitManager } from "@/components/shared/PermitManager";
+import { NotificationBell } from "@/components/shared/NotificationBell";
+import { PrivacyLensToggle } from "@/components/shared/PrivacyLensToggle";
 
+/**
+ * Zerith editorial top bar.
+ * - Warm-translucent bg with backdrop-blur
+ * - Dashed bottom border (editorial signature)
+ * - Brand mark left, actions right (Faucet, Permits, Notifications, Wallet)
+ */
 export function Navbar() {
-  const { isCorrectChain, account } = useWallet();
-  const { initialized } = useCofhe();
-
   return (
     <header
-      className="fixed top-0 left-[68px] right-0 h-14
-                 bg-[var(--void-0)]/80 backdrop-blur-xl
-                 border-b border-[var(--border-subtle)]
-                 flex items-center justify-between px-6
-                 z-40"
+      className="fixed top-0 left-0 right-0 z-40"
+      style={{
+        height: "var(--nav-height)",
+        background: "var(--nav-bg)",
+        backdropFilter: "blur(14px) saturate(1.05)",
+        WebkitBackdropFilter: "blur(14px) saturate(1.05)",
+        borderBottom: "1px dashed var(--border-dash)",
+      }}
     >
-      {/* Left: Protocol status badges */}
-      <div className="flex items-center gap-3">
-        {account && (
-          <>
-            {/* Network badge */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--void-3)] border border-[var(--border-subtle)]">
-              <div className={`w-1.5 h-1.5 rounded-full ${isCorrectChain ? "bg-[var(--cipher-green)]" : "bg-[var(--cipher-amber)]"}`} />
-              <span className="text-[11px] font-medium text-[var(--text-secondary)]">
-                {isCorrectChain ? FHENIX_TESTNET.name : "Wrong Network"}
-              </span>
-            </div>
+      <div className="h-full flex items-center justify-between pl-[80px] md:pl-[88px] pr-4 md:pr-6">
+        {/* Brand mark — visible on mobile (sidebar collapses) */}
+        <Link
+          href="/"
+          className="hidden md:flex items-center gap-2.5 group"
+          aria-label="CipherDEX home"
+        >
+          <span className="font-display text-[17px] font-bold tracking-tight text-text leading-none">
+            CipherDEX
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted leading-none mt-[2px] hidden lg:inline">
+            Fhenix FHE
+          </span>
+        </Link>
 
-            {/* FHE status badge */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--void-3)] border border-[var(--border-subtle)]">
-              <Shield size={10} className={initialized ? "text-[var(--cipher-violet)]" : "text-[var(--text-muted)]"} />
-              <span className={`text-[11px] font-medium ${initialized ? "text-[var(--cipher-violet)]" : "text-[var(--text-muted)]"}`}>
-                {initialized ? "FHE Active" : "FHE Offline"}
-              </span>
-              {initialized && (
-                <Radio size={8} className="text-[var(--cipher-violet)] animate-pulse" />
-              )}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Right: Faucet + Wallet */}
-      <div className="flex items-center gap-3">
-        <FaucetButton />
-        <WalletConnect />
+        {/* Right cluster */}
+        <div className="flex items-center gap-2 md:gap-3 ml-auto">
+          <PrivacyLensToggle />
+          <FaucetButton />
+          <PermitManager />
+          <NotificationBell />
+          <WalletConnect />
+        </div>
       </div>
     </header>
   );

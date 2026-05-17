@@ -1,319 +1,310 @@
-{
-  "_format": "hh-sol-artifact-1",
-  "contractName": "AllowlistGate",
-  "sourceName": "contracts/core/AllowlistGate.sol",
-  "abi": [
-    {
-      "inputs": [],
-      "name": "InvalidInput",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "InvalidState",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "NotAllowlisted",
-      "type": "error"
-    },
-    {
-      "inputs": [],
-      "name": "Unauthorized",
-      "type": "error"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "allowlistId",
-          "type": "uint256"
-        },
-        {
-          "indexed": true,
-          "internalType": "address",
-          "name": "creator",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "description",
-          "type": "string"
-        }
-      ],
-      "name": "AllowlistCreated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "allowlistId",
-          "type": "uint256"
-        }
-      ],
-      "name": "AllowlistDeactivated",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": true,
-          "internalType": "uint256",
-          "name": "allowlistId",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "bytes32",
-          "name": "newRoot",
-          "type": "bytes32"
-        }
-      ],
-      "name": "AllowlistUpdated",
-      "type": "event"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "name": "allowlists",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "merkleRoot",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "address",
-          "name": "creator",
-          "type": "address"
-        },
-        {
-          "internalType": "bool",
-          "name": "active",
-          "type": "bool"
-        },
-        {
-          "internalType": "string",
-          "name": "description",
-          "type": "string"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "bytes32",
-          "name": "merkleRoot",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "string",
-          "name": "description",
-          "type": "string"
-        }
-      ],
-      "name": "createAllowlist",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "allowlistId",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "allowlistId",
-          "type": "uint256"
-        }
-      ],
-      "name": "deactivate",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "allowlistId",
-          "type": "uint256"
-        }
-      ],
-      "name": "getAllowlist",
-      "outputs": [
-        {
-          "internalType": "bytes32",
-          "name": "merkleRoot",
-          "type": "bytes32"
-        },
-        {
-          "internalType": "address",
-          "name": "creator",
-          "type": "address"
-        },
-        {
-          "internalType": "bool",
-          "name": "active",
-          "type": "bool"
-        },
-        {
-          "internalType": "string",
-          "name": "description",
-          "type": "string"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "hasAllowlists",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "",
-          "type": "address"
-        }
-      ],
-      "name": "hasClaimed",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "allowlistId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes32[]",
-          "name": "proof",
-          "type": "bytes32[]"
-        }
-      ],
-      "name": "isAllowed",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "nextAllowlistId",
-      "outputs": [
-        {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "allowlistId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "bytes32",
-          "name": "newRoot",
-          "type": "bytes32"
-        }
-      ],
-      "name": "updateRoot",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "allowlistId",
-          "type": "uint256"
-        },
-        {
-          "internalType": "address",
-          "name": "user",
-          "type": "address"
-        },
-        {
-          "internalType": "bytes32[]",
-          "name": "proof",
-          "type": "bytes32[]"
-        }
-      ],
-      "name": "verifyAndMark",
-      "outputs": [
-        {
-          "internalType": "bool",
-          "name": "",
-          "type": "bool"
-        }
-      ],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    }
-  ],
-  "bytecode": "0x60808060405234601557610968908161001a8239f35b5f80fdfe60806040526004361015610011575f80fd5b5f3560e01c80630a71684b1461031757806334b5979f1461064957806357416e5d1461038b5780636167552b1461036e5780636eb7874f146103175780637b78f3b314610233578063873f6f9e146101e5578063916b9bef14610170578063ed8b74b7146100aa5763f898c04614610087575f80fd5b346100a6575f3660031901126100a65760206002541515604051908152f35b5f80fd5b346100a65760403660031901126100a6576004355f81815260208190526040902060010154602435906001600160a01b0316330361015f57815f525f60205260ff600160405f20015460a01c161561014d57801561013b5760207ff98c3a5e0496e737fd1b99fd4305ab542fb216b9d872cdfa043315be528939d291835f525f82528060405f2055604051908152a2005b60405163b4fa3fb360e01b8152600490fd5b60405163baf3f0f760e01b8152600490fd5b6040516282b42960e81b8152600490fd5b346100a65760203660031901126100a6576004355f818152602081905260409020600101546001600160a01b0316330361015f575f818152602081905260408120600101805460ff60a01b191690557fbb87e8ebfd96a906281e3e98b5486d748c7d5bfa766412d23d757bde3c6ee9789080a2005b346100a65760403660031901126100a6576024356001600160a01b038116908190036100a6576004355f52600160205260405f20905f52602052602060ff60405f2054166040519015158152f35b346100a657610241366107cd565b919290815f526020936001855260405f209360018060a01b03821694855f52865260ff60405f20541661014d57835f525f865260405f209160ff600184015460a01c166102b4575b505050505f526001825260405f20905f52815260405f20600160ff1982541617905560405160018152f35b6102f7936102f291604051898101916bffffffffffffffffffffffff199060601b168252601481526102e5816106a7565b5190209354923691610832565b6108e6565b156103055783808080610289565b6040516306fb10a960e01b8152600490fd5b346100a65760203660031901126100a6576004355f525f60205260405f20805461036a61034b6002600185015494016106e5565b60405193849360a082901c60ff16916001600160a01b03169085610787565b0390f35b346100a6575f3660031901126100a6576020600254604051908152f35b346100a65760403660031901126100a65760043560243567ffffffffffffffff81116100a657366023820112156100a65767ffffffffffffffff8160040135116100a6573660248260040135830101116100a657811561013b57600254905f1982146106355760018201600255604051926080840184811067ffffffffffffffff821117610621576040528352336020840152600160408401526002604051936104436020601f19601f8660040135011601866106c3565b60048301358086526024840160208701375f602084600401358701015260608101948552835f525f60205260405f209080518255600182019060018060a01b03602082015116825491604060ff60a01b910151151560a01b16916affffffffffffffffffffff60a81b161717905501925192835167ffffffffffffffff8111610621576104d0825461066f565b601f81116105dc575b50806020958690601f831160011461057a575f9261056f575b50508160011b915f199060031b1c19161790555b817fef518ff8a51ebdc7e17deea2942357aef06ef8251b0ea918f767e0c6cd9c1a6660405185815283600401358682015283600401356024850160408301375f60408560040135830101526040813395601f8019916004013501168101030190a3604051908152f35b0151905086806104f2565b5f8581528881209350601f198516905b8181106105c557509084600195949392106105ad575b505050811b019055610506565b01515f1960f88460031b161c191690558680806105a0565b92938960018192878601518155019501930161058a565b825f5260205f20601f830160051c81019160208410610617575b601f0160051c01905b81811061060c57506104d9565b5f81556001016105ff565b90915081906105f6565b634e487b7160e01b5f52604160045260245ffd5b634e487b7160e01b5f52601160045260245ffd5b346100a657602061066561065c366107cd565b92919091610889565b6040519015158152f35b90600182811c9216801561069d575b602083101461068957565b634e487b7160e01b5f52602260045260245ffd5b91607f169161067e565b6040810190811067ffffffffffffffff82111761062157604052565b90601f8019910116810190811067ffffffffffffffff82111761062157604052565b9060405191825f82546106f78161066f565b908184526020946001916001811690815f146107655750600114610727575b505050610725925003836106c3565b565b5f90815285812095935091905b81831061074d57505061072593508201015f8080610716565b85548884018501529485019487945091830191610734565b9250505061072594925060ff191682840152151560051b8201015f8080610716565b9260209260a095928552600180871b03168385015215156040840152608060608401528051918291826080860152018484015e5f828201840152601f01601f1916010190565b9060606003198301126100a657600435916024356001600160a01b03811681036100a6579160443567ffffffffffffffff928382116100a657806023830112156100a65781600401359384116100a65760248460051b830101116100a6576024019190565b90929167ffffffffffffffff8411610621578360051b602092602060405161085c828501826106c3565b80978152019181019283116100a657905b82821061087a5750505050565b8135815290830190830161086d565b929091925f525f60205260405f209160ff600184015460a01c16156108dd576108da936102f29160405160208101916bffffffffffffffffffffffff199060601b168252601481526102e5816106a7565b90565b50505050600190565b9091905f915b815183101561092b576020808460051b84010151918281105f1461091c575f5252600160405f205b9201916108ec565b915f5252600160405f20610914565b915050149056fea264697066735822122011b0fddcef56b54f7643302c5c6da81930e31e1afddea479d8a568f0c690ba7864736f6c63430008190033",
-  "deployedBytecode": "0x60806040526004361015610011575f80fd5b5f3560e01c80630a71684b1461031757806334b5979f1461064957806357416e5d1461038b5780636167552b1461036e5780636eb7874f146103175780637b78f3b314610233578063873f6f9e146101e5578063916b9bef14610170578063ed8b74b7146100aa5763f898c04614610087575f80fd5b346100a6575f3660031901126100a65760206002541515604051908152f35b5f80fd5b346100a65760403660031901126100a6576004355f81815260208190526040902060010154602435906001600160a01b0316330361015f57815f525f60205260ff600160405f20015460a01c161561014d57801561013b5760207ff98c3a5e0496e737fd1b99fd4305ab542fb216b9d872cdfa043315be528939d291835f525f82528060405f2055604051908152a2005b60405163b4fa3fb360e01b8152600490fd5b60405163baf3f0f760e01b8152600490fd5b6040516282b42960e81b8152600490fd5b346100a65760203660031901126100a6576004355f818152602081905260409020600101546001600160a01b0316330361015f575f818152602081905260408120600101805460ff60a01b191690557fbb87e8ebfd96a906281e3e98b5486d748c7d5bfa766412d23d757bde3c6ee9789080a2005b346100a65760403660031901126100a6576024356001600160a01b038116908190036100a6576004355f52600160205260405f20905f52602052602060ff60405f2054166040519015158152f35b346100a657610241366107cd565b919290815f526020936001855260405f209360018060a01b03821694855f52865260ff60405f20541661014d57835f525f865260405f209160ff600184015460a01c166102b4575b505050505f526001825260405f20905f52815260405f20600160ff1982541617905560405160018152f35b6102f7936102f291604051898101916bffffffffffffffffffffffff199060601b168252601481526102e5816106a7565b5190209354923691610832565b6108e6565b156103055783808080610289565b6040516306fb10a960e01b8152600490fd5b346100a65760203660031901126100a6576004355f525f60205260405f20805461036a61034b6002600185015494016106e5565b60405193849360a082901c60ff16916001600160a01b03169085610787565b0390f35b346100a6575f3660031901126100a6576020600254604051908152f35b346100a65760403660031901126100a65760043560243567ffffffffffffffff81116100a657366023820112156100a65767ffffffffffffffff8160040135116100a6573660248260040135830101116100a657811561013b57600254905f1982146106355760018201600255604051926080840184811067ffffffffffffffff821117610621576040528352336020840152600160408401526002604051936104436020601f19601f8660040135011601866106c3565b60048301358086526024840160208701375f602084600401358701015260608101948552835f525f60205260405f209080518255600182019060018060a01b03602082015116825491604060ff60a01b910151151560a01b16916affffffffffffffffffffff60a81b161717905501925192835167ffffffffffffffff8111610621576104d0825461066f565b601f81116105dc575b50806020958690601f831160011461057a575f9261056f575b50508160011b915f199060031b1c19161790555b817fef518ff8a51ebdc7e17deea2942357aef06ef8251b0ea918f767e0c6cd9c1a6660405185815283600401358682015283600401356024850160408301375f60408560040135830101526040813395601f8019916004013501168101030190a3604051908152f35b0151905086806104f2565b5f8581528881209350601f198516905b8181106105c557509084600195949392106105ad575b505050811b019055610506565b01515f1960f88460031b161c191690558680806105a0565b92938960018192878601518155019501930161058a565b825f5260205f20601f830160051c81019160208410610617575b601f0160051c01905b81811061060c57506104d9565b5f81556001016105ff565b90915081906105f6565b634e487b7160e01b5f52604160045260245ffd5b634e487b7160e01b5f52601160045260245ffd5b346100a657602061066561065c366107cd565b92919091610889565b6040519015158152f35b90600182811c9216801561069d575b602083101461068957565b634e487b7160e01b5f52602260045260245ffd5b91607f169161067e565b6040810190811067ffffffffffffffff82111761062157604052565b90601f8019910116810190811067ffffffffffffffff82111761062157604052565b9060405191825f82546106f78161066f565b908184526020946001916001811690815f146107655750600114610727575b505050610725925003836106c3565b565b5f90815285812095935091905b81831061074d57505061072593508201015f8080610716565b85548884018501529485019487945091830191610734565b9250505061072594925060ff191682840152151560051b8201015f8080610716565b9260209260a095928552600180871b03168385015215156040840152608060608401528051918291826080860152018484015e5f828201840152601f01601f1916010190565b9060606003198301126100a657600435916024356001600160a01b03811681036100a6579160443567ffffffffffffffff928382116100a657806023830112156100a65781600401359384116100a65760248460051b830101116100a6576024019190565b90929167ffffffffffffffff8411610621578360051b602092602060405161085c828501826106c3565b80978152019181019283116100a657905b82821061087a5750505050565b8135815290830190830161086d565b929091925f525f60205260405f209160ff600184015460a01c16156108dd576108da936102f29160405160208101916bffffffffffffffffffffffff199060601b168252601481526102e5816106a7565b90565b50505050600190565b9091905f915b815183101561092b576020808460051b84010151918281105f1461091c575f5252600160405f205b9201916108ec565b915f5252600160405f20610914565b915050149056fea264697066735822122011b0fddcef56b54f7643302c5c6da81930e31e1afddea479d8a568f0c690ba7864736f6c63430008190033",
-  "linkReferences": {},
-  "deployedLinkReferences": {}
-}
+[
+  {
+    "inputs": [],
+    "name": "InvalidInput",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotAllowlisted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "allowlistId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "description",
+        "type": "string"
+      }
+    ],
+    "name": "AllowlistCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "allowlistId",
+        "type": "uint256"
+      }
+    ],
+    "name": "AllowlistDeactivated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "allowlistId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "newRoot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "AllowlistUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "allowlists",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "merkleRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "internalType": "string",
+        "name": "description",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "merkleRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "string",
+        "name": "description",
+        "type": "string"
+      }
+    ],
+    "name": "createAllowlist",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "allowlistId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "allowlistId",
+        "type": "uint256"
+      }
+    ],
+    "name": "deactivate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "allowlistId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getAllowlist",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "merkleRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "active",
+        "type": "bool"
+      },
+      {
+        "internalType": "string",
+        "name": "description",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "hasAllowlists",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "hasClaimed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "allowlistId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
+      }
+    ],
+    "name": "isAllowed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nextAllowlistId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "allowlistId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "newRoot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "updateRoot",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "allowlistId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
+      }
+    ],
+    "name": "verifyAndMark",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

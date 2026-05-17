@@ -203,6 +203,11 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "int32",
@@ -211,6 +216,11 @@
       }
     ],
     "name": "SecurityZoneOutOfBounds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
     "type": "error"
   },
   {
@@ -366,6 +376,19 @@
         "internalType": "uint64",
         "name": "",
         "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "admin",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",

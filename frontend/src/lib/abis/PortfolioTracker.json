@@ -11,6 +11,16 @@
     "type": "constructor"
   },
   {
+    "inputs": [],
+    "name": "InvalidInput",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "int32",
