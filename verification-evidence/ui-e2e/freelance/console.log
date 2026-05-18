@@ -1,0 +1,11 @@
+[error] TypeError: t.slice is not a function
+    at https://cipher-dex.vercel.app/_next/static/chunks/app/freelance/page-7f46735f03fb1d3d.js:1:14419
+    at Array.map (<anonymous>)
+    at J (https://cipher-dex.vercel.app/_next/static/chunks/app/freelance/page-7f46735f03fb1d3d.js:1:12162)
+    at ak (https://cipher-dex.vercel.app/_next/static/chunks/4bd1b696-e5d7c65570c947b7.js:1:53126)
+    at o0 (https://cipher-dex.vercel.app/_next/static/chunks/4bd1b696-e5d7c65570c947b7.js:1:73578)
+    at is (https://cipher-dex.vercel.app/_next/static/chunks/4bd1b696-e5d7c65570c947b7.js:1:85010)
+    at sp (https://cipher-dex.vercel.app/_next/static/chunks/4bd1b696-e5d7c65570c947b7.js:1:128031)
+    at https://cipher-dex.vercel.app/_next/static/chunks/4bd1b696-e5d7c65570c947b7.js:1:127876
+    at sd (https://cipher-dex.vercel.app/_next/static/chunks/4bd1b696-e5d7c65570c947b7.js:1:127884)
+    at sn (https://cipher-dex.vercel.app/_next/static/chunks/4bd1b696-e5d7c65570c947b7.js:1:123809)
