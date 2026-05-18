@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Auction Suite — /auctions-suite
  *
@@ -224,7 +226,7 @@ export default function AuctionSuitePage() {
                     <div>
                       <div className="mono text-textMuted">LIVE COUNT</div>
                       <div className="font-display text-2xl">
-                        {count === null ? "—" : count.toString()}
+                        {count == null ? "—" : count.toString()}
                       </div>
                     </div>
                     <Link href={m.href} className="btn btn-primary btn-sm">

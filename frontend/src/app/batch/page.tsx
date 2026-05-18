@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Batch (Clearing-Price) Auction — /batch
  *

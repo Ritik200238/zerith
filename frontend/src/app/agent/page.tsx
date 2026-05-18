@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 /**
  * CipherDEX Agent — natural-language → encrypted tx, at /agent.
  *
