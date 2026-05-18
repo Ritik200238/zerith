@@ -52,12 +52,16 @@ export function Navbar() {
           </span>
         </Link>
 
-        {/* Right cluster */}
+        {/* Right cluster — PermitManager + NotificationBell hidden on mobile
+            (navbar would otherwise overflow 375px viewport). Both remain
+            reachable via in-page surfaces (permit prompts, activity feed). */}
         <div className="flex items-center gap-2 md:gap-3 ml-auto">
           <PrivacyLensToggle />
           <FaucetButton />
-          <PermitManager />
-          <NotificationBell />
+          <div className="hidden md:flex items-center gap-2 md:gap-3">
+            <PermitManager />
+            <NotificationBell />
+          </div>
           <WalletConnect />
         </div>
       </div>
