@@ -561,6 +561,48 @@ function smokeDriver(featurePath, primaryButtonRegex) {
 
 const DRIVERS = {
   treasury: driveTreasury,
+  "treasury-por": async (page, outDir) => {
+    await page.goto(`${BASE}/treasury?_cb=${Date.now()}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+    await shotsAndToast(page, outDir, "01-loaded");
+    await clickConnectAndWait(page, outDir);
+
+    const newProofBtn = page.getByRole("button", { name: /^New proof$/ }).first();
+    await newProofBtn.click({ force: true });
+    await page.waitForTimeout(1500);
+    await shotsAndToast(page, outDir, "03-por-modal");
+
+    await page.getByPlaceholder("1000").fill("1");
+    await shotsAndToast(page, outDir, "04-threshold-1");
+
+    const submit = page.locator("button").filter({ hasText: /Request proof/i }).last();
+    try {
+      await submit.click({ force: true });
+    } catch {
+      await submit.dispatchEvent("click").catch(() => {});
+    }
+    // Tap again if still visible (some Buttons need 2 taps to dispatch)
+    await page.waitForTimeout(500);
+    if (await submit.isVisible({ timeout: 500 }).catch(() => false)) {
+      await submit.click({ force: true }).catch(() => {});
+    }
+    await page.waitForTimeout(8000);
+    await shotsAndToast(page, outDir, "05-por-submitting");
+
+    await waitForEncryptionDone(page);
+    await page.waitForFunction(() => {
+      const el = Array.from(document.querySelectorAll("*")).find(
+        (n) => /Processing…|Confirming…|Signing…/i.test(n.textContent || "")
+      );
+      return !el || el.offsetParent === null;
+    }, { timeout: 120000 }).catch(() => {});
+    await page.waitForTimeout(5000);
+    await shotsAndToast(page, outDir, "06-por-done");
+    const toast = await page.waitForSelector('text=/Transaction confirmed|proof|threshold/i', { timeout: 60000 }).catch(() => null);
+    await shotsAndToast(page, outDir, "07-por-toast");
+    return { feature: "treasury-por", toastText: toast ? await toast.textContent() : null };
+  },
+
   "treasury-withdraw": async (page, outDir) => {
     await page.goto(`${BASE}/treasury?_cb=${Date.now()}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(2000);
