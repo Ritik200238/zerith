@@ -104,6 +104,7 @@ const SNIPE_OPTS = [
 
 const TOKEN_OPTIONS = [
   { label: "CDEX", address: CONTRACTS.ConfidentialToken, symbol: "CDEX" },
+  { label: "MOCK", address: CONTRACTS.MockToken, symbol: "MOCK" },
 ];
 
 /* ------------------------------------------------------------------ */
