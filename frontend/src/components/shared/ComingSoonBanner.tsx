@@ -28,7 +28,7 @@ export function ComingSoonBanner({
   contractAddress,
   redirectHref = "/auctions",
   redirectLabel = "Try Sealed Auctions",
-  shipDate = "Wave 4 (May 11–20)",
+  shipDate = "soon",
 }: Props) {
   return (
     <section
