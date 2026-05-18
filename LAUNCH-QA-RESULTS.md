@@ -30,7 +30,7 @@ Each row is a real Sepolia tx. All txs use the burner wallet `0x492aaF98150f0542
 | B3 | Treasury withdraw 5 CDEX (FHE.sub + `allowTransient` ACL fix verified) | `0xad53c0ac…1df8` | row 3 | ✅ |
 | B4 | SealedAuction createAuction (300s) | `0x325f5455…700b` | row 4 | ✅ |
 | B5 | SealedAuction single encrypted bid | `0xe2bc4d04…d461` | row 5 | ✅ |
-| B6 | **SealedAuction multi-bidder (3 wallets, distinct bids) + closeAuction + TN-signed revealWinner** | tracked in this session | resume-multibid-reveal.ts | 🕐 in flight (auction id=1 of new SealedAuction, currently mid-reveal) |
+| B6 | **SealedAuction multi-bidder (3 wallets, distinct bids) + closeAuction + TN-signed revealWinner** | Created: `0x7470de3a…1581`; bids: `0x4257c677…6bbd0` / `0xee4b2a62…aa15f` / `0xbb30abb6…3cc73`; close: `0x7a77ae4b…582bb`; **reveal: `0x98a1c650…fafc7`** | Winner = burner3 (1200), exactly matches the highest bid. Losing bids (burner1=500, burner2=800) **never had FHE.allowGlobal called on them** and stay encrypted in the `bids[auctionId][bidder]` mapping forever. Headline Phase 2 row ✅ |
 | B7 | PrivatePayments createSplit (2 recipients) | `0x5e6f5edd…06de` | row 6 | ✅ create proven |
 | B8 | PrivatePayments recipient claim (recipient burner unseals own amount) | — | — | ⚠ not yet exercised; requires recipient burner per split |
 | B9 | OTCBoard postRequest (3 InEuint128 fields) | `0x22fb0bf9…e87b` | row 7 | ✅ post proven |
@@ -71,7 +71,7 @@ Polish bugs caught and fixed during this audit:
 |---|---|---|
 | Faucet (claim 1000 CDEX, balance unseals) | B1 + UI smoke | ✅ |
 | Treasury deposit, unseal, withdraw, PoR (request + reveal) | B2, B3, B15 | ✅ |
-| Sealed-Bid Auction (3 bids from 3 wallets → end → reveal → losers stay sealed) | B6 in flight | 🕐 partial — multi-bidder reveal tx pending this session |
+| Sealed-Bid Auction (3 bids from 3 wallets → end → reveal → losers stay sealed) | B6 (5 txs: create + 3 bids + close + reveal) | ✅ headline proven — burner3 (1200) wins; burner1 (500) and burner2 (800) bid handles never decrypted |
 | Blind Floor Auction (encrypted reserve, RESERVE_NOT_MET path) | contract supports it; not yet exercised end-to-end via UI | ⚠ |
 | Vickrey (highest wins, pays 2nd price) | B11 | ✅ contract path; settlement-payment math not yet asserted |
 | Dutch (live price decay) | B12 | ✅ |
@@ -121,7 +121,7 @@ Inherited from earlier `LAUNCH-DAY-TEST.md` plus this session's findings.
 
 In priority order:
 
-1. **Finish B6** — wait for `resume-multibid-reveal.ts` to land its `revealWinner` tx; copy hash + winner address into B6.
+1. ~~Finish B6~~ — done ✅ in this session, tx `0x98a1c650…fafc7`.
 2. **B8 Payroll recipient claim** — spawn a 4th burner, fund it from deployer, have it `claim(splitId)` on the existing split (id 0) and unseal its own amount. ~5 min.
 3. **B10 OTC full round-trip** — accept the existing request from a counterparty burner, settle via vault. ~10 min.
 4. **B19 Freelance milestone** — exercise the freelance contract end-to-end. ~15 min.

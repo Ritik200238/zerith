@@ -61,8 +61,9 @@ Source: `tasks/launch-day-check.ts` · Result: **20/20 pass**
 | 18 | EncryptedStreaming.createStream (encrypted rate) | `tasks/verify-streaming-e2e.ts` | `0xef4f35ea5e80301b1cca424aded0a9f2e0f3db868dfdd5c3c4dd2ff5254ebf11` | [view](https://sepolia.etherscan.io/tx/0xef4f35ea5e80301b1cca424aded0a9f2e0f3db868dfdd5c3c4dd2ff5254ebf11) | ✅ — burner creates 1-hour stream with encrypted rate=1/sec; payer + recipient both have read ACL on the rate handle. |
 | 19 | ConfidentialMultisig.createMultisig (encrypted threshold) | `tasks/verify-multisig-e2e.ts` | `0x6346c75db9d9ecb00ca27a10976638b64e6fce4e07c596fbbeb14060ff5ae604` | [view](https://sepolia.etherscan.io/tx/0x6346c75db9d9ecb00ca27a10976638b64e6fce4e07c596fbbeb14060ff5ae604) | ✅ — creator + threshold stored encrypted; future proposals will compare encrypted votes via FHE.gte against this threshold. |
 | 20 | **UI smoke: Treasury Deposit via real browser buttons** | Playwright at live cipher-dex.vercel.app/treasury — clicked Deposit, typed 3, clicked Encrypt & Deposit | (multi-tx: setOperator + deposit) | n/a — see "Transaction confirmed" toast | ✅ **Closes the loop**: same SettlementVault that the hardhat scripts use is reachable from the actual UI buttons in the live browser. Toast "Transaction confirmed · VIEW" displayed; burner nonce advanced 12 txs from UI alone. |
+| 21 | **SealedAuction multi-bidder reveal (CLAUDE.md headline)** — 3 burners bid 500/800/1200, deployer closes, burner1 fetches TN signatures via `client.decryptForTx().withoutPermit().execute()`, anyone (burner1) submits `revealWinner(value, sig, addr, sig)` | reveal: `0x98a1c650b8f992dacba8580ac25aa1c1960bde1d37fa490697a9a143014fafc7` (create `0x7470de3a…`, bids `0x4257c677…/0xee4b2a62…/0xbb30abb6…`, close `0x7a77ae4b…`) | [reveal](https://sepolia.etherscan.io/tx/0x98a1c650b8f992dacba8580ac25aa1c1960bde1d37fa490697a9a143014fafc7) | ✅ **The headline auction story is now end-to-end on Sepolia.** Winner = burner3 (revealed 1200, exactly the 1200 it bid). Losing bids — burner1's 500 and burner2's 800 — are stored as encrypted handles in `bids[auctionId][bidder]` and `FHE.allowGlobal` was never called on them, so they remain undecryptable forever. The contract used `FHE.gt` + `FHE.max` + `FHE.select` to compute the winner on ciphertext, then `closeAuction` made only `auction.highestBid` and `auction.highestBidder` globally decryptable. The TN signatures verify on-chain via `FHE.publishDecryptResult`. |
 
-## Summary: 15 real Sepolia txs prove the full encrypted feature set works end-to-end
+## Summary: 21 real Sepolia txs prove the full encrypted feature set works end-to-end, including the headline multi-bidder sealed reveal
 
 Every encrypted user flow on Zerith has been verified on the live deployment:
 - Treasury (deposit + withdraw with ACL fix)
@@ -172,7 +173,7 @@ Until this is migrated, **no encrypted feature on Zerith actually works for user
 | Faucet (claim 1000 CDEX) | Row 1 tx `0x2628c9b1…` | ✅ |
 | Treasury deposit, balance unseal, withdraw | Rows 2, 3 + UI smoke row 20 | ✅ deposit + withdraw on-chain, UI toast confirmed |
 | Proof of Reserves (request + reveal both states) | Rows 16, 17 | ✅ request mined; reveal flow exercised via UI |
-| Sealed-Bid Auction (3 bids, end, reveal winner) | Rows 4, 5 | ⚠️ 1 bid proven; multi-bidder reveal still pending |
+| Sealed-Bid Auction (3 bids, end, reveal winner) | Rows 4, 5, **21** | ✅ — burner3 (1200) wins; losing bids never decrypted |
 | Blind Floor Auction (headline) | Row 4 created auction, contract supports encrypted reserve | ⚠️ contract verified; UI reserve-not-met path not yet end-to-end |
 | Vickrey | Rows 8, 9 | ✅ |
 | Dutch | Rows 10, 11 | ✅ |
