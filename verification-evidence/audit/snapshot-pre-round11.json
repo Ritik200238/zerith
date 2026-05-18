@@ -1,0 +1,21 @@
+{
+  "timestamp": 1779124139996,
+  "burner": "0x492aaF98150f0542dD8D7F5Df1bE98265809a3e0",
+  "sealedAuctionCount": "3",
+  "vickreyAuctionCount": "2",
+  "dutchAuctionCount": "2",
+  "batchRoundCount": "2",
+  "overflowSaleCount": "3",
+  "otcRequestCount": "3",
+  "paymentsNextSplitId": "2",
+  "freelanceJobCount": "3",
+  "multisigCount": "3",
+  "orgCount": "3",
+  "allowlistNextId": "3",
+  "streamCount": "1",
+  "limitsNextId": "1",
+  "escrowDealCount": "1",
+  "royaltyCount": "1",
+  "orderbookNextId": "1",
+  "burnerVaultCdexHandle": "0x0xb8140d85564817ed6c8d1129b9f075d19e6a45531325e63465de6d1f88320500"
+}

@@ -1,5 +1,4 @@
 {
   "feature": "/referrals",
-  "submitted": true,
-  "toastText": "Transaction confirmed"
+  "skipped": "open button not found (/^Create code$|\\+ Create code/i)"
 }
