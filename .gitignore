@@ -38,3 +38,6 @@ yarn-error.log*
 packages/sdk/
 
 .vercel
+
+# burner wallet — never commit
+.burner-wallet.json
