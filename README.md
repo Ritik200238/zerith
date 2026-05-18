@@ -1,8 +1,8 @@
-# CipherDEX
+# Zerith
 
 **The private operating system for DAOs — launch tokens, pay teams, trade treasury, hire talent. All encrypted.**
 
-CipherDEX is a private finance protocol built on Fhenix FHE (Fully Homomorphic Encryption). Every bid, payment amount, trade price, and reputation score is encrypted on-chain. The blockchain processes your finances without ever seeing the numbers.
+Zerith is a private finance protocol built on Fhenix FHE (Fully Homomorphic Encryption). Every bid, payment amount, trade price, and reputation score is encrypted on-chain. The blockchain processes your finances without ever seeing the numbers.
 
 [Launch App](https://cipher-dex.vercel.app) · [ConfidentialToken on Etherscan](https://sepolia.etherscan.io/address/0xad1c3aCAB5794a7dE857D85e4098934235BA196a) · [Demo script](./DEMO-SCRIPT.md) · [Launch Day Test](./LAUNCH-DAY-TEST.md)
 
@@ -21,7 +21,7 @@ Financial privacy isn't a feature request. It's missing infrastructure.
 
 ## The Solution
 
-CipherDEX encrypts every sensitive value using FHE before it hits the chain. Smart contracts compare, add, and settle encrypted values. The plaintext never exists on-chain.
+Zerith encrypts every sensitive value using FHE before it hits the chain. Smart contracts compare, add, and settle encrypted values. The plaintext never exists on-chain.
 
 ```
 You bid $5,000          →  Encrypted in your browser (TFHE + ZK proof)
@@ -89,9 +89,9 @@ Clients post jobs. Freelancers bid encrypted prices. Lowest bid wins.
 
 ## What's Novel
 
-### Blind Floor Auction (CipherDEX-specific)
+### Blind Floor Auction (Zerith-specific)
 
-In every other auction system, the seller's reserve price is eventually revealed (commit-reveal exposes it at the end; classical auctions announce it upfront). In CipherDEX's Blind Floor mode, the reserve is encrypted with FHE and **never decrypted — not at settlement, not after.** The contract checks `FHE.gte(highestBid, encReserve)` and publishes ONLY the boolean outcome via the Fhenix Threshold Network. Bidders cannot reverse-engineer the floor, so they must bid their true value. To our knowledge, no prior FHE auction implementation keeps the reserve permanently sealed even after reveal.
+In every other auction system, the seller's reserve price is eventually revealed (commit-reveal exposes it at the end; classical auctions announce it upfront). In Zerith's Blind Floor mode, the reserve is encrypted with FHE and **never decrypted — not at settlement, not after.** The contract checks `FHE.gte(highestBid, encReserve)` and publishes ONLY the boolean outcome via the Fhenix Threshold Network. Bidders cannot reverse-engineer the floor, so they must bid their true value. To our knowledge, no prior FHE auction implementation keeps the reserve permanently sealed even after reveal.
 
 ### Encrypted Dispute Resolution
 
@@ -115,7 +115,7 @@ Not novel as a *mechanism on FHE* (prior implementations exist on Zama's devnet 
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                     CipherDEX Protocol                  │
+│                     Zerith Protocol                  │
 │                                                         │
 │  Core Infrastructure                                    │
 │  ├── ConfidentialToken (FHERC20 + faucet)              │
@@ -192,7 +192,7 @@ All contracts deployed and live on **Ethereum Sepolia (11155111)**. Authoritativ
 
 | Layer | Approach |
 |-------|----------|
-| **Privacy** | `FHE.select()` over `require()` — a revert leaks 1 bit. Enough reverts reconstruct a balance. CipherDEX never reverts on encrypted conditions. |
+| **Privacy** | `FHE.select()` over `require()` — a revert leaks 1 bit. Enough reverts reconstruct a balance. Zerith never reverts on encrypted conditions. |
 | **Encryption** | Every encrypted input is ZK-verified and signed by the CoFHE threshold network |
 | **Access Control** | 4-tier FHE permit system: `allowThis` → `allowSender` → `allow` → `allowTransient` |
 | **Contracts** | ReentrancyGuard on all state-changing functions. AccessControl for role-based permissions. |
@@ -234,8 +234,8 @@ Visit [cipher-dex.vercel.app](https://cipher-dex.vercel.app), connect MetaMask o
 **Run locally:**
 
 ```bash
-git clone https://github.com/Ritik200238/CipherDEX.git
-cd CipherDEX
+git clone https://github.com/Ritik200238/Zerith.git
+cd Zerith
 
 # Contracts
 npm install

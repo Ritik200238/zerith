@@ -1,4 +1,4 @@
-# CipherDEX — Launch Day Test Report
+# Zerith — Launch Day Test Report
 
 **Run:** 2026-05-17
 **Method:** Live Sepolia state check + analytical walkthrough of each hero flow from a stranger's POV.
@@ -10,7 +10,7 @@
 
 Read-only check via `npm run launch-day-check` (or `tasks/launch-day-check.ts`). Every v1 contract on Eth Sepolia responds correctly:
 
-- ConfidentialToken: `name()=CipherDEX Token`, `symbol()=CDEX` ✅
+- ConfidentialToken: `name()=Zerith Token`, `symbol()=CDEX` ✅
 - PlatformRegistry: not paused, fee collector live ✅
 - SettlementVault: CDEX whitelisted, SealedAuction/OTCBoard/PrivatePayments all authorized as settlers ✅
 - SealedAuction (new, Blind Floor): `getAuctionCount()=0`, `getBlindStatus()` view live ✅
@@ -124,9 +124,9 @@ Beyond the 3 hero flows:
 
 ## Brand Cleanup Verified
 
-- On-chain token: `name="CipherDEX Token"`, `symbol="CDEX"` ✅
-- Frontend `TOKEN_CONFIG`: was `"Sigil Token / SIGIL"` — **fixed today** to `"CipherDEX Token / CDEX"`.
-- Other `Sigil` leaks: previously swept by the UI foundation agent. Internal storage keys (`sigil-notifications`, etc.) deliberately left alone to preserve user state continuity.
+- On-chain token: `name="Zerith Token"`, `symbol="CDEX"` ✅
+- Frontend `TOKEN_CONFIG`: was `"Zerith Token / CDEX"` — **fixed today** to `"Zerith Token / CDEX"`.
+- Other `Zerith` leaks: previously swept by the UI foundation agent. Internal storage keys (`sigil-notifications`, etc.) deliberately left alone to preserve user state continuity.
 
 ---
 

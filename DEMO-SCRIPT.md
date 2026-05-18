@@ -1,4 +1,4 @@
-# CipherDEX — Demo Script
+# Zerith — Demo Script
 
 > **Two demos in one doc:**
 >
@@ -13,8 +13,8 @@ Both demos run on the live Sepolia deployment (Chain ID 11155111). All contracts
 
 1. **Browser:** Chrome/Brave with MetaMask on Ethereum Sepolia.
 2. **Wallet:** funded with ~0.05 ETH for gas (Sepolia faucet via [sepoliafaucet.com](https://sepoliafaucet.com)).
-3. **Frontend:** running locally (`cd cipherdex/frontend && npm run dev`) or use the deployed Vercel URL.
-4. **Verify alive state:** `npm run launch-check` from `cipherdex/` should show every contract count ≥ 1.
+3. **Frontend:** running locally (`cd zerith/frontend && npm run dev`) or use the deployed Vercel URL.
+4. **Verify alive state:** `npm run launch-check` from `zerith/` should show every contract count ≥ 1.
 
 If running cold, run `npm run seed-state` to top up. Takes ~90 seconds.
 
@@ -137,7 +137,7 @@ Navigate to `/activity`:
 > "Open the Privacy Lens dropdown in any page. Three modes: Me / Counterparty / Observer. Same data, three perspectives. That's what makes FHE legible to a non-technical user."
 
 **Product judge:**
-> "The wedge is encrypted payroll for crypto-native teams. Onchain treasurers right now broadcast every contractor payment to the world. CipherDEX makes salaries private without leaving the chain. Same trustless settlement, math-enforced privacy."
+> "The wedge is encrypted payroll for crypto-native teams. Onchain treasurers right now broadcast every contractor payment to the world. Zerith makes salaries private without leaving the chain. Same trustless settlement, math-enforced privacy."
 
 ---
 
@@ -171,4 +171,4 @@ Upload to YouTube unlisted, paste link in submission. Done.
 
 ## Single-line pitch (for tweet, intro slide, etc.)
 
-> *"CipherDEX is private finance for onchain teams — payroll, auctions, OTC, and proof of reserves where the math itself protects you. Built on Fhenix FHE: encrypted bids never decrypt, encrypted balances never leak, and counterparty trust is replaced with cryptography. Live on Eth Sepolia, 27 contracts deployed, 5 auction mechanisms, real Proof of Reserves on-chain."*
+> *"Zerith is private finance for onchain teams — payroll, auctions, OTC, and proof of reserves where the math itself protects you. Built on Fhenix FHE: encrypted bids never decrypt, encrypted balances never leak, and counterparty trust is replaced with cryptography. Live on Eth Sepolia, 27 contracts deployed, 5 auction mechanisms, real Proof of Reserves on-chain."*
