@@ -623,6 +623,17 @@ const DRIVERS = {
     return { feature: "treasury-unseal", unsealed: reSealVisible || onlyYouVisible };
   },
 
+  activity: async (page, outDir) => {
+    await page.goto(`${BASE}/activity?_cb=${Date.now()}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(3000);
+    await shotsAndToast(page, outDir, "01-loaded");
+    await clickConnectAndWait(page, outDir);
+    await page.waitForTimeout(8000); // events take time to aggregate
+    await shotsAndToast(page, outDir, "03-feed-loaded");
+    const eventCountText = await page.getByText(/\d+ events?/i).first().textContent().catch(() => null);
+    return { feature: "activity", eventCountText };
+  },
+
   "treasury-por": async (page, outDir) => {
     await page.goto(`${BASE}/treasury?_cb=${Date.now()}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(2000);
