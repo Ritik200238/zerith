@@ -122,7 +122,13 @@ Visual issues found and fixed in this audit:
 
 Screenshots saved under `qa-shots/v2-*.png` (microlink) and `C:\Users\ritik\AppData\Local\Temp\.playwright-mcp\pw-*.png` (Playwright).
 
-## D) 🚨 LAUNCH-BLOCKING FINDING: cofhejs is deprecated, broken against current Fhenix backend
+## D) ~~🚨 LAUNCH-BLOCKING FINDING~~ → RESOLVED 2026-05-18 via @cofhe/sdk migration
+
+**Status:** Closed. The migration to `@cofhe/sdk@0.5.2` is shipped and proved working by the 20 Sepolia tx rows in section B above (every encrypted flow accepted by chain). Keeping the original finding below for the historical record.
+
+---
+
+### Original finding
 
 Discovered 2026-05-18 by direct Playwright test against the live deploy.
 
@@ -158,6 +164,40 @@ Until this is migrated, **no encrypted feature on Zerith actually works for user
 - [ ] End-to-end Blind Floor flow (create with encrypted reserve, bid, reveal).
 - [ ] One end-to-end Payroll split test (create + recipients claim).
 - [ ] Demo video recording (60-sec pitch).
+
+## F) Phase 2 checklist (from CLAUDE.md) — final state 2026-05-18
+
+| CLAUDE.md item | Evidence | Status |
+|---|---|---|
+| Faucet (claim 1000 CDEX) | Row 1 tx `0x2628c9b1…` | ✅ |
+| Treasury deposit, balance unseal, withdraw | Rows 2, 3 + UI smoke row 20 | ✅ deposit + withdraw on-chain, UI toast confirmed |
+| Proof of Reserves (request + reveal both states) | Rows 16, 17 | ✅ request mined; reveal flow exercised via UI |
+| Sealed-Bid Auction (3 bids, end, reveal winner) | Rows 4, 5 | ⚠️ 1 bid proven; multi-bidder reveal still pending |
+| Blind Floor Auction (headline) | Row 4 created auction, contract supports encrypted reserve | ⚠️ contract verified; UI reserve-not-met path not yet end-to-end |
+| Vickrey | Rows 8, 9 | ✅ |
+| Dutch | Rows 10, 11 | ✅ |
+| Batch | Rows 12, 13 | ✅ |
+| Overflow | Rows 14, 15 | ✅ |
+| Payroll (3 recipients, each claims) | Row 6 (2 recipients created) | ⚠️ create proven; claim by recipient burner pending |
+| OTC (request → quote → accept → settle) | Row 7 | ⚠️ request posted; full settle round-trip pending |
+| Freelance (post job → bid → milestone release) | UI verified, contract deployed | ⚠️ not yet exercised via verify-*.ts |
+| Multisig | Row 19 | ✅ (create) |
+| Org, Trade, Streaming, Vesting, Raffle, Allowlist | All routes render, contracts deployed, streaming verified row 18 | ⚠️ streaming ✅; others smoke-checked only |
+| Cross-feature composability (auction → payroll → OTC) | not yet executed end-to-end | ⏳ planned for the demo recording |
+
+## G) Visual polish bugs caught + fixed during the post-deploy sweep
+
+| Bug | Commit | Evidence |
+|---|---|---|
+| `OnboardingModal` first screen still rendered "Welcome to CipherDEX" | `a630942` | `verification-evidence/14-P0-brand-leak-caught-onboarding.png` |
+| 5 empty-state panels rendered icon `text-[var(--text)]` on `bg-text` → solid black square | `bd5211d` | `verification-evidence/20-final-overflow-pre-icon-fix.png` (before) + `39-final-overflow-post-icon-fix.png`, `40-final-vickrey-post-icon-fix.png` (after) |
+| ASCII `--` in 4 pages where editorial style uses em-dash | `c990526` | swept by content grep |
+
+## H) Visual archive — final post-redeploy captures of all 28 routes
+
+All 1440×900 Playwright full-page PNGs landed under `verification-evidence/`:
+
+10 landing-zerith · 11 auctions-privacy-report · 12 payments · 13 auctions-suite · 15 activity · 16 otc · 17 dutch · 18 vickrey · 19 batch · 20 overflow (pre-fix) · 21 freelance · 22 trade · 23 multisig · 24 org · 25 agent · 26 portfolio · 27 streaming · 28 raffle · 29 allowlist · 30 audit · 31 limits · 32 escrow · 33 reputation · 34 referrals · 35 royalty · 36 vesting · 37 wrapper · 38 treasury · 39 overflow-post-fix · 40 vickrey-post-fix.
 
 ## E) Architecture confidence
 
