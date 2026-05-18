@@ -79,11 +79,16 @@ export function Cofhe2Provider({ children }: { children: React.ReactNode }) {
         supportedChains: [chains.sepolia, chains.arbSepolia, chains.baseSepolia],
       });
 
-      const client = createCofheClient({
-        ...config,
-        publicClient,
-        walletClient,
-      });
+      const client = createCofheClient(config);
+      // P0 fix: the SDK's chainId+account internal state is wired by the
+      // explicit .connect(publicClient, walletClient) call — the one-shot
+      // constructor form leaves the client in an "unconnected" state that
+      // throws 'Client must be connected, account and chainId must be
+      // initialized' from decryptForTx. The Node SDK adapter docs use the
+      // .connect() pattern; matching it here so the browser hook behaves
+      // identically to the Hardhat reveal path.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (client as any).connect(publicClient, walletClient);
 
       initializedForRef.current = account;
       setState({ initialized: true, initializing: false, error: null, client });
