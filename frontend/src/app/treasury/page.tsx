@@ -190,8 +190,20 @@ export default function TreasuryPage() {
     setTxHash(undefined);
 
     try {
-      // Approve vault as operator for token (idempotent — sets max uint48 expiration)
-      // Most users will already have this from prior operations; harmless re-set.
+      // FHERC20 operator authorization: vault must be allowed to call
+      // confidentialTransferFrom on the user's behalf. Check first, only
+      // ask the user to sign if not already authorized.
+      const isOp = await (token as unknown as { isOperator: (owner: string, op: string) => Promise<boolean> })
+        .isOperator(account, CONTRACTS.SettlementVault);
+      if (!isOp) {
+        toast.info("Authorizing vault", "One-time approval for the vault to move tokens on your behalf.");
+        // Max uint48 expiration → effectively forever for testnet usage.
+        const MAX_UINT48 = "281474976710655"; // 2**48 - 1
+        const approveTx = await (token as unknown as { setOperator: (op: string, exp: string) => Promise<{ wait: () => Promise<unknown> }> })
+          .setOperator(CONTRACTS.SettlementVault, MAX_UINT48);
+        await approveTx.wait();
+      }
+
       const { Encryptable } = await import("@cofhe/sdk");
       const encrypted = await encrypt([Encryptable.uint64(BigInt(amount))]);
       if (!encrypted) throw new Error("Encryption failed");
