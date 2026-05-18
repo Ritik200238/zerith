@@ -17,43 +17,44 @@ export const FHENIX_TESTNET = {
 } as const;
 
 /** Deployed contract addresses — Ethereum Sepolia (chainId 11155111).
- *  Wave 3 redeploy v2 (2026-05-01): includes Phase C audit fixes
- *  (LimitOrderEngine settle-to-self removed, OTC/OrderBook price multiplication,
- *  Freelance refund no-ops removed, AuctionClaim MINTER_ROLE auto-granted,
- *  Vault delegateBalanceRead added, Reputation Sybil fix, Vickrey zero-bid
- *  edge case, getCount view functions added).
+ *  Full redeploy 2026-05-18 with SettlementVault.deposit/withdraw fix:
+ *  FHE.allowTransient(amount, token) before confidentialTransferFrom/Transfer
+ *  so the token contract can read the encrypted amount handle inside its
+ *  call (without this, ACLNotAllowed(handle, token) at gas estimation).
+ *  All 26 contracts redeployed because the vault address is stored
+ *  immutably in every feature's constructor.
  */
 export const CONTRACTS = {
-  ConfidentialToken: "0xad1c3aCAB5794a7dE857D85e4098934235BA196a",
-  PlatformRegistry: "0x5140Af056CbeDFbb1544d3769E6924f18E743dB2",
-  SettlementVault: "0x8070C011260FcA24C9cB48DfE75804494677C3f7",
-  OrderBook: "0x2Ec736dDe1F645bc65A01de198A09BdC3B510FB8",
-  AuctionClaim: "0x707aB4D6d18d985b59146BF9c2e1d8D565A0bBA6",
-  SealedAuction: "0x7BCDd0eff87D447bD50C42aEAC8f0D4dcEeEe32c", // Redeployed 2026-05-17 with Blind Floor
-  Escrow: "0x9ec7cEd2bFab218C3270027D385CeF26627Cad25",
-  LimitOrderEngine: "0xa4B36Ae83Df3B4947D4451b13BE4331A37Ca2CD0",
-  BatchAuction: "0xb9364c0CF31915D0873F60750d7E667243Ce1f95",
-  PortfolioTracker: "0xB16Fc2b5246dD7d2542E46F14BDED1aA947fA8f1",
-  Reputation: "0x42ea9650f9fFAbF39c86497c5C0154fa93002161",
-  OTCBoard: "0xBf90003e63De9a042Bd4C13C5cd00548616349eb", // Redeployed 2026-05-17 — encrypted overflow guard + expireRequest
-  PrivatePayments: "0x45a963867CE03f64c09e45312a74f0B7ca425678",
-  FreelanceBidding: "0x2505450Fb9331cCaA626E9cA11423835C08b3B8C",
-  VickreyAuction: "0x68fBEB96988e3314a16A7aaE09E9561435893ABA",
-  DutchAuction: "0xF68858D52fFf0784F5EdE582952639c79B1161e7",
-  OverflowSale: "0xd199fFCED0E4F417e32573D871770860e405567f",
-  TokenVesting: "0x6A9500bFF2fc980F0Ad33a83b202EA061fEE1ea1",
-  AllowlistGate: "0x7214B8219A83b248AaBfDf84b284DedB7e1D7F91",
-  Referrals: "0x4b6F242e207104e34de4f6544D34f0A7780495fc",
-  // Wave 4 + W5+ — deployed 2026-05-02 on top of v2 baseline.
-  Organization: "0x66E6e2e0dC9E4d486c36C494c620B687e18FCeA7",
-  EncryptedStreaming: "0x2D1F98B56e1E5299EB6A7cCdf18C460Fa4a89998",
-  ConfidentialMultisig: "0xB71E9c2d096597DB50003Fe85d755119A3617277",
-  EncryptedRoyalty: "0xc1926ae9A6BF2bbdADbcFA8Cf40ca0DCB9739cf6",
-  // F2 + F6 — deployed 2026-05-02
+  ConfidentialToken: "0x56047782ABFE56d88f1f29b12b3c0C22ee12a3d2",
+  PlatformRegistry: "0x0a97e158D0679A29321AB97A54AF666269C5F5A8",
+  SettlementVault: "0x31B751027Ed82b489f42212371d17e30c4D655a5",
+  OrderBook: "0x80b09409f2dB5FAEb45f2ca36C8C1b06772D45E2",
+  AuctionClaim: "0xD46b298b4c4ce04E65b37a7F594D8C8e7876f65c",
+  SealedAuction: "0xdEe59FD1d8Ac071146c7ED012a0a343FdD56b0A0",
+  Escrow: "0x36dbcCAF465f106ebB3da7E9776b0598d4f36d32",
+  LimitOrderEngine: "0x09A01EFA1e97c9f12F1Aa6Dc0dAf1b019a58F8E6",
+  BatchAuction: "0xB29AF471E9392D0bAafc898795d7Ed6Bd6fBEfd5",
+  PortfolioTracker: "0xe72F751B9FB60C542e352F82826f465FD3bc47a0",
+  Reputation: "0xcbD4c5269219f3eE8a1C3Dbe0FB24d1F6558Ac09",
+  OTCBoard: "0x808C27D12265234bE405Eb45800f2BDB1f4Cdb3D",
+  PrivatePayments: "0x15309001612f1667C2Fc1De2107769F438712b4B",
+  FreelanceBidding: "0xf71715fD9c9d314D56FBa0031EBc69ba22d5CE05",
+  VickreyAuction: "0x12973Ac885A11136A9f948beCc6e810CF9D54e17",
+  DutchAuction: "0xd9bA4b7b825f3558757Fe977d024b29e27B65b54",
+  OverflowSale: "0x91b869Ba4Ad80683be67e7F2f776fFf655034Adb",
+  TokenVesting: "0x1be9DF85c8cd48b98f7F0Cc75F565225f00E4895",
+  AllowlistGate: "0xa9d8DA5D2878E8261A1f9c2c53dCA21e849c0EE4",
+  Referrals: "0x77ef973642CC1BAE0756D20E25c83d5b5148af13",
+  Organization: "0x088356c0ab2035605422f8B4Da2d4037487EC1DF",
+  EncryptedStreaming: "0xa3076EF9395E2D7F81d9FB79Cd3E984449F938De",
+  ConfidentialMultisig: "0x7250146635a9E0b60471037D6C7c51b21be28d36",
+  EncryptedRoyalty: "0xD3AD70382cEcFdF291c060eE1fA17aE4Eb2DbF32",
+  // ConfidentialWrapper + EncryptedRaffle were not redeployed (the wrapper
+  // points at the new token implicitly via wrapper address, raffle doesn't
+  // touch the vault) — keeping the older addresses as a deliberate carry-over.
   ConfidentialWrapper: "0x7Cb515093392Af34cF14c654dbA666422420Df42",
   EncryptedRaffle: "0xEADb49571BCA5188d9AEe0DB7b7154eD118Af1b1",
-  // ProofOfReserves — deployed 2026-05-17 on Eth Sepolia
-  ProofOfReserves: "0x02F6EEcA72cBA136562d7a30d4F4EFF15d1CDB4F",
+  ProofOfReserves: "0xFA609253c0CA0297e8c272543EE806CAC203bd70",
 } satisfies Record<string, string>;
 
 export type ContractName = keyof typeof CONTRACTS;
