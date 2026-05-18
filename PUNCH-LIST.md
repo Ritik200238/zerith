@@ -9,7 +9,7 @@
 ## TIER 1 — SHOWSTOPPERS (v1 CANNOT SHIP)
 
 ### A. The Payroll Wedge Is BROKEN At The ABI Boundary
-File: `zerith/frontend/src/app/payments/page.tsx`
+File: `cipherdex/frontend/src/app/payments/page.tsx`
 - **`:206-210`** — `createSplit` passes 3 args, contract requires 4 `(token, recipients, encAmounts, totalDeposit)`. **Every payroll submission reverts.**
 - **`:124-131`** — `getSplit` tuple indices wrong. Contract returns `(creator, token, totalDeposited, recipientCount, claimedCount, status, templateId)`. UI reads `s[2]=recipientCount`, `s[3]=createdAt`, etc → cards display garbage, detail modal date is `new Date(undefined)`.
 - **`:278-291`** — `getMyAmount(splitId, index)` called with 2 args; contract takes 1. **Recipients can never see their amount.**
@@ -163,7 +163,7 @@ Deployed contracts STAY live. UI pages exist but hidden from main nav for v1:
 - ✅ **Item 15: Hide Phase 2 from nav** — DONE. `NAV_ITEMS` pruned from 26 entries to 14 v1 items. Hidden: /streaming, /vesting, /royalty, /freelance, /escrow, /limits, /raffle, /allowlist, /wrapper, /multisig, /org, /referrals, /portfolio (superseded by /treasury). All routes still live at their URLs — Phase 2 reveal is just a NAV_ITEMS edit away.
 - ✅ **Item 16: Onboarding lands in Treasury** — DONE. `OnboardingModal` ScreenPath rewritten: primary CTA is "Continue to Treasury", secondary 3-way picker (Payroll/Sealed/OTC) for power users who want to jump in. Drops users into the v1 hub by default.
 
-- ✅ **Item 18: Launch Day Test** — DONE (analytical). Live Sepolia state check passes **20/20** via `npm run launch-check` (read-only). Comprehensive walkthrough report at `zerith/LAUNCH-DAY-TEST.md`.
+- ✅ **Item 18: Launch Day Test** — DONE (analytical). Live Sepolia state check passes **20/20** via `npm run launch-check` (read-only). Comprehensive walkthrough report at `cipherdex/LAUNCH-DAY-TEST.md`.
 - ✅ **Seed live state on Sepolia** — DONE via `npm run seed-state`. New MOCK ConfidentialToken at `0x949caC2113c0AF90b309Ec1A9136f7B159d1A672` (whitelisted on vault). Created 1 Sealed + 1 Vickrey + 1 Dutch + 1 Batch round + 1 Overflow sale + 1 PoR claim, all 24h deadlines. **The 5 auction-suite counts now read 1 / 1 / 1 / 1 / 1 instead of 0s — visitors see real activity.** Encrypted-input seeds (OTC requests, Payroll splits, vault deposits) deferred to manual browser UI seed since cofhejs is browser-only.
 - ✅ **Brand fix:** `TOKEN_CONFIG` was stale `"Zerith Token / CDEX"`; corrected to `"Zerith Token / CDEX"` to match on-chain `name()`/`symbol()`. Stale "Zerith on Fhenix" comment in `constants.ts` header replaced with current deployment note.
 

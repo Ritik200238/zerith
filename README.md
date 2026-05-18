@@ -4,7 +4,7 @@
 
 Zerith is a private finance protocol built on Fhenix FHE (Fully Homomorphic Encryption). Every bid, payment amount, trade price, and reputation score is encrypted on-chain. The blockchain processes your finances without ever seeing the numbers.
 
-[Launch App](https://cipher-dex.vercel.app) · [ConfidentialToken on Etherscan](https://sepolia.etherscan.io/address/0xad1c3aCAB5794a7dE857D85e4098934235BA196a) · [Demo script](./DEMO-SCRIPT.md) · [Launch Day Test](./LAUNCH-DAY-TEST.md)
+[Launch App](https://cipher-dex.vercel.app) · [ConfidentialToken on Etherscan](https://sepolia.etherscan.io/address/0x56047782ABFE56d88f1f29b12b3c0C22ee12a3d2) · [Demo script](./DEMO-SCRIPT.md) · [Launch Day Test](./LAUNCH-DAY-TEST.md)
 
 ---
 

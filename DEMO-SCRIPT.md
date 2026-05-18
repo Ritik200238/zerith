@@ -13,8 +13,8 @@ Both demos run on the live Sepolia deployment (Chain ID 11155111). All contracts
 
 1. **Browser:** Chrome/Brave with MetaMask on Ethereum Sepolia.
 2. **Wallet:** funded with ~0.05 ETH for gas (Sepolia faucet via [sepoliafaucet.com](https://sepoliafaucet.com)).
-3. **Frontend:** running locally (`cd zerith/frontend && npm run dev`) or use the deployed Vercel URL.
-4. **Verify alive state:** `npm run launch-check` from `zerith/` should show every contract count ≥ 1.
+3. **Frontend:** running locally (`cd cipherdex/frontend && npm run dev`) or use the deployed Vercel URL.
+4. **Verify alive state:** `npm run launch-check` from `cipherdex/` should show every contract count ≥ 1.
 
 If running cold, run `npm run seed-state` to top up. Takes ~90 seconds.
 
@@ -34,7 +34,7 @@ Show that **bids stay sealed forever** in a way a judge can verify on Etherscan.
 | 0:15 | Click **Connect Wallet** → MetaMask sign | (no commentary) | wallet connects, address shows top-right |
 | 0:25 | Click the **Privacy Lens** in the navbar → switch to **Observer** | "First — this is what a public observer would see while bidders are bidding." | Privacy Lens row shows "🔒 sealed" for amounts |
 | 0:35 | Click an auction card → **Place Bid** | "I'll bid encrypted." | Bid modal opens |
-| 0:38 | Type any number (e.g., 42) → **Encrypt & Submit** | "Encrypted client-side via cofhejs before it ever touches the chain." | Encryption progress overlay → wallet sign → confirm |
+| 0:38 | Type any number (e.g., 42) → **Encrypt & Submit** | "Encrypted client-side via Fhenix's `@cofhe/sdk` (TFHE + ZK proof) before it ever touches the chain." | Encryption progress overlay → wallet sign → confirm |
 | 0:50 | Open the tx on Sepolia Etherscan (link in toast) | "**The transaction is public. The amount is not.** That ciphertext on the input data — nobody can decrypt it, not even the contract itself, until reveal." | Etherscan shows the tx; input data is gibberish |
 | 0:60 | Switch Privacy Lens to **Me** | "I can see my own bid via permit. Other bidders cannot. The contract uses FHE.max() on ciphertext to find the winner — without ever decrypting any losing bid." | (mic drop) |
 

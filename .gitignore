@@ -39,5 +39,6 @@ packages/sdk/
 
 .vercel
 
-# burner wallet — never commit
+# burner wallets — never commit
 .burner-wallet.json
+.multibid-burners.json
