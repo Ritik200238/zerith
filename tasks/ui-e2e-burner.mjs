@@ -638,7 +638,85 @@ const DRIVERS = {
     /Encrypt & Submit|Submit Order|Place Order/i,
   ),
 
-  raffle: smokeDriver("/raffle", /New Raffle|Create|\+ New/i),
+  wrapper: deepDriver(
+    "/wrapper",
+    /Deposit \(public/i,
+    [
+      // Wrapper modal's Amount input has no type="number"
+      { selector: (p) => p.getByPlaceholder("100").last(), value: "1" },
+    ],
+    /Approve & deposit|Encrypt & send|Encrypt & deposit/i,
+  ),
+
+  reputation: deepDriver(
+    "/reputation",
+    /Submit rating|New rating|\+ Submit/i,
+    [
+      { selector: 'input[placeholder*="0x" i]', value: "0x2DD7E1e7F572a6B7D5e9e65910997cA141BbFb9d" },
+      { selector: (p) => p.locator('input[type="number"]').first(), value: "5" },
+    ],
+    /Encrypt & submit|Submit rating/i,
+  ),
+
+  referrals: deepDriver(
+    "/referrals",
+    /^Create code$|\+ Create code/i,
+    [
+      { selector: 'input[type="text"]', value: "zerith-launch-ui" },
+    ],
+    /^Create code$|Encrypt & create/i,
+  ),
+
+  royalty: deepDriver(
+    "/royalty",
+    /New split|Create split|Register split|\+ New/i,
+    [
+      { selector: (p) => p.locator('input[type="text"]').first(), value: "Zerith Launch Royalty Split" },
+      { selector: (p) => p.locator('input[placeholder*="0x" i]').first(), value: "0x2DD7E1e7F572a6B7D5e9e65910997cA141BbFb9d" },
+      { selector: (p) => p.locator('input[type="number"]').first(), value: "5000" },
+    ],
+    /Encrypt & register|Register split|Encrypt & create/i,
+  ),
+
+  escrow: deepDriver(
+    "/escrow",
+    /New deal|Create deal|\+ New/i,
+    [
+      { selector: (p) => p.locator('input[placeholder*="0x" i]').first(), value: "0x2DD7E1e7F572a6B7D5e9e65910997cA141BbFb9d" },
+      { selector: (p) => p.locator('input[type="number"]').first(), value: "10" },
+    ],
+    /Encrypt & create|Create deal/i,
+  ),
+
+  limits: deepDriver(
+    "/limits",
+    /New limit|Create limit|\+ New/i,
+    [
+      { selector: (p) => p.locator('input[type="number"]').first(), value: "50" },
+    ],
+    /Encrypt & create|Create limit/i,
+  ),
+
+  agent: deepDriver(
+    "/agent",
+    // Agent has its own flow — "Encrypt & run" submits the typed command directly
+    /\+ Connect|^Connect Wallet$/i,
+    [
+      { selector: 'input[type="text"], textarea', value: "auction 50 CDEX" },
+    ],
+    /Encrypt & run/i,
+  ),
+
+  raffle: deepDriver(
+    "/raffle",
+    /Create raffle|\+ Create raffle|New raffle/i,
+    [
+      { selector: (p) => p.locator('input[type="number"]').first(), value: "10" },
+    ],
+    /Create raffle/i,
+  ),
+
+  vesting: smokeDriver("/vesting", /Claim|View Schedule/i),
 };
 
 async function runOne(feature) {
