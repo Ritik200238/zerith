@@ -509,13 +509,20 @@ function deepDriver(featurePath, openBtnRegex, inputs, submitBtnRegex) {
     await shotsAndToast(page, outDir, "05-submitting");
 
     await waitForEncryptionDone(page);
+    // Also wait for "Processing…" / "Confirming…" to clear
+    await page.waitForFunction(() => {
+      const el = Array.from(document.querySelectorAll("*")).find(
+        (n) => /Processing…|Processing\.\.\.|Confirming…/i.test(n.textContent || "")
+      );
+      return !el || el.offsetParent === null;
+    }, { timeout: 120000 }).catch(() => {});
     await page.waitForTimeout(8000);
     await shotsAndToast(page, outDir, "06-done");
 
-    // Look for confirmation toast
+    // Look for confirmation toast — tighter regex
     const toast = await page.waitForSelector(
-      'text=/Transaction confirmed|created|posted|sent|sealed|success|placed|MATCHED|started/i',
-      { timeout: 60000 }
+      'text=/Transaction confirmed|Confirmed on-chain|posted|MATCHED/i',
+      { timeout: 90000 }
     ).catch(() => null);
     await shotsAndToast(page, outDir, "07-toast");
     return {
@@ -655,12 +662,14 @@ const DRIVERS = {
 
   freelance: deepDriver(
     "/freelance",
-    /Post Job|New Job|\+ New|\+ Post/i,
+    /^Post Job$|^\+ Post Job$/i,
     [
-      { selector: 'input[placeholder*="title" i], input[type="text"]', value: "Build a Zerith widget" },
-      { selector: 'input[type="number"]', value: "100" },
+      // jobTitle, jobEscrow, milestone[0].desc
+      { selector: (p) => p.locator('input[type="text"]').first(), value: "Build a Zerith widget" },
+      { selector: (p) => p.locator('input[type="number"]').first(), value: "100" },
+      { selector: (p) => p.getByPlaceholder("Milestone 1 description"), value: "Final delivery" },
     ],
-    /Post Job|Encrypt & post/i,
+    /^Post Job$/i,
   ),
 
   trade: deepDriver(

@@ -76,6 +76,7 @@ These are the rows where Playwright drove the actual UI buttons end-to-end and c
 | Referrals create code | "Transaction confirmed" toast | `verification-evidence/ui-e2e/referrals/` |
 | Batch submit buy order (on fresh round #1) | "Transaction confirmed" toast | `verification-evidence/ui-e2e/batch/` (seeded fresh round via `tasks/seed-fresh-batch-round.ts`) |
 | Royalty register split | "Transaction confirmed" toast | `verification-evidence/ui-e2e/royalty/` |
+| Freelance post job | "SUCCESS · Freelance · Transaction confirmed on-chain" toast + Job #1 OPEN rendered as MY JOB | `verification-evidence/ui-e2e/freelance/` (needed P0 fix `6e7a3ff` — postJob arg-order was wrong, contract revert was being swallowed by handleTxError) |
 | Limits create | form filled (BUY_BELOW, CDEX/MOCK, amount=100, trigger=50), submit clicked, encryption pipeline ran | `verification-evidence/ui-e2e/limits/` |
 | Escrow create deal | form filled (Party B, CDEX/MOCK, terms 100/200, label, 3600s), submit clicked, encryption pipeline ran | `verification-evidence/ui-e2e/escrow/` |
 | Reputation submit rating | form filled, submit clicked (counterparty 0x2DD…41B + Trade ID 5 + 5-star) — gated on actual trade history in `Reputation.tradeHistory[burner][counterparty][5]`; future test needs a real trade first | `verification-evidence/ui-e2e/reputation/` |
