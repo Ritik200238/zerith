@@ -44,7 +44,8 @@ Each row is a real Sepolia tx. All txs use the burner wallet `0x492aaF98150f0542
 | B17 | ConfidentialMultisig.createMultisig (encrypted threshold) | `0x6346c75d…e604` | row 19 | ✅ |
 | B18 | UI deposit smoke (Playwright burner → real wallet sign → "Tx confirmed" toast) | row 20 + `verification-evidence/09-ui-deposit-confirmed-toast.png` | ✅ |
 | B19 | **FreelanceBidding post + 2 encrypted bids** — burner1 posts job (300s, 1 milestone @100%, escrow 100 CDEX), burner2 bids 50, burner3 bids 30. Contract uses `FHE.lt` + `FHE.select` to track the lowest bidder on ciphertext. | post `0x58647a99…8b94`; bid1 `0x62aa64b2…c318`; bid2 `0x13f8beb4…051c` | `tasks/verify-freelance-e2e.ts` | ✅ post + bids — bidCount=2, status=OPEN. Milestone release (settle → deliverMilestone → approveMilestone) requires a 5-min deadline wait + TN reveal of lowest bidder; the encrypted machinery itself is proven here. |
-| B20 | Vesting / Raffle / Allowlist / Org / Trade flows | UI rendered + contracts deployed; not yet exercised end-to-end | ⚠ smoke only |
+| B20 | **Organization.createOrg + OrderBook.createOrder + AllowlistGate.createAllowlist** in one shot | Org `0x960f4b14c00c3daa1568fb95392e76e1bf65168530c38a10fa38c271095b7b11`; OrderBook `0xe5fa5bb756e05d65aaf9840eea9e565a6cf56913a81447d661ac133b8ea0c1a1`; AllowlistGate `0xcf6193e7f0c55b2cb5ecbd2a0697df75b515ea15252af3f894d2c688a692621d` | `tasks/verify-org-trade-allowlist-e2e.ts` | ✅ orgCount=1, nextOrderId=1, nextAllowlistId=1. OrderBook used the encrypted price machinery (FHE.asEuint128); the maker can unseal their own price via `FHE.allowSender(price)`. |
+| B21 | Vesting / Raffle smoke | not exercised directly | — | ⚠ Vesting is created BY other contracts (auction settlement etc.), not user-facing per CLAUDE.md — page renders an explicit "schedules created by authorized contracts" notice. Raffle uses an older legacy address from constants.ts that wasn't redeployed; contract path exists. |
 
 ## C) Visual layer (28 routes)
 
@@ -81,12 +82,12 @@ Polish bugs caught and fixed during this audit:
 | OTC (request → quote → accept → settle) | B9 + B10 | ✅ — full round-trip proven, status flipped to MATCHED, settlement legs ran via vault |
 | Freelance (post job → bid → milestone) | B19 | ✅ encrypted bidding proven; milestone release a follow-up |
 | Multisig | B17 | ✅ |
-| Org | — | ⚠ smoke only |
-| Trade | — | ⚠ smoke only |
+| Org | B20 | ✅ createOrg proven |
+| Trade | B20 | ✅ createOrder with encrypted price proven |
 | Streaming | B16 | ✅ |
-| Vesting | — | ⚠ smoke only |
-| Raffle | — | ⚠ smoke only |
-| Allowlist | — | ⚠ smoke only |
+| Vesting | B21 | ⚠ created BY other contracts (auction settlement etc.); page renders an explicit notice — no direct user create flow |
+| Raffle | B21 | ⚠ legacy address carry-over from old contract set; contract path exists |
+| Allowlist | B20 | ✅ createAllowlist with Merkle root proven |
 | Cross-feature composability | — | ⏳ planned for the 60-sec demo recording |
 
 ## E) Sensitivity sweep — things a stranger would notice
