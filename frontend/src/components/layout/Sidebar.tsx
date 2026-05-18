@@ -131,14 +131,14 @@ export function Sidebar() {
           fixed left-0 top-0 bottom-0 flex flex-col z-50
           bg-bg
           transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
-          ${expanded ? "w-60" : "w-[68px]"}
+          ${expanded || mobileOpen ? "w-60" : "w-[68px]"}
           ${mobileOpen ? "translate-x-0 w-60" : "-translate-x-full md:translate-x-0"}
         `}
         style={{ borderRight: "1px dashed var(--border-dash)" }}
       >
         {/* Brand mark */}
         <div
-          className={`flex items-center h-16 ${expanded ? "px-5" : "px-0 justify-center"}`}
+          className={`flex items-center h-16 ${expanded || mobileOpen ? "px-5" : "px-0 justify-center"}`}
           style={{ borderBottom: "1px dashed var(--border-dash)" }}
         >
           <Link href="/" className="flex items-center gap-2.5 group min-w-0">
@@ -156,7 +156,7 @@ export function Sidebar() {
                 Z
               </span>
             </div>
-            {expanded && (
+            {(expanded || mobileOpen) && (
               <div className="overflow-hidden">
                 <h1
                   className="font-display font-bold text-text tracking-tight leading-none"
@@ -185,10 +185,10 @@ export function Sidebar() {
           {grouped.map((section, idx) => (
             <div
               key={section.label}
-              className={idx > 0 && expanded ? "pt-3 mt-2" : ""}
-              style={idx > 0 && expanded ? { borderTop: "1px dashed var(--border-dash)" } : undefined}
+              className={idx > 0 && (expanded || mobileOpen) ? "pt-3 mt-2" : ""}
+              style={idx > 0 && (expanded || mobileOpen) ? { borderTop: "1px dashed var(--border-dash)" } : undefined}
             >
-              {expanded && (
+              {(expanded || mobileOpen) && (
                 <p className="px-5 pt-1 pb-2 font-mono text-[10px] font-medium text-textMuted uppercase tracking-[0.12em]">
                   <span className="opacity-50">— </span>
                   {section.label}
@@ -198,15 +198,16 @@ export function Sidebar() {
                 const isActive =
                   item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
                 const Icon = ICON_MAP[item.icon];
+                const showLabel = expanded || mobileOpen;
 
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    title={!expanded ? item.label : undefined}
+                    title={!showLabel ? item.label : undefined}
                     className={`
                       flex items-center gap-3 mx-2 rounded transition-colors duration-150 group relative
-                      ${expanded ? "px-3 py-2" : "px-0 py-2 justify-center"}
+                      ${showLabel ? "px-3 py-2" : "px-0 py-2 justify-center"}
                       ${isActive
                         ? "bg-bgAlt text-text"
                         : "text-textMuted hover:text-text hover:bg-bgCardHover"}
@@ -225,7 +226,7 @@ export function Sidebar() {
                         }`}
                       />
                     )}
-                    {expanded && (
+                    {showLabel && (
                       <span
                         className={`text-[13px] truncate ${
                           isActive ? "font-semibold text-text" : "font-medium"
