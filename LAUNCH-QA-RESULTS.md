@@ -58,7 +58,7 @@ These are the rows where Playwright drove the actual UI buttons end-to-end and c
 
 | Feature | Toast / state captured | Evidence |
 |---|---|---|
-| Treasury deposit | "Transaction confirmed" toast | `verification-evidence/ui-e2e/treasury/` |
+| Treasury deposit | "Transaction confirmed" toast **+ encrypted balance handle actually changes on-chain**: pre-deposit `0x122f6f21…0500` → post-deposit `0xb8140d85…0500`. This is the definitive proof that the UI moves real tokens — only true after the P0 decimals fix (`05b90ef`) was deployed; with the prior `decimals=18` UI, every encrypted amount overflowed past balance and the vault's zero-replacement silently transferred 0 tokens even though the tx mined and the toast appeared. | `verification-evidence/ui-e2e/treasury/` + `tasks/verify-deposit-actually-moves-tokens.ts` |
 | Auctions Sealed bid | "Sealed Auction · Transaction confirmed on-chain" toast | `verification-evidence/ui-e2e/auctions/` |
 | Payments create split | "Encrypting amounts…" pipeline → new split visible in list | `verification-evidence/ui-e2e/payments/` |
 | Multisig create | "SUCCESS · Confidential Multisig · Transaction confirmed on-chain" toast + Multisig #1 rendered | `verification-evidence/ui-e2e/multisig/` |
