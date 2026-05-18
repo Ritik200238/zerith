@@ -31,8 +31,8 @@ Each row is a real Sepolia tx. All txs use the burner wallet `0x492aaF98150f0542
 | B4 | SealedAuction createAuction (300s) | `0x325f5455…700b` | row 4 | ✅ |
 | B5 | SealedAuction single encrypted bid | `0xe2bc4d04…d461` | row 5 | ✅ |
 | B6 | **SealedAuction multi-bidder (3 wallets, distinct bids) + closeAuction + TN-signed revealWinner** | Created: `0x7470de3a…1581`; bids: `0x4257c677…6bbd0` / `0xee4b2a62…aa15f` / `0xbb30abb6…3cc73`; close: `0x7a77ae4b…582bb`; **reveal: `0x98a1c650…fafc7`** | Winner = burner3 (1200), exactly matches the highest bid. Losing bids (burner1=500, burner2=800) **never had FHE.allowGlobal called on them** and stay encrypted in the `bids[auctionId][bidder]` mapping forever. Headline Phase 2 row ✅ |
-| B7 | PrivatePayments createSplit (2 recipients) | `0x5e6f5edd…06de` | row 6 | ✅ create proven |
-| B8 | PrivatePayments recipient claim (recipient burner unseals own amount) | — | — | ⚠ not yet exercised; requires recipient burner per split |
+| B7 | PrivatePayments createSplit (2 recipients) | `0x5e6f5edd…06de` (old) + `0xae87370a…` (new 3-recipient split #1) | row 6 + this session | ✅ |
+| B8 | **PrivatePayments recipient claim + privacy assertion** — burner1/2/3 each `claim(1)`, then `decryptForView(getMyAmount)` returns 50/100/150 respectively, AND each fails when attempting another burner's handle | claims: `0x2726bcdf…3aa8` / `0x9cc8b738…7e90` / `0x8484a69c…3645` | `tasks/verify-payroll-claim-e2e.ts` + `tasks/verify-payroll-unseal-amounts.ts` | ✅ **The 'each recipient sees only their own amount' invariant proven end-to-end on Sepolia, including the negative test that the TN refuses to decrypt others' handles.** |
 | B9 | OTCBoard postRequest (3 InEuint128 fields) | `0x22fb0bf9…e87b` | row 7 | ✅ post proven |
 | B10 | OTCBoard quote → accept → settle round-trip | — | — | ⚠ post proven; full round-trip pending |
 | B11 | VickreyAuction create + bid | `0xd6c9c48b…4ccd` / `0x9642ec83…b5a4` | rows 8-9 | ✅ |
@@ -77,7 +77,7 @@ Polish bugs caught and fixed during this audit:
 | Dutch (live price decay) | B12 | ✅ |
 | Batch (single clearing price) | B13 | ✅ |
 | Overflow (oversubscribed → pro-rata) | B14 | ✅ |
-| Payroll (3 recipients, each claims) | B7 + B8 | ⚠ create proven; recipient-side claim still pending |
+| Payroll (3 recipients, each claims) | B7 + B8 | ✅ — 3 claims confirmed, each recipient unseals own amount, TN refuses to decrypt others' handles (privacy invariant proven) |
 | OTC (request → quote → accept → settle) | B9 + B10 | ⚠ post proven; full round-trip pending |
 | Freelance (post job → bid → milestone) | B19 | ⚠ |
 | Multisig | B17 | ✅ |
@@ -122,7 +122,7 @@ Inherited from earlier `LAUNCH-DAY-TEST.md` plus this session's findings.
 In priority order:
 
 1. ~~Finish B6~~ — done ✅ in this session, tx `0x98a1c650…fafc7`.
-2. **B8 Payroll recipient claim** — spawn a 4th burner, fund it from deployer, have it `claim(splitId)` on the existing split (id 0) and unseal its own amount. ~5 min.
+2. ~~B8 Payroll recipient claim~~ — done ✅ this session, 3 claim txs + 3 unseal proofs + 3 cross-account rejections.
 3. **B10 OTC full round-trip** — accept the existing request from a counterparty burner, settle via vault. ~10 min.
 4. **B19 Freelance milestone** — exercise the freelance contract end-to-end. ~15 min.
 5. **Phase 3 demo recording** — Playwright video of the 60-sec critical path: landing → connect → faucet → treasury deposit → balance reveal → auction bid → unseal.
