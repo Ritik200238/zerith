@@ -561,6 +561,37 @@ function smokeDriver(featurePath, primaryButtonRegex) {
 
 const DRIVERS = {
   treasury: driveTreasury,
+  "treasury-unseal": async (page, outDir) => {
+    await page.goto(`${BASE}/treasury?_cb=${Date.now()}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+    await shotsAndToast(page, outDir, "01-loaded");
+    await clickConnectAndWait(page, outDir);
+    await page.waitForTimeout(3000); // give encBalance fetch time
+
+    // Click "Unseal" — should trigger permit signing + decryptForView
+    const unsealBtn = page.getByRole("button", { name: /^Unseal$/ }).first();
+    if (!(await unsealBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
+      return { feature: "treasury-unseal", skipped: "no Unseal button" };
+    }
+    await unsealBtn.click({ force: true });
+    await page.waitForTimeout(15000); // allow permit creation + TN call
+    await shotsAndToast(page, outDir, "03-unseal-flow");
+
+    // After unseal, the balance card shows a number (not the lock icon)
+    // The card no longer says "Sealed"; instead it shows the plaintext.
+    await page.waitForFunction(() => {
+      // Look for the encrypted-balance area showing a digit instead of "Sealed"
+      const allText = document.body.textContent || "";
+      return !allText.includes("Sealed") || /Only you can see this/i.test(allText);
+    }, { timeout: 60000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+    await shotsAndToast(page, outDir, "04-unsealed");
+
+    const reSealVisible = await page.getByRole("button", { name: /Re-seal|Hide/i }).first().isVisible({ timeout: 2000 }).catch(() => false);
+    const onlyYouVisible = await page.getByText(/Only you can see this/i).isVisible({ timeout: 2000 }).catch(() => false);
+    return { feature: "treasury-unseal", unsealed: reSealVisible || onlyYouVisible };
+  },
+
   "treasury-por": async (page, outDir) => {
     await page.goto(`${BASE}/treasury?_cb=${Date.now()}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(2000);
