@@ -33,8 +33,8 @@ Each row is a real Sepolia tx. All txs use the burner wallet `0x492aaF98150f0542
 | B6 | **SealedAuction multi-bidder (3 wallets, distinct bids) + closeAuction + TN-signed revealWinner** | Created: `0x7470de3a…1581`; bids: `0x4257c677…6bbd0` / `0xee4b2a62…aa15f` / `0xbb30abb6…3cc73`; close: `0x7a77ae4b…582bb`; **reveal: `0x98a1c650…fafc7`** | Winner = burner3 (1200), exactly matches the highest bid. Losing bids (burner1=500, burner2=800) **never had FHE.allowGlobal called on them** and stay encrypted in the `bids[auctionId][bidder]` mapping forever. Headline Phase 2 row ✅ |
 | B7 | PrivatePayments createSplit (2 recipients) | `0x5e6f5edd…06de` (old) + `0xae87370a…` (new 3-recipient split #1) | row 6 + this session | ✅ |
 | B8 | **PrivatePayments recipient claim + privacy assertion** — burner1/2/3 each `claim(1)`, then `decryptForView(getMyAmount)` returns 50/100/150 respectively, AND each fails when attempting another burner's handle | claims: `0x2726bcdf…3aa8` / `0x9cc8b738…7e90` / `0x8484a69c…3645` | `tasks/verify-payroll-claim-e2e.ts` + `tasks/verify-payroll-unseal-amounts.ts` | ✅ **The 'each recipient sees only their own amount' invariant proven end-to-end on Sepolia, including the negative test that the TN refuses to decrypt others' handles.** |
-| B9 | OTCBoard postRequest (3 InEuint128 fields) | `0x22fb0bf9…e87b` | row 7 | ✅ post proven |
-| B10 | OTCBoard quote → accept → settle round-trip | — | — | ⚠ post proven; full round-trip pending |
+| B9 | OTCBoard postRequest (3 InEuint128 fields) | `0x22fb0bf9…e87b` (old) + `0xc86eda42…` (new) | row 7 + this session | ✅ |
+| B10 | **OTCBoard request → submitQuote → acceptQuote (full round-trip, settlement via vault)** | post `0xc86eda4273d860cfc8ae137e72279bedf72f989a80426c3e5e07ec1a89abbdf2`; quote `0x13be1de1afcaa313565f2da5cae82855af87b2229dfc38e250cc661a7adc6fbc`; **accept `0xd01b26f634b505af6ad6bebaa6f66bba4287a02549a6dcb0eb2a06eeb3ac4900`** | `tasks/verify-otc-settle-e2e.ts` | ✅ Final state: status=MATCHED (1). Contract did encrypted `gte`/`lte` to verify quote price (100) within burner1's range (90-110) on ciphertext, then executed both settlement legs via vault.settleTrade with FHE.select zero-replacement guards for the unsafe (overflow / out-of-range) branch. The vault auto-added MockToken to supportedTokens (`0xb0bc256f…`) so the contract's tokenWant != tokenOffer rule held. |
 | B11 | VickreyAuction create + bid | `0xd6c9c48b…4ccd` / `0x9642ec83…b5a4` | rows 8-9 | ✅ |
 | B12 | DutchAuction create + encrypted buy | `0xd9428e66…e4c5` / `0xa72a2bfd…4b27` | rows 10-11 | ✅ |
 | B13 | BatchAuction createRound + encrypted buyOrder | `0x42fffae1…fd26` / `0x44414962…0028` | rows 12-13 | ✅ |
@@ -78,7 +78,7 @@ Polish bugs caught and fixed during this audit:
 | Batch (single clearing price) | B13 | ✅ |
 | Overflow (oversubscribed → pro-rata) | B14 | ✅ |
 | Payroll (3 recipients, each claims) | B7 + B8 | ✅ — 3 claims confirmed, each recipient unseals own amount, TN refuses to decrypt others' handles (privacy invariant proven) |
-| OTC (request → quote → accept → settle) | B9 + B10 | ⚠ post proven; full round-trip pending |
+| OTC (request → quote → accept → settle) | B9 + B10 | ✅ — full round-trip proven, status flipped to MATCHED, settlement legs ran via vault |
 | Freelance (post job → bid → milestone) | B19 | ⚠ |
 | Multisig | B17 | ✅ |
 | Org | — | ⚠ smoke only |
