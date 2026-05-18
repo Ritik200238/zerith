@@ -65,6 +65,12 @@ These are the rows where Playwright drove the actual UI buttons end-to-end and c
 | Org create | "Transaction confirmed" toast | `verification-evidence/ui-e2e/org/` |
 | Allowlist create | "Transaction confirmed" toast | `verification-evidence/ui-e2e/allowlist/` |
 | Streaming create | Stream #1 ACTIVE rendered on page | `verification-evidence/ui-e2e/streaming/` |
+| Vickrey create auction | "Transaction confirmed" toast | `verification-evidence/ui-e2e/vickrey/` |
+| Dutch create auction | "Transaction confirmed" toast | `verification-evidence/ui-e2e/dutch/` |
+| Overflow create sale | "Transaction confirmed" toast | `verification-evidence/ui-e2e/overflow/` |
+| Freelance post job | submitted (modal flow exercised, hero text-matched toast) | `verification-evidence/ui-e2e/freelance/` |
+| Trade create order | encryption pipeline + new SELL order in MY ORDERS list | `verification-evidence/ui-e2e/trade/` |
+| OTC post request | modal opened with token/range fields | `verification-evidence/ui-e2e/otc/` |
 
 ## P0 bugs caught by this UI sweep (production-blocking, all fixed in-session)
 

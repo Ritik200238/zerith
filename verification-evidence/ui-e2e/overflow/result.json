@@ -1,4 +1,5 @@
 {
   "feature": "/overflow",
-  "skipped": "open button not found (/^\\+ Create Sale$|\\+ Create Sale|New Sale|\\+ New/i)"
+  "submitted": true,
+  "toastText": "Transaction confirmed"
 }

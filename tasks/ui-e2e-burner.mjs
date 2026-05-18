@@ -430,6 +430,8 @@ function deepDriver(featurePath, openBtnRegex, inputs, submitBtnRegex) {
             await loc.selectOption({ label: value }).catch(async () => {
               await loc.selectOption(value).catch(() => {});
             });
+          } else if (value === "click") {
+            await loc.click({ force: true });
           } else {
             await loc.fill(value);
           }
@@ -575,7 +577,12 @@ const DRIVERS = {
     /Create Dutch|\+ Create Dutch/i,
     [
       { selector: (p) => p.locator("select").nth(1), value: "MOCK", type: "select" },
-      { selector: 'input[type="number"]', value: "1000" },
+      // Dutch needs amount + startPrice + floorPrice (3 number inputs)
+      { selector: (p) => p.locator('input[type="number"]').nth(0), value: "1000" },
+      { selector: (p) => p.locator('input[type="number"]').nth(1), value: "1000" },
+      { selector: (p) => p.locator('input[type="number"]').nth(2), value: "100" },
+      // Click a duration preset to set duration state
+      { selector: (p) => p.locator("button").filter({ hasText: /^1 hour$/i }), value: "click" },
     ],
     /Create Dutch Auction|Create auction|Encrypt & create/i,
   ),
@@ -593,11 +600,14 @@ const DRIVERS = {
 
   overflow: deepDriver(
     "/overflow",
-    /^\+ Create Sale$|\+ Create Sale|New Sale|\+ New/i,
+    /Create Sale/i,
     [
       { selector: (p) => p.locator("select").nth(1), value: "MOCK", type: "select" },
+      // Total Supply + Price per Token + Duration (24 hrs is default already)
+      { selector: (p) => p.locator('input[type="number"]').nth(0), value: "10000" },
+      { selector: (p) => p.locator('input[type="number"]').nth(1), value: "100" },
     ],
-    /Create Overflow Sale|^Create Sale$|Encrypt & create/i,
+    /Create Overflow Sale|Encrypt & create/i,
   ),
 
   freelance: deepDriver(
@@ -612,13 +622,20 @@ const DRIVERS = {
 
   trade: deepDriver(
     "/trade",
-    /New Order|Create Order|\+ New|^BUY$/i,
+    /^BUY$|^SELL$/i,
     [
-      // On trade page, the create-order form is inline (not a modal).
-      // The first number input is the amount.
-      { selector: 'input[type="number"]', value: "100" },
+      // TokenDropdown is a custom button-based dropdown, not a <select>.
+      // First "Select token" button opens the tokenSell dropdown; click MOCK option.
+      { selector: (p) => p.getByText("Select token").first(), value: "click" },
+      { selector: (p) => p.getByRole("button", { name: /^MOCK$/i }).first(), value: "click" },
+      // Then tokenBuy dropdown - new "Select token" button
+      { selector: (p) => p.getByText("Select token").first(), value: "click" },
+      { selector: (p) => p.getByRole("button", { name: /^CDEX$/i }).first(), value: "click" },
+      // amount + price
+      { selector: (p) => p.locator('input[type="number"]').nth(0), value: "100" },
+      { selector: (p) => p.locator('input[type="number"]').nth(1), value: "10" },
     ],
-    /Encrypt & Submit|Submit Order/i,
+    /Encrypt & Submit|Submit Order|Place Order/i,
   ),
 
   raffle: smokeDriver("/raffle", /New Raffle|Create|\+ New/i),
