@@ -561,6 +561,40 @@ function smokeDriver(featurePath, primaryButtonRegex) {
 
 const DRIVERS = {
   treasury: driveTreasury,
+  "treasury-withdraw": async (page, outDir) => {
+    await page.goto(`${BASE}/treasury?_cb=${Date.now()}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+    await shotsAndToast(page, outDir, "01-loaded");
+    await clickConnectAndWait(page, outDir);
+
+    const withdrawBtn = page.getByRole("button", { name: /^Withdraw$/ }).first();
+    await withdrawBtn.click({ force: true });
+    await page.waitForTimeout(1500);
+    await shotsAndToast(page, outDir, "03-withdraw-modal");
+
+    const dialog = page.locator("[role='dialog']").first();
+    const amountInput = dialog.locator('input').first();
+    await amountInput.fill("1");
+    await shotsAndToast(page, outDir, "04-withdraw-1");
+
+    const submit = dialog.getByRole("button", { name: /Withdraw|Encrypt/i }).last();
+    await submit.click({ force: true });
+    await page.waitForTimeout(8000);
+    await shotsAndToast(page, outDir, "05-withdraw-submitting");
+
+    await waitForEncryptionDone(page);
+    await page.waitForFunction(() => {
+      const el = Array.from(document.querySelectorAll("*")).find(
+        (n) => /Processing…|Confirming…/i.test(n.textContent || "")
+      );
+      return !el || el.offsetParent === null;
+    }, { timeout: 120000 }).catch(() => {});
+    await page.waitForTimeout(5000);
+
+    const toast = await page.waitForSelector('text=/Transaction confirmed|withdrawn|Withdraw confirmed/i', { timeout: 60000 }).catch(() => null);
+    await shotsAndToast(page, outDir, "07-withdraw-toast");
+    return { feature: "treasury-withdraw", toastText: toast ? await toast.textContent() : null };
+  },
   auctions: driveAuctions,
   payments: drivePayments,
   otc: driveOtcDeep,
