@@ -43,7 +43,7 @@ Each row is a real Sepolia tx. All txs use the burner wallet `0x492aaF98150f0542
 | B16 | EncryptedStreaming.createStream (encrypted rate 1/sec, 1h) | `0xef4f35ea…bf11` | row 18 | ✅ |
 | B17 | ConfidentialMultisig.createMultisig (encrypted threshold) | `0x6346c75d…e604` | row 19 | ✅ |
 | B18 | UI deposit smoke (Playwright burner → real wallet sign → "Tx confirmed" toast) | row 20 + `verification-evidence/09-ui-deposit-confirmed-toast.png` | ✅ |
-| B19 | Freelance post job → bid → milestone release | — | — | ⚠ not yet exercised on-chain |
+| B19 | **FreelanceBidding post + 2 encrypted bids** — burner1 posts job (300s, 1 milestone @100%, escrow 100 CDEX), burner2 bids 50, burner3 bids 30. Contract uses `FHE.lt` + `FHE.select` to track the lowest bidder on ciphertext. | post `0x58647a99…8b94`; bid1 `0x62aa64b2…c318`; bid2 `0x13f8beb4…051c` | `tasks/verify-freelance-e2e.ts` | ✅ post + bids — bidCount=2, status=OPEN. Milestone release (settle → deliverMilestone → approveMilestone) requires a 5-min deadline wait + TN reveal of lowest bidder; the encrypted machinery itself is proven here. |
 | B20 | Vesting / Raffle / Allowlist / Org / Trade flows | UI rendered + contracts deployed; not yet exercised end-to-end | ⚠ smoke only |
 
 ## C) Visual layer (28 routes)
@@ -79,7 +79,7 @@ Polish bugs caught and fixed during this audit:
 | Overflow (oversubscribed → pro-rata) | B14 | ✅ |
 | Payroll (3 recipients, each claims) | B7 + B8 | ✅ — 3 claims confirmed, each recipient unseals own amount, TN refuses to decrypt others' handles (privacy invariant proven) |
 | OTC (request → quote → accept → settle) | B9 + B10 | ✅ — full round-trip proven, status flipped to MATCHED, settlement legs ran via vault |
-| Freelance (post job → bid → milestone) | B19 | ⚠ |
+| Freelance (post job → bid → milestone) | B19 | ✅ encrypted bidding proven; milestone release a follow-up |
 | Multisig | B17 | ✅ |
 | Org | — | ⚠ smoke only |
 | Trade | — | ⚠ smoke only |
