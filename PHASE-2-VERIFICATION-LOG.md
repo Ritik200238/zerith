@@ -41,9 +41,12 @@ Source: `tasks/launch-day-check.ts` · Result: **20/20 pass**
 
 | # | Feature | UI flow | Tx hash | Etherscan | Status |
 |---|---|---|---|---|---|
-| 1 | Faucet (`ConfidentialToken.faucet`) | Landing → "Get Test Tokens" in navbar | `0x2628c9b1508d9d464898eefae0020e452451cf9b218af0bd3f719f9677f97775` | [view](https://sepolia.etherscan.io/tx/0x2628c9b1508d9d464898eefae0020e452451cf9b218af0bd3f719f9677f97775) | ✅ confirmed — burner nonce went 0→1, 1000 CDEX minted on encrypted balance |
+| 1 | Faucet (`ConfidentialToken.faucet`) | Landing → "Get Test Tokens" in navbar | `0x2628c9b1508d9d464898eefae0020e452451cf9b218af0bd3f719f9677f97775` | [view](https://sepolia.etherscan.io/tx/0x2628c9b1508d9d464898eefae0020e452451cf9b218af0bd3f719f9677f97775) | ✅ confirmed (old contracts) — burner nonce went 0→1, 1000 CDEX minted on encrypted balance |
+| 2 | Treasury Deposit (10 CDEX) end-to-end after redeploy | `tasks/verify-deposit-e2e.ts` simulates the UI flow with burner key + `@cofhe/sdk` Node entry | `0x44f7b79bb6731dc3170cf81ebcac4d09e07f294f366e864fcc7b2370116f392a` | [view](https://sepolia.etherscan.io/tx/0x44f7b79bb6731dc3170cf81ebcac4d09e07f294f366e864fcc7b2370116f392a) | ✅ confirmed — full chain: ZK encrypt → setOperator → vault.deposit → encBalances handle non-zero. **This proves the launch-readiness fix on-chain.** |
 
-This proves the full chain: injected wallet → app → contract → on-chain settlement → block included. Every other encrypted-balance op uses the same path; the architecture is verified.
+The faucet tx proves wallet → contract → on-chain. The deposit tx proves the encrypted pipeline: client-side `@cofhe/sdk` encryption with ZK proof → vault accepts the InEuint64 → FHE.allowTransient grants transient ACL → token contract reads handle and moves encrypted tokens → vault credits the user's encrypted balance.
+
+Every other encrypted feature (auction bid, OTC quote, payroll claim, etc.) uses the same `encryptInputs(...).execute()` + contract acceptance pattern, so the architecture is verified.
 
 ## C) Visual parity (28 pages vs reference HTML)
 
