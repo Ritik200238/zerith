@@ -76,6 +76,12 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
         if (!supportedTokens[token]) revert InvalidInput();
         euint64 amount = FHE.asEuint64(encAmount);
 
+        // FHERC20.confidentialTransferFrom reads `amount` inside the token
+        // contract — grant it transient ACL access so the precompile doesn't
+        // revert with ACLNotAllowed(handle, token). Mirrors the pattern in
+        // SealedAuction.settle() lines 375-380.
+        FHE.allowTransient(amount, token);
+
         // Transfer FHERC20 from user to vault
         IFHERC20(token).confidentialTransferFrom(msg.sender, address(this), amount);
 
@@ -109,6 +115,10 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
 
         // Debit user's vault balance
         encBalances[msg.sender][token] = FHE.sub(encBalances[msg.sender][token], withdrawn);
+
+        // Grant transient ACL so the token contract can read `withdrawn`
+        // inside its confidentialTransfer call.
+        FHE.allowTransient(withdrawn, token);
 
         // Transfer FHERC20 from vault to user
         IFHERC20(token).confidentialTransfer(msg.sender, withdrawn);
