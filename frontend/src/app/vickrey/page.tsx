@@ -474,7 +474,7 @@ export default function VickreyAuctionsPage() {
           <Info size={16} className="text-[var(--text)] shrink-0" />
           <p className="text-xs text-[var(--text)]/80">
             <strong>Second-price auction:</strong> The highest bidder wins, but pays
-            the <em>second-highest</em> bid amount. This incentivizes truthful bidding --
+            the <em>second-highest</em> bid amount. This incentivizes truthful bidding —
             you always bid your true valuation. All bids are encrypted with FHE until reveal.
           </p>
         </div>
