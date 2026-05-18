@@ -410,8 +410,8 @@ export default function TradePage() {
       {/* ---- Wallet not connected ---- */}
       {!account && (
         <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-10 text-center space-y-3">
-          <div className="w-14 h-14 mx-auto rounded bg-text flex items-center justify-center">
-            <Lock size={24} className="text-[var(--text)]" />
+          <div className="w-14 h-14 mx-auto rounded flex items-center justify-center" style={{ background: "var(--text)" }}>
+            <Lock size={24} style={{ color: "var(--bg)" }} />
           </div>
           <h2 className="text-lg font-semibold text-[var(--text)]">
             Connect your wallet to trade
