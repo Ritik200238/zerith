@@ -1,4 +1,5 @@
 {
   "feature": "auctions",
-  "skipped": "no Place Bid button — auction may be CLOSED/REVEALED or burner is the seller"
+  "modalClosed": true,
+  "bidCountText": null
 }
