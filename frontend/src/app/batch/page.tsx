@@ -297,12 +297,12 @@ export default function BatchPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
           {isAdmin && (
             <button onClick={() => setModalView("create")}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+              className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium
                          bg-text from-[var(--text)] to-[var(--text)]
                          text-[var(--bg)] hover:shadow-lg transition-all">
               <Plus size={14} /> New round
@@ -313,7 +313,7 @@ export default function BatchPage() {
         </header>
 
       {!isAdmin && admin && (
-        <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs mb-4">
+        <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs mb-4">
           <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
           <span className="text-[var(--text-muted)]">
             Only admin (<code className="font-mono">{admin.slice(0,6)}…{admin.slice(-4)}</code>) creates rounds. You can submit orders to existing rounds.
@@ -369,11 +369,11 @@ export default function BatchPage() {
                   {r.status === 0 && !expired && account && (
                     <>
                       <button onClick={() => { setSelectedRound(r); setModalView("buy"); }}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                        className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                         <ShoppingCart size={11} /> Submit buy
                       </button>
                       <button onClick={() => { setSelectedRound(r); setModalView("sell"); }}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
+                        className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
                         <ShoppingBag size={11} /> Submit sell
                       </button>
                     </>
@@ -382,22 +382,22 @@ export default function BatchPage() {
                     <div className="flex items-center gap-2 flex-wrap w-full">
                       <input value={priceLadder} onChange={(e) => setPriceLadder(e.target.value)}
                         placeholder="100,200,500"
-                        className="flex-1 bg-[var(--bg-alt)] rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                        className="flex-1 bg-[var(--bg-alt)] rounded px-2.5 py-1.5 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                       <button onClick={() => handleCloseAndCompute(r)}
-                        className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                        className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                         <Hammer size={11} /> Close & compute
                       </button>
                     </div>
                   )}
                   {r.status === 2 && (
                     <button onClick={() => handleReveal(r)}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                       <Eye size={11} /> Reveal clearing price (TN)
                     </button>
                   )}
                   {r.status === 2 && r.clearingPrice !== "0" && isAdmin && (
                     <button onClick={() => handleSettle(r)}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                       <CheckCircle2 size={11} /> Settle round
                     </button>
                   )}
@@ -415,7 +415,7 @@ export default function BatchPage() {
             onClick={() => setModalView("none")} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-5 space-y-4">
 
               {modalView === "create" && (
                 <>
@@ -423,27 +423,27 @@ export default function BatchPage() {
                     <h3 id="batch-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Layers size={18} className="text-[var(--text)]" /> New round
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Token A (sell side)</label>
                     <input value={tokenA} onChange={(e) => setTokenA(e.target.value)} placeholder="0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Token B (buy side)</label>
                     <input value={tokenB} onChange={(e) => setTokenB(e.target.value)} placeholder="0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Duration (seconds)</label>
                     <input value={duration} onChange={(e) => setDuration(e.target.value)} type="number" min={60}
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <button onClick={handleCreate} disabled={!duration || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
@@ -462,7 +462,7 @@ export default function BatchPage() {
                         ? <><ShoppingCart size={18} className="text-[var(--text)]" /> Submit buy order</>
                         : <><ShoppingBag size={18} className="text-[var(--text-muted)]" /> Submit sell order</>}
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -472,21 +472,21 @@ export default function BatchPage() {
                       {modalView === "buy" ? "Max price you'll pay" : "Min price you'll accept"} (encrypted)
                     </label>
                     <input value={orderPrice} onChange={(e) => setOrderPrice(e.target.value)} placeholder="100"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Amount (public)</label>
                     <input value={orderAmount} onChange={(e) => setOrderAmount(e.target.value)} type="number" min={1}
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   {!initialized && (
-                    <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                    <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
                       <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
                       <span className="text-[var(--text-muted)]">Initializing FHE encryption…</span>
                     </div>
                   )}
                   <button onClick={() => handleSubmitOrder(modalView)} disabled={!initialized || !orderPrice || !orderAmount || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"

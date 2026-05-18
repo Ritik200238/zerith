@@ -88,7 +88,7 @@ function TokenDropdown({
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2.5
+          className="w-full flex items-center justify-between gap-2 rounded px-3 py-2.5
                      bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)]
                      hover:border-[var(--border-dash)] transition-colors"
         >
@@ -101,7 +101,7 @@ function TokenDropdown({
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              className="absolute z-50 mt-1 w-full rounded-lg border border-[var(--border-dash)] bg-[var(--bg-card)] shadow-xl overflow-hidden"
+              className="absolute z-50 mt-1 w-full rounded border border-[var(--border-dash)] bg-[var(--bg-card)]  overflow-hidden"
             >
               {TOKEN_OPTIONS.map((t) => (
                 <button
@@ -408,7 +408,7 @@ export default function TradePage() {
       {/* ---- Wallet not connected ---- */}
       {!account && (
         <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-10 text-center space-y-3">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-text flex items-center justify-center">
+          <div className="w-14 h-14 mx-auto rounded bg-text flex items-center justify-center">
             <Lock size={24} className="text-[var(--text)]" />
           </div>
           <h2 className="text-lg font-semibold text-[var(--text)]">
@@ -450,7 +450,7 @@ export default function TradePage() {
       {account && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* ================= ORDER BOOK (left 2/3) ================= */}
-          <div className="lg:col-span-2 bg-white border border-dashed border-[var(--border-dash)] rounded-xl overflow-hidden">
+          <div className="lg:col-span-2 bg-white border border-dashed border-[var(--border-dash)] rounded overflow-hidden">
             <div className="px-5 py-4 border-b border-[var(--border-dash)] flex items-center justify-between">
               <h2 className="text-sm font-semibold text-[var(--text)] uppercase tracking-wider">
                 Order Book
@@ -535,7 +535,7 @@ export default function TradePage() {
                                 setTakerPrice("");
                                 setModalView("fill");
                               }}
-                              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium
+                              className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium
                                          bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)]
                                          hover:bg-[var(--bg-alt)] hover:border-[var(--border-dash)] transition-all"
                             >
@@ -568,7 +568,7 @@ export default function TradePage() {
             </div>
 
             {/* Side toggle */}
-            <div className="flex rounded-lg overflow-hidden border border-[var(--border-dash)]">
+            <div className="flex rounded overflow-hidden border border-[var(--border-dash)]">
               <button
                 type="button"
                 onClick={() => setSide(0)}
@@ -613,7 +613,7 @@ export default function TradePage() {
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0"
                 min="0"
-                className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
                            text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
                            focus:outline-none focus:border-[var(--border-dash)] transition-colors"
               />
@@ -631,7 +631,7 @@ export default function TradePage() {
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="0"
                 min="0"
-                className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
                            text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
                            focus:outline-none focus:border-[var(--border-dash)] transition-colors"
               />
@@ -654,7 +654,7 @@ export default function TradePage() {
                 txState === "signing" ||
                 txState === "confirming"
               }
-              className="w-full rounded-lg py-3 text-sm font-semibold text-[var(--bg)]
+              className="w-full rounded py-3 text-sm font-semibold text-[var(--bg)]
                          bg-[var(--text)]
                           
                          disabled:opacity-40 disabled:cursor-not-allowed
@@ -684,7 +684,7 @@ export default function TradePage() {
             </button>
 
             {/* Privacy note */}
-            <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3 space-y-1">
+            <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3 space-y-1">
               <p className="text-[10px] text-[var(--text)]/60 leading-relaxed">
                 Your price is encrypted client-side via cofhejs and submitted
                 as a ciphertext. The contract uses FHE.gte() to match orders
@@ -765,7 +765,7 @@ export default function TradePage() {
                       <td className="px-5 py-3.5 text-center">
                         <button
                           onClick={() => handleCancelOrder(order.id)}
-                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium
+                          className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text-muted)]
                                      hover:bg-[var(--bg-alt)] hover:border-[var(--border-dash)] transition-all"
                         >
@@ -804,7 +804,7 @@ export default function TradePage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-6 space-y-5 border border-[var(--border-dash)] shadow-2xl"
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-6 space-y-5 "
             >
               {/* Header */}
               <div className="flex items-center justify-between">
@@ -818,14 +818,14 @@ export default function TradePage() {
                     setSelectedOrder(null);
                   }}
                   aria-label="Close modal"
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors p-1 rounded-lg hover:bg-bgCard"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors p-1 rounded hover:bg-bgCard"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {/* Order details card */}
-              <div className="space-y-2.5 rounded-xl bg-[var(--bg)]/80 p-4 border border-[var(--border-dash)]">
+              <div className="space-y-2.5 rounded bg-[var(--bg)]/80 p-4 border border-[var(--border-dash)]">
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-muted)]">Pair</span>
                   <span className="text-[var(--text)] font-medium">
@@ -866,14 +866,14 @@ export default function TradePage() {
                   onChange={(e) => setTakerPrice(e.target.value)}
                   placeholder="Enter your price"
                   min="0"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
                              text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
                              focus:outline-none focus:border-[var(--border-dash)] transition-colors"
                 />
               </div>
 
               {/* Privacy explanation */}
-              <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
+              <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
                 <p className="text-xs text-[var(--text)]/80 leading-relaxed">
                   If your price &gt;= the maker&apos;s hidden price, the trade
                   executes via FHE. If not, nothing happens -- neither party
@@ -894,7 +894,7 @@ export default function TradePage() {
                   txState === "signing" ||
                   txState === "confirming"
                 }
-                className="w-full rounded-lg py-3 text-sm font-semibold text-[var(--bg)]
+                className="w-full rounded py-3 text-sm font-semibold text-[var(--bg)]
                            bg-[var(--text)]
                             
                            disabled:opacity-40 disabled:cursor-not-allowed

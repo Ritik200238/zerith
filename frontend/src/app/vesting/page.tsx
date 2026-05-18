@@ -199,7 +199,7 @@ export default function VestingPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
         </div>
@@ -208,7 +208,7 @@ export default function VestingPage() {
 
       <TransactionStatus state={txState} txHash={txHash} error={txError} onDismiss={() => setTxState("idle")} />
 
-      <div className="rounded-lg bg-[var(--text)]/5 border border-[var(--text)]/20 p-3 flex items-start gap-2 text-xs my-4">
+      <div className="rounded bg-[var(--text)]/5 border border-[var(--text)]/20 p-3 flex items-start gap-2 text-xs my-4">
         <AlertCircle size={14} className="text-[var(--text)] shrink-0 mt-0.5" />
         <span className="text-[var(--text-secondary)]">
           Vesting schedules are created by authorized contracts (e.g. auction settlements) — not from this page directly.
@@ -285,7 +285,7 @@ export default function VestingPage() {
                 {!s.revoked && cliffPassed && (
                   <div className="mt-3">
                     <button onClick={() => handleClaim(s.id)} disabled={txState === "signing" || txState === "confirming"}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors disabled:opacity-40">
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors disabled:opacity-40">
                       {txState === "signing" || txState === "confirming"
                         ? <Loader2 size={12} className="animate-spin" />
                         : <CheckCircle2 size={12} />}

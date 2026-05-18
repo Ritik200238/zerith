@@ -238,12 +238,12 @@ export default function ReferralsPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
           {!myLink && (
             <button onClick={() => setModalView("create")} disabled={!account}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+              className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium
                          bg-text from-[var(--text)] to-[var(--text)]
                          text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all">
               <Plus size={14} /> Create code
@@ -251,7 +251,7 @@ export default function ReferralsPage() {
           )}
           {!referredBy && (
             <button onClick={() => setModalView("use")} disabled={!account}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors disabled:opacity-40">
+              className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors disabled:opacity-40">
               <Tag size={14} /> Use a code
             </button>
           )}
@@ -294,7 +294,7 @@ export default function ReferralsPage() {
               </div>
               {myLink.active && (
                 <button onClick={handleDeactivate}
-                  className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
+                  className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
                   <Power size={12} /> Deactivate
                 </button>
               )}
@@ -323,7 +323,7 @@ export default function ReferralsPage() {
             <div className="flex items-center justify-between">
               <div className="text-2xl font-mono text-[var(--text)]">•••</div>
               <button onClick={handleRevealEarned}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
                 <Eye size={12} /> Reveal
               </button>
             </div>
@@ -333,7 +333,7 @@ export default function ReferralsPage() {
 
       {/* Are you referred? */}
       {referredBy && (
-        <section className="mt-4 bg-white border border-dashed border-[var(--border-dash)] rounded-xl p-4 flex items-center gap-3">
+        <section className="mt-4 bg-white border border-dashed border-[var(--border-dash)] rounded p-4 flex items-center gap-3">
           <Users size={18} className="text-[var(--text)]" />
           <div>
             <div className="text-xs text-[var(--text-secondary)]">You were referred</div>
@@ -352,7 +352,7 @@ export default function ReferralsPage() {
             onClick={() => setModalView("none")} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-5 space-y-4">
 
               {modalView === "create" && (
                 <>
@@ -360,22 +360,22 @@ export default function ReferralsPage() {
                     <h3 id="referrals-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Share2 size={18} className="text-[var(--text)]" /> Create referral code
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Code</label>
                     <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="alice2026"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Reward (basis points, 0-5000 = 0%-50%)</label>
                     <input value={rewardBps} onChange={(e) => setRewardBps(e.target.value)} type="number" min={0} max={5000}
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <button onClick={handleCreate} disabled={!code || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
@@ -392,7 +392,7 @@ export default function ReferralsPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Tag size={18} className="text-[var(--text)]" /> Use referral code
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -403,10 +403,10 @@ export default function ReferralsPage() {
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Referral code</label>
                     <input value={useCode} onChange={(e) => setUseCode(e.target.value)} placeholder="alice2026"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <button onClick={handleUseCode} disabled={!useCode || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
                       ? <Loader2 size={14} className="animate-spin" />
                       : <CheckCircle2 size={14} />}

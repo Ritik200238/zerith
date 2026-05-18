@@ -32,13 +32,13 @@ export function ComingSoonBanner({
 }: Props) {
   return (
     <section
-      className="rounded-xl border-2 border-dashed border-borderDash
+      className="rounded border-2 border-dashed border-borderDash
                  bg-bgAlt/[0.04] p-6 md:p-8 space-y-4"
       role="status"
       aria-label={`${feature} not yet end-to-end`}
     >
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-lg bg-bgAlt border border-borderDash flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded bg-bgAlt border border-borderDash flex items-center justify-center shrink-0">
           <Construction size={18} className="text-warning" />
         </div>
         <div className="space-y-2">
@@ -73,7 +73,7 @@ export function ComingSoonBanner({
         </p>
         <Link
           href={redirectHref}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded
                      bg-bgAlt border border-borderDash
                      text-success text-xs font-medium
                      hover:bg-bgAlt transition-all"

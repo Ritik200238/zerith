@@ -190,11 +190,11 @@ export default function ReputationPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
           <button onClick={() => setModalOpen(true)} disabled={!account}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+            className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium
                        bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all">
             <Plus size={14} /> Submit rating
@@ -246,7 +246,7 @@ export default function ReputationPage() {
             <div className="flex items-center justify-between">
               <div className="text-2xl font-mono text-[var(--text)]">•••</div>
               <button onClick={handleRevealScore}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
                 <Eye size={12} /> Reveal to me
               </button>
             </div>
@@ -261,26 +261,26 @@ export default function ReputationPage() {
             onClick={() => setModalOpen(false)} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-5 space-y-4">
 
               <div className="flex items-center justify-between">
                 <h3 id="reputation-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                   <Star size={18} className="text-[var(--text)]" /> Submit rating
                 </h3>
-                <button onClick={() => setModalOpen(false)} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                <button onClick={() => setModalOpen(false)} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                   <X size={18} />
                 </button>
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-[var(--text-muted)] font-medium">Counterparty (the trader you&apos;re rating)</label>
                 <input value={counterparty} onChange={(e) => setCounterparty(e.target.value)} placeholder="0x..."
-                  className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                  className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs text-[var(--text-muted)] font-medium">Trade ID</label>
                 <input value={tradeId} onChange={(e) => setTradeId(e.target.value)} type="number" min={0}
                   placeholder="ID of the settled trade between you two"
-                  className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                  className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                 <p className="text-[10px] text-[var(--text-muted)]">Required — the contract verifies you actually traded with this party for this ID.</p>
               </div>
               <div className="space-y-1.5">
@@ -290,7 +290,7 @@ export default function ReputationPage() {
                 <div className="flex items-center gap-1">
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button key={n} onClick={() => setRating(n)} aria-label={`${n} stars`}
-                      className={`p-2 rounded-lg transition-colors ${
+                      className={`p-2 rounded transition-colors ${
                         rating >= n ? "text-[var(--text-muted)] bg-[var(--bg-alt)]" : "text-[var(--text-muted)] hover:bg-bgCard"
                       }`}>
                       <Star size={16} fill={rating >= n ? "currentColor" : "none"} />
@@ -300,13 +300,13 @@ export default function ReputationPage() {
                 </div>
               </div>
               {!initialized && (
-                <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
                   <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
                   <span className="text-[var(--text-muted)]">Initializing FHE encryption…</span>
                 </div>
               )}
               <button onClick={handleSubmitRating} disabled={!initialized || !counterparty || !tradeId || txState === "signing" || txState === "confirming"}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                            bg-text from-[var(--text)] to-[var(--text)]
                            text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                 {txState === "signing" || txState === "confirming"

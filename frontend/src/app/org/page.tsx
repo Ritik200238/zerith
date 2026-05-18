@@ -432,11 +432,11 @@ export default function OrgPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
           <button onClick={() => setModalView("create")} disabled={!account}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+            className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium
                        bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all">
             <Plus size={14} /> New org
@@ -461,7 +461,7 @@ export default function OrgPage() {
           ) : (
             orgs.map((o) => (
               <button key={o.id} onClick={() => setSelectedOrg(o)}
-                className={`w-full text-left bg-white border border-dashed border-[var(--border-dash)] rounded-xl p-3 transition-colors hover:bg-bgCard ${
+                className={`w-full text-left bg-white border border-dashed border-[var(--border-dash)] rounded p-3 transition-colors hover:bg-bgCard ${
                   selectedOrg?.id === o.id ? "ring-1 ring-[var(--text)]" : ""
                 }`}>
                 <div className="flex items-center justify-between">
@@ -513,13 +513,13 @@ export default function OrgPage() {
                 <div className="mt-3 flex items-center gap-2 flex-wrap">
                   {isSelectedAdmin && (
                     <button onClick={() => setModalView("addMember")}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                       <Users size={12} /> Add member
                     </button>
                   )}
                   {selectedRole > 0 && (
                     <button onClick={() => setModalView("propose")}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                       <Send size={12} /> New proposal
                     </button>
                   )}
@@ -569,30 +569,30 @@ export default function OrgPage() {
                         {p.status === 0 && selectedRole > 0 && (
                           <>
                             <button onClick={() => handleVote(selectedOrg.id, p.id, true)}
-                              className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                              className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                               <ThumbsUp size={11} /> Vote yes
                             </button>
                             <button onClick={() => handleVote(selectedOrg.id, p.id, false)}
-                              className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
+                              className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
                               <ThumbsDown size={11} /> Vote no
                             </button>
                           </>
                         )}
                         {p.status === 0 && isSelectedAdmin && p.deadline < Math.floor(Date.now() / 1000) && (
                           <button onClick={() => handleRequestReveal(selectedOrg.id, p.id)}
-                            className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                            className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                             <Eye size={11} /> Request reveal
                           </button>
                         )}
                         {p.status === 1 && (
                           <button onClick={() => handlePublishReveal(p)}
-                            className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
+                            className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
                             <Lock size={11} /> Publish TN reveal
                           </button>
                         )}
                         {p.status === 2 && isSelectedAdmin && (
                           <button onClick={() => handleMarkExecuted(selectedOrg.id, p.id)}
-                            className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                            className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                             <Hammer size={11} /> Mark executed
                           </button>
                         )}
@@ -613,7 +613,7 @@ export default function OrgPage() {
             onClick={() => setModalView("none")} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-5 space-y-4">
 
               {modalView === "create" && (
                 <>
@@ -621,17 +621,17 @@ export default function OrgPage() {
                     <h3 id="org-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Building2 size={18} className="text-[var(--text)]" /> New organization
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Name</label>
                     <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Treasury"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <button onClick={handleCreate} disabled={!name || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
@@ -648,30 +648,30 @@ export default function OrgPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Users size={18} className="text-[var(--text)]" /> Add member
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Member address</label>
                     <input value={memberAddr} onChange={(e) => setMemberAddr(e.target.value)} placeholder="0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium flex items-center gap-1">
                       <Lock size={11} className="text-[var(--text)]" /> Voting weight (encrypted)
                     </label>
                     <input value={memberWeight} onChange={(e) => setMemberWeight(e.target.value)} placeholder="100"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   {!initialized && (
-                    <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                    <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
                       <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
                       <span className="text-[var(--text-muted)]">Initializing FHE encryption…</span>
                     </div>
                   )}
                   <button onClick={handleAddMember} disabled={!initialized || !memberAddr || !memberWeight || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
                       ? <Loader2 size={14} className="animate-spin" />
                       : <Users size={14} />}
@@ -686,28 +686,28 @@ export default function OrgPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Send size={18} className="text-[var(--text)]" /> New proposal
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Description</label>
                     <input value={propDescription} onChange={(e) => setPropDescription(e.target.value)} placeholder="Approve Q3 marketing budget"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Action label (will be hashed)</label>
                     <input value={propActionLabel} onChange={(e) => setPropActionLabel(e.target.value)} placeholder="budget-q3-spec-v1"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                     <p className="text-[10px] text-[var(--text-muted)]">keccak256 of this becomes the on-chain action hash. Off-chain executor watches for it.</p>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Voting duration (seconds)</label>
                     <input value={propDuration} onChange={(e) => setPropDuration(e.target.value)} type="number" min={60}
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <button onClick={handlePropose} disabled={!propDescription || !propActionLabel || !propDuration || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"

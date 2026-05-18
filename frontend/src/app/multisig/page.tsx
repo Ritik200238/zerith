@@ -367,14 +367,14 @@ export default function MultisigPage() {
           <button
             onClick={() => setRefreshKey((k) => k + 1)}
             aria-label="Refresh multisigs"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors"
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors"
           >
             <RefreshCw size={16} />
           </button>
           <button
             onClick={() => setModalView("create")}
             disabled={!account}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+            className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium
                        bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all"
           >
@@ -406,7 +406,7 @@ export default function MultisigPage() {
               <button
                 key={m.id}
                 onClick={() => setSelectedMultisig(m)}
-                className={`w-full text-left bg-white border border-dashed border-[var(--border-dash)] rounded-xl p-3 transition-colors hover:bg-bgCard ${
+                className={`w-full text-left bg-white border border-dashed border-[var(--border-dash)] rounded p-3 transition-colors hover:bg-bgCard ${
                   selectedMultisig?.id === m.id ? "ring-1 ring-[var(--text)]" : ""
                 }`}
               >
@@ -461,7 +461,7 @@ export default function MultisigPage() {
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       onClick={() => setModalView("addMember")}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium
                                  bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors"
                     >
                       <Users size={12} /> Add member
@@ -471,7 +471,7 @@ export default function MultisigPage() {
 
                 <button
                   onClick={() => setModalView("propose")}
-                  className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+                  className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded text-sm font-medium
                              bg-text from-[var(--text)] to-[var(--text)]
                              text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all"
                 >
@@ -513,14 +513,14 @@ export default function MultisigPage() {
                         <div className="mt-2 flex items-center gap-2 flex-wrap">
                           <button
                             onClick={() => handleVote(selectedMultisig.id, p.id)}
-                            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium
+                            className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-medium
                                        bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors"
                           >
                             <Vote size={11} /> Vote yes (encrypted)
                           </button>
                           <button
                             onClick={() => handleExecute(selectedMultisig.id, p.id)}
-                            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[11px] font-medium
+                            className="flex items-center gap-1.5 px-3 py-1 rounded text-[11px] font-medium
                                        bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors"
                           >
                             <CheckCircle2 size={11} /> Execute (FHE.gte check)
@@ -552,7 +552,7 @@ export default function MultisigPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4"
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-5 space-y-4"
             >
               {modalView === "create" && (
                 <>
@@ -560,7 +560,7 @@ export default function MultisigPage() {
                     <h3 id="multisig-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Sparkles size={18} className="text-[var(--text)]" /> New multisig
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -570,7 +570,7 @@ export default function MultisigPage() {
                       value={token}
                       onChange={(e) => setToken(e.target.value)}
                       placeholder="0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -581,12 +581,12 @@ export default function MultisigPage() {
                       value={threshold}
                       onChange={(e) => setThreshold(e.target.value)}
                       placeholder="100"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                     />
                     <p className="text-[10px] text-[var(--text-muted)]">Sum of yes-shares must reach this for execute() to settle.</p>
                   </div>
                   {!initialized && (
-                    <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                    <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
                       <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
                       <span className="text-[var(--text-muted)]">Initializing FHE encryption…</span>
                     </div>
@@ -594,7 +594,7 @@ export default function MultisigPage() {
                   <button
                     onClick={handleCreate}
                     disabled={!initialized || !token || !threshold || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50"
                   >
@@ -612,7 +612,7 @@ export default function MultisigPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Users size={18} className="text-[var(--text)]" /> Add member
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -622,7 +622,7 @@ export default function MultisigPage() {
                       value={memberAddr}
                       onChange={(e) => setMemberAddr(e.target.value)}
                       placeholder="0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -633,13 +633,13 @@ export default function MultisigPage() {
                       value={memberShare}
                       onChange={(e) => setMemberShare(e.target.value)}
                       placeholder="50"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                     />
                   </div>
                   <button
                     onClick={handleAddMember}
                     disabled={!initialized || !memberAddr || !memberShare || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50"
                   >
                     {txState === "signing" || txState === "confirming"
@@ -656,7 +656,7 @@ export default function MultisigPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Send size={18} className="text-[var(--text)]" /> New proposal
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -666,7 +666,7 @@ export default function MultisigPage() {
                       value={proposalRecipient}
                       onChange={(e) => setProposalRecipient(e.target.value)}
                       placeholder="0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -677,7 +677,7 @@ export default function MultisigPage() {
                       value={proposalAmount}
                       onChange={(e) => setProposalAmount(e.target.value)}
                       placeholder="500"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -687,13 +687,13 @@ export default function MultisigPage() {
                       onChange={(e) => setProposalDuration(e.target.value)}
                       type="number"
                       min={60}
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                     />
                   </div>
                   <button
                     onClick={handlePropose}
                     disabled={!initialized || !proposalRecipient || !proposalAmount || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50"
                   >

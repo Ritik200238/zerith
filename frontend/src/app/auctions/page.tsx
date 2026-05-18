@@ -179,7 +179,7 @@ function TokenDropdown({
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2.5
+          className="w-full flex items-center justify-between gap-2 rounded px-3 py-2.5
                      bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)]
                      hover:border-[var(--border-dash)] transition-colors"
         >
@@ -195,8 +195,8 @@ function TokenDropdown({
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              className="absolute z-50 mt-1 w-full rounded-lg border border-[var(--border-dash)]
-                         bg-[var(--bg-card)] shadow-xl overflow-hidden"
+              className="absolute z-50 mt-1 w-full rounded border border-[var(--border-dash)]
+                         bg-[var(--bg-card)]  overflow-hidden"
             >
               {TOKEN_OPTIONS.map((t) => (
                 <button
@@ -973,7 +973,7 @@ export default function AuctionsPage() {
                       {auction.status >= 2 &&
                         auction.revealedBidder !==
                           "0x0000000000000000000000000000000000000000" && (
-                          <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-3 py-2 space-y-1">
+                          <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-3 py-2 space-y-1">
                             <p className="text-[10px] text-[var(--text)]/60 uppercase tracking-wider font-semibold">
                               Winner
                             </p>
@@ -998,7 +998,7 @@ export default function AuctionsPage() {
                             setModalView("bid");
                             setTxState("idle");
                           }}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--text)] text-[var(--bg)]
                                        transition-all"
                         >
@@ -1011,7 +1011,7 @@ export default function AuctionsPage() {
                       {auction.status === 0 && mine && ended && auction.bidCount > 0 && (
                         <button
                           onClick={() => handleClose(auction.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text-muted)]
                                      hover:bg-[var(--bg-alt)] transition-all"
                         >
@@ -1024,7 +1024,7 @@ export default function AuctionsPage() {
                       {auction.status === 0 && mine && auction.bidCount === 0 && (
                         <button
                           onClick={() => handleCancel(auction.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text-muted)]
                                      hover:bg-[var(--bg-alt)] transition-all"
                         >
@@ -1038,7 +1038,7 @@ export default function AuctionsPage() {
                         <button
                           onClick={() => handleReveal(auction.id)}
                           disabled={txState === "decrypting" || txState === "signing"}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)]
                                      hover:bg-[var(--bg-alt)] transition-all
                                      disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1053,7 +1053,7 @@ export default function AuctionsPage() {
                       {auction.status === 2 && (
                         <button
                           onClick={() => handleSettle(auction.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)]
                                      hover:bg-[var(--bg-alt)] transition-all"
                         >
@@ -1069,7 +1069,7 @@ export default function AuctionsPage() {
                           setModalView("detail");
                           setTxState("idle");
                         }}
-                        className="rounded-lg px-3 py-2 text-xs font-medium
+                        className="rounded px-3 py-2 text-xs font-medium
                                    bg-bgCard border border-[var(--border-dash)] text-[var(--text-muted)]
                                    hover:text-[var(--text)] hover:bg-bgCard transition-all"
                       >
@@ -1103,8 +1103,8 @@ export default function AuctionsPage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-lg p-6 space-y-5 border border-[var(--border-dash)]
-                         shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-lg p-6 space-y-5
+                          max-h-[90vh] overflow-y-auto"
             >
               {/* header */}
               <div className="flex items-center justify-between">
@@ -1115,7 +1115,7 @@ export default function AuctionsPage() {
                 <button
                   onClick={() => setModalView("none")}
                   aria-label="Close modal"
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -1133,7 +1133,7 @@ export default function AuctionsPage() {
                   onChange={(e) => setCAmount(e.target.value)}
                   placeholder="0"
                   min="0"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
                              text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
                              focus:outline-none focus:border-[var(--border-dash)] transition-colors"
                 />
@@ -1148,7 +1148,7 @@ export default function AuctionsPage() {
                       key={d.value}
                       type="button"
                       onClick={() => setCDuration(d.value)}
-                      className={`rounded-lg px-3 py-2 text-xs font-medium border transition-all ${
+                      className={`rounded px-3 py-2 text-xs font-medium border transition-all ${
                         cDuration === d.value
                           ? "bg-[var(--bg-alt)] border-[var(--border-dash)] text-[var(--text)]"
                           : "bg-[var(--bg)] border-[var(--border-dash)] text-[var(--text-muted)] hover:border-[var(--border-dash)]"
@@ -1172,7 +1172,7 @@ export default function AuctionsPage() {
                       key={s.value}
                       type="button"
                       onClick={() => setCSnipe(s.value)}
-                      className={`rounded-lg px-3 py-2 text-xs font-medium border transition-all ${
+                      className={`rounded px-3 py-2 text-xs font-medium border transition-all ${
                         cSnipe === s.value
                           ? "bg-[var(--bg-alt)] border-[var(--border-dash)] text-[var(--text)]"
                           : "bg-[var(--bg)] border-[var(--border-dash)] text-[var(--text-muted)] hover:border-[var(--border-dash)]"
@@ -1218,7 +1218,7 @@ export default function AuctionsPage() {
                       onChange={(e) => setCReserve(e.target.value)}
                       placeholder="e.g. 10000"
                       min="1"
-                      className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-dashed border-[var(--border-dash)]
+                      className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-dashed border-[var(--border-dash)]
                                  text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
                                  focus:outline-none focus:border-[var(--text)] transition-colors"
                     />
@@ -1241,7 +1241,7 @@ export default function AuctionsPage() {
                   txState === "signing" ||
                   txState === "confirming"
                 }
-                className="w-full rounded-lg py-3 text-sm font-semibold text-[var(--bg)]
+                className="w-full rounded py-3 text-sm font-semibold text-[var(--bg)]
                            bg-[var(--text)]
                             
                            disabled:opacity-40 disabled:cursor-not-allowed
@@ -1290,7 +1290,7 @@ export default function AuctionsPage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-6 space-y-5 border border-[var(--border-dash)] shadow-2xl"
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-6 space-y-5 "
             >
               {/* header */}
               <div className="flex items-center justify-between">
@@ -1303,14 +1303,14 @@ export default function AuctionsPage() {
                     setModalView("none");
                     setSelectedAuction(null);
                   }}
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard transition-colors"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {/* auction info */}
-              <div className="space-y-2.5 rounded-xl bg-[var(--bg)]/80 p-4 border border-[var(--border-dash)]">
+              <div className="space-y-2.5 rounded bg-[var(--bg)]/80 p-4 border border-[var(--border-dash)]">
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-muted)]">Auction</span>
                   <span className="text-[var(--text)] font-mono">#{selectedAuction.id}</span>
@@ -1347,14 +1347,14 @@ export default function AuctionsPage() {
                   onChange={(e) => setBidAmount(e.target.value)}
                   placeholder="Enter bid amount"
                   min="0"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
                              text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
                              focus:outline-none focus:border-[var(--border-dash)] transition-colors"
                 />
               </div>
 
               {/* privacy note */}
-              <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
+              <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
                 <p className="text-xs text-[var(--text)]/80 leading-relaxed">
                   Your bid is encrypted -- nobody sees it until the auction
                   closes. The highest bid wins, discovered via FHE.gt() and
@@ -1375,7 +1375,7 @@ export default function AuctionsPage() {
                   txState === "signing" ||
                   txState === "confirming"
                 }
-                className="w-full rounded-lg py-3 text-sm font-semibold text-[var(--bg)]
+                className="w-full rounded py-3 text-sm font-semibold text-[var(--bg)]
                            bg-[var(--text)]
                             
                            disabled:opacity-40 disabled:cursor-not-allowed
@@ -1429,8 +1429,8 @@ export default function AuctionsPage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-lg p-6 space-y-5 border border-[var(--border-dash)]
-                         shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-lg p-6 space-y-5
+                          max-h-[90vh] overflow-y-auto"
             >
               {/* header */}
               <div className="flex items-center justify-between">
@@ -1442,7 +1442,7 @@ export default function AuctionsPage() {
                     setModalView("none");
                     setSelectedAuction(null);
                   }}
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -1453,7 +1453,7 @@ export default function AuctionsPage() {
                 const s = STATUS_STYLE[selectedAuction.status] ?? STATUS_STYLE[0];
                 return (
                   <span
-                    className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider border ${s.bg} ${s.text} ${s.border}`}
+                    className={`inline-flex items-center px-3 py-1 rounded text-xs font-bold uppercase tracking-wider border ${s.bg} ${s.text} ${s.border}`}
                   >
                     {STATUS_LABEL[selectedAuction.status]}
                   </span>
@@ -1478,7 +1478,7 @@ export default function AuctionsPage() {
               </div>
 
               {/* details */}
-              <div className="space-y-2.5 rounded-xl bg-[var(--bg)]/80 p-4 border border-[var(--border-dash)]">
+              <div className="space-y-2.5 rounded bg-[var(--bg)]/80 p-4 border border-[var(--border-dash)]">
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-muted)]">Seller</span>
                   <span className="font-mono text-[var(--text-secondary)] text-xs">
@@ -1536,7 +1536,7 @@ export default function AuctionsPage() {
               {selectedAuction.status >= 2 &&
                 selectedAuction.revealedBidder !==
                   "0x0000000000000000000000000000000000000000" && (
-                  <div className="rounded-xl bg-[var(--bg-alt)] border border-[var(--border-dash)] p-4 space-y-2">
+                  <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-4 space-y-2">
                     <p className="text-xs text-[var(--text)]/60 uppercase tracking-wider font-semibold">
                       Winner
                     </p>
@@ -1550,7 +1550,7 @@ export default function AuctionsPage() {
                 )}
 
               {/* flow steps */}
-              <div className="rounded-xl bg-[var(--bg)]/60 border border-[var(--border-dash)] p-4">
+              <div className="rounded bg-[var(--bg)]/60 border border-[var(--border-dash)] p-4">
                 <p className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold mb-3">
                   Auction Flow
                 </p>
@@ -1592,7 +1592,7 @@ export default function AuctionsPage() {
                         setBidAmount("");
                         setModalView("bid");
                       }}
-                      className="flex-1 rounded-lg py-2.5 text-sm font-semibold text-[var(--bg)]
+                      className="flex-1 rounded py-2.5 text-sm font-semibold text-[var(--bg)]
                                  bg-[var(--text)]
                                    transition-all
                                  flex items-center justify-center gap-2"
@@ -1608,7 +1608,7 @@ export default function AuctionsPage() {
                   selectedAuction.bidCount > 0 && (
                     <button
                       onClick={() => handleClose(selectedAuction.id)}
-                      className="flex-1 rounded-lg py-2.5 text-sm font-semibold
+                      className="flex-1 rounded py-2.5 text-sm font-semibold
                                  bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text-muted)]
                                  hover:bg-[var(--bg-alt)] transition-all
                                  flex items-center justify-center gap-2"
@@ -1622,7 +1622,7 @@ export default function AuctionsPage() {
                   <button
                     onClick={() => handleReveal(selectedAuction.id)}
                     disabled={txState === "decrypting" || txState === "signing"}
-                    className="flex-1 rounded-lg py-2.5 text-sm font-semibold
+                    className="flex-1 rounded py-2.5 text-sm font-semibold
                                bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)]
                                hover:bg-[var(--bg-alt)] transition-all
                                disabled:opacity-50 disabled:cursor-not-allowed
@@ -1637,7 +1637,7 @@ export default function AuctionsPage() {
                 {selectedAuction.status === 2 && (
                   <button
                     onClick={() => handleSettle(selectedAuction.id)}
-                    className="flex-1 rounded-lg py-2.5 text-sm font-semibold
+                    className="flex-1 rounded py-2.5 text-sm font-semibold
                                bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)]
                                hover:bg-[var(--bg-alt)] transition-all
                                flex items-center justify-center gap-2"

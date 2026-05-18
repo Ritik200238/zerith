@@ -379,17 +379,17 @@ export default function AllowlistPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
           <button onClick={() => setModalView("create")} disabled={!account}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+            className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium
                        bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all">
             <Plus size={14} /> New allowlist
           </button>
           <button onClick={() => setModalView("lookup")}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
             <Search size={14} /> Lookup proof
           </button>
         </div>
@@ -429,25 +429,25 @@ export default function AllowlistPage() {
                 <div className="mt-3 flex items-center gap-2 flex-wrap">
                   {a.active && account && (
                     <button onClick={() => { setSelectedList(a); setModalView("claim"); }}
-                      className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                       <CheckCircle2 size={11} /> Claim with proof
                     </button>
                   )}
                   {!a.active && account && (
                     <button onClick={() => handleVerifyOpen(a)}
-                      className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                       <CheckCircle2 size={11} /> Claim (open allowlist)
                     </button>
                   )}
                   {isMine && a.active && (
                     <button onClick={() => handleDeactivate(a)}
-                      className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
                       <Power size={11} /> Deactivate
                     </button>
                   )}
                   {isMine && (
                     <button onClick={() => { setSelectedList(a); setModalView("lookup"); }}
-                      className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                       <Trees size={11} /> Generate proof
                     </button>
                   )}
@@ -465,7 +465,7 @@ export default function AllowlistPage() {
             onClick={() => setModalView("none")} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto">
 
               {modalView === "create" && (
                 <>
@@ -473,29 +473,29 @@ export default function AllowlistPage() {
                     <h3 id="allowlist-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <ListChecks size={18} className="text-[var(--text)]" /> New allowlist
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Description</label>
                     <input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="VIP launch round"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Allowed addresses (one per line, comma, or space)</label>
                     <textarea value={addressesText} onChange={(e) => setAddressesText(e.target.value)} rows={6}
                       placeholder="0x...&#10;0x...&#10;0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)] resize-none" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)] resize-none" />
                   </div>
                   {parsed && (
-                    <div className="rounded-lg bg-[var(--bg-alt)]/40 p-2.5 text-xs">
+                    <div className="rounded bg-[var(--bg-alt)]/40 p-2.5 text-xs">
                       <div className="text-[var(--text-muted)]">{parsed.addresses.length} valid addresses</div>
                       <div className="font-mono text-[10px] text-[var(--text)] truncate mt-1">root: {parsed.root}</div>
                     </div>
                   )}
                   <button onClick={handleCreate} disabled={!parsed || !description || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
@@ -512,7 +512,7 @@ export default function AllowlistPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <CheckCircle2 size={18} className="text-[var(--text)]" /> Claim allowlist #{selectedList.id}
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -524,7 +524,7 @@ export default function AllowlistPage() {
                     <label className="text-xs text-[var(--text-muted)] font-medium">Option A — paste full allowed list (auto-proof)</label>
                     <textarea value={addressesText} onChange={(e) => setAddressesText(e.target.value)} rows={4}
                       placeholder="0x...&#10;0x...&#10;0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)] resize-none" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)] resize-none" />
                     {parsed && account && (
                       <div className="text-[10px] text-[var(--text-muted)]">
                         Computed root: {parsed.root.slice(0, 14)}…
@@ -537,7 +537,7 @@ export default function AllowlistPage() {
                     )}
                     <button onClick={handleAutoClaim}
                       disabled={!parsed || txState === "signing" || txState === "confirming"}
-                      className="w-full mt-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
+                      className="w-full mt-1 flex items-center justify-center gap-2 px-4 py-2 rounded text-xs font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
                       {txState === "signing" || txState === "confirming"
                         ? <Loader2 size={12} className="animate-spin" />
                         : <CheckCircle2 size={12} />}
@@ -551,10 +551,10 @@ export default function AllowlistPage() {
                     <label className="text-xs text-[var(--text-muted)] font-medium">Option B — paste pre-computed proof</label>
                     <textarea value={claimProofText} onChange={(e) => setClaimProofText(e.target.value)} rows={4}
                       placeholder='["0x...", "0x..."] or comma-separated'
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)] resize-none" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)] resize-none" />
                     <button onClick={handleClaimWithProof}
                       disabled={!claimProofText || txState === "signing" || txState === "confirming"}
-                      className="w-full mt-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
+                      className="w-full mt-1 flex items-center justify-center gap-2 px-4 py-2 rounded text-xs font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
                       {txState === "signing" || txState === "confirming"
                         ? <Loader2 size={12} className="animate-spin" />
                         : <CheckCircle2 size={12} />}
@@ -570,7 +570,7 @@ export default function AllowlistPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Search size={18} className="text-[var(--text)]" /> Generate Merkle proof
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -578,19 +578,19 @@ export default function AllowlistPage() {
                     <label className="text-xs text-[var(--text-muted)] font-medium">All allowed addresses</label>
                     <textarea value={addressesText} onChange={(e) => setAddressesText(e.target.value)} rows={5}
                       placeholder="paste original allowed list here"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)] resize-none" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)] resize-none" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Address to lookup</label>
                     <input value={lookupAddr} onChange={(e) => setLookupAddr(e.target.value)} placeholder="0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <button onClick={handleLookup}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-all">
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-all">
                     <Search size={14} /> Generate proof
                   </button>
                   {lookupResult && (
-                    <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 text-xs space-y-2">
+                    <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 text-xs space-y-2">
                       <div className="flex items-center gap-2 text-[var(--text)] font-medium">
                         <CheckCircle2 size={14} /> Proof generated
                       </div>

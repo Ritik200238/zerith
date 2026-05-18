@@ -499,7 +499,7 @@ export default function FreelancePage() {
                 setModalView("post");
                 setTxState("idle");
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg
+              className="flex items-center gap-2 px-4 py-2 rounded
                          bg-[var(--text)] text-[var(--bg)] text-sm font-medium
                            transition-all"
             >
@@ -514,7 +514,7 @@ export default function FreelancePage() {
       {/* Not connected */}
       {!account && (
         <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-10 text-center space-y-3">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-text flex items-center justify-center">
+          <div className="w-14 h-14 mx-auto rounded bg-text flex items-center justify-center">
             <Briefcase size={24} className="text-[var(--text)]" />
           </div>
           <h2 className="text-lg font-semibold text-[var(--text)]">Connect your wallet</h2>
@@ -542,7 +542,7 @@ export default function FreelancePage() {
 
       {/* Info */}
       {account && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)]">
+        <div className="flex items-center gap-3 px-4 py-3 rounded bg-[var(--bg-alt)] border border-[var(--border-dash)]">
           <Lock size={16} className="text-[var(--text)] shrink-0" />
           <p className="text-xs text-[var(--text)]/80">
             <strong>Encrypted bidding:</strong> Freelancer bids are encrypted with FHE.
@@ -675,7 +675,7 @@ export default function FreelancePage() {
                             setModalView("bid");
                             setTxState("idle");
                           }}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--text)] text-[var(--bg)]
                                        transition-all"
                         >
@@ -690,7 +690,7 @@ export default function FreelancePage() {
                           setTxState("idle");
                           await fetchMilestones(job);
                         }}
-                        className="rounded-lg px-3 py-2 text-xs font-medium
+                        className="rounded px-3 py-2 text-xs font-medium
                                    bg-bgCard border border-[var(--border-dash)] text-[var(--text-muted)]
                                    hover:text-[var(--text)] hover:bg-bgCard transition-all"
                       >
@@ -724,8 +724,8 @@ export default function FreelancePage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-lg p-6 space-y-5 border border-[var(--border-dash)]
-                         shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-lg p-6 space-y-5
+                          max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
@@ -735,7 +735,7 @@ export default function FreelancePage() {
                 <button
                   onClick={() => setModalView("none")}
                   aria-label="Close modal"
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -749,7 +749,7 @@ export default function FreelancePage() {
                   value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
                   placeholder="e.g., Smart contract audit"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
                              text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
                              focus:outline-none focus:border-[var(--border-dash)] transition-colors"
                 />
@@ -764,7 +764,7 @@ export default function FreelancePage() {
                   onChange={(e) => setJobEscrow(e.target.value)}
                   placeholder="0"
                   min="0"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
                              text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
                              focus:outline-none focus:border-[var(--border-dash)] transition-colors"
                 />
@@ -794,7 +794,7 @@ export default function FreelancePage() {
                         );
                       }}
                       placeholder={`Milestone ${i + 1} description`}
-                      className="flex-1 rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                      className="flex-1 rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
                                  text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
                                  focus:outline-none focus:border-[var(--border-dash)] transition-colors"
                     />
@@ -810,7 +810,7 @@ export default function FreelancePage() {
                         placeholder="%"
                         min="0"
                         max="100"
-                        className="w-16 rounded-lg px-2 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                        className="w-16 rounded px-2 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
                                    text-sm text-[var(--text)] text-center placeholder:text-[var(--text-muted)]
                                    focus:outline-none focus:border-[var(--border-dash)] transition-colors"
                       />
@@ -823,7 +823,7 @@ export default function FreelancePage() {
               <button
                 onClick={handlePostJob}
                 disabled={txState === "signing" || txState === "confirming"}
-                className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
+                className="w-full flex items-center justify-center gap-2 rounded py-3 text-sm font-semibold
                            bg-[var(--text)] text-[var(--bg)]
                              transition-all
                            disabled:opacity-50 disabled:cursor-not-allowed"
@@ -864,8 +864,8 @@ export default function FreelancePage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-6 space-y-5 border border-[var(--border-dash)]
-                         shadow-2xl"
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-6 space-y-5
+                         "
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
@@ -875,13 +875,13 @@ export default function FreelancePage() {
                 <button
                   onClick={() => setModalView("none")}
                   aria-label="Close modal"
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard transition-colors"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
+              <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
                 <p className="text-xs text-[var(--text-muted)]">Job</p>
                 <p className="text-sm font-semibold text-[var(--text)]">{selectedJob.title}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-1">
@@ -897,13 +897,13 @@ export default function FreelancePage() {
                   onChange={(e) => setBidPrice(e.target.value)}
                   placeholder="0"
                   min="0"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)]
                              text-sm text-[var(--text)] placeholder:text-[var(--text-muted)]
                              focus:outline-none focus:border-[var(--border-dash)] transition-colors"
                 />
               </div>
 
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)]">
+              <div className="flex items-center gap-2 px-3 py-2 rounded bg-[var(--bg-alt)] border border-[var(--border-dash)]">
                 <Shield size={12} className="text-[var(--text)] shrink-0" />
                 <p className="text-[10px] text-[var(--text)]/70">
                   Your bid price will be encrypted with FHE. The poster cannot see it until they accept.
@@ -913,7 +913,7 @@ export default function FreelancePage() {
               <button
                 onClick={handleBid}
                 disabled={txState === "signing" || txState === "confirming" || encrypting || !bidPrice}
-                className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
+                className="w-full flex items-center justify-center gap-2 rounded py-3 text-sm font-semibold
                            bg-[var(--text)] text-[var(--bg)]
                              transition-all
                            disabled:opacity-50 disabled:cursor-not-allowed"
@@ -959,8 +959,8 @@ export default function FreelancePage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-lg p-6 space-y-5 border border-[var(--border-dash)]
-                         shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-lg p-6 space-y-5
+                          max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
@@ -970,7 +970,7 @@ export default function FreelancePage() {
                 <button
                   onClick={() => setModalView("none")}
                   aria-label="Close modal"
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -978,11 +978,11 @@ export default function FreelancePage() {
 
               {/* Job info */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-[var(--bg-alt)] px-3 py-2">
+                <div className="rounded bg-[var(--bg-alt)] px-3 py-2">
                   <p className="text-[10px] text-[var(--text-muted)] uppercase">Escrow</p>
                   <p className="text-sm font-bold text-[var(--text)]">{selectedJob.escrowAmount} CDEX</p>
                 </div>
-                <div className="rounded-lg bg-[var(--bg-alt)] px-3 py-2">
+                <div className="rounded bg-[var(--bg-alt)] px-3 py-2">
                   <p className="text-[10px] text-[var(--text-muted)] uppercase">Bids</p>
                   <p className="text-sm font-bold text-[var(--text)]">{selectedJob.bidCount}</p>
                 </div>
@@ -997,7 +997,7 @@ export default function FreelancePage() {
                   milestones.map((ms, i) => (
                     <div
                       key={i}
-                      className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3 space-y-2"
+                      className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3 space-y-2"
                     >
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-medium text-[var(--text)]">

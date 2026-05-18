@@ -429,7 +429,7 @@ export default function VickreyAuctionsPage() {
           {account && (
             <button
               onClick={() => { setModalView("create"); setTxState("idle"); }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg
+              className="flex items-center gap-2 px-4 py-2 rounded
                          bg-[var(--text)] text-[var(--bg)] text-sm font-medium
                            transition-all"
             >
@@ -444,7 +444,7 @@ export default function VickreyAuctionsPage() {
       {/* Not connected */}
       {!account && (
         <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-10 text-center space-y-3">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-text flex items-center justify-center">
+          <div className="w-14 h-14 mx-auto rounded bg-text flex items-center justify-center">
             <Eye size={24} className="text-[var(--text)]" />
           </div>
           <h2 className="text-lg font-semibold text-[var(--text)]">Connect your wallet</h2>
@@ -468,7 +468,7 @@ export default function VickreyAuctionsPage() {
 
       {/* Vickrey explanation */}
       {account && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)]">
+        <div className="flex items-center gap-3 px-4 py-3 rounded bg-[var(--bg-alt)] border border-[var(--border-dash)]">
           <Info size={16} className="text-[var(--text)] shrink-0" />
           <p className="text-xs text-[var(--text)]/80">
             <strong>Second-price auction:</strong> The highest bidder wins, but pays
@@ -573,7 +573,7 @@ export default function VickreyAuctionsPage() {
 
                       {/* Second price info (after reveal) */}
                       {auction.status >= 2 && auction.winner !== "0x0000000000000000000000000000000000000000" && (
-                        <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-3 py-2 space-y-1">
+                        <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-3 py-2 space-y-1">
                           <p className="text-[10px] text-[var(--text)]/60 uppercase tracking-wider font-semibold">
                             Winner pays 2nd price
                           </p>
@@ -589,7 +589,7 @@ export default function VickreyAuctionsPage() {
                       {auction.status === 0 && !ended && !mine && (
                         <button
                           onClick={() => { setSelectedAuction(auction); setBidAmount(""); setModalView("bid"); setTxState("idle"); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--text)] text-[var(--bg)] transition-all"
                         >
                           <Lock size={12} /> Place Bid
@@ -597,35 +597,35 @@ export default function VickreyAuctionsPage() {
                       )}
                       {auction.status === 0 && mine && ended && auction.bidCount > 0 && (
                         <button onClick={() => handleClose(auction.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-all">
                           <Clock size={12} /> Close
                         </button>
                       )}
                       {auction.status === 0 && mine && auction.bidCount === 0 && (
                         <button onClick={() => handleCancel(auction.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-all">
                           <X size={12} /> Cancel
                         </button>
                       )}
                       {auction.status === 1 && (
                         <button onClick={() => { setSelectedAuction(auction); handleReveal(auction.id); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
                           <Zap size={12} /> Reveal Winner
                         </button>
                       )}
                       {auction.status === 2 && (
                         <button onClick={() => handleSettle(auction.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
                           <CheckCircle2 size={12} /> Settle
                         </button>
                       )}
                       <button
                         onClick={() => { setSelectedAuction(auction); setModalView("detail"); setTxState("idle"); }}
-                        className="rounded-lg px-3 py-2 text-xs font-medium bg-bgCard border border-[var(--border-dash)] text-[var(--text-muted)]
+                        className="rounded px-3 py-2 text-xs font-medium bg-bgCard border border-[var(--border-dash)] text-[var(--text-muted)]
                                    hover:text-[var(--text)] hover:bg-bgCard transition-all">
                         Details
                       </button>
@@ -650,12 +650,12 @@ export default function VickreyAuctionsPage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-lg p-6 space-y-5 border border-[var(--border-dash)] shadow-2xl max-h-[90vh] overflow-y-auto">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-lg p-6 space-y-5  max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                   <Eye size={18} className="text-[var(--text)]" /> Create Vickrey Auction
                 </h3>
-                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors">
+                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard transition-colors">
                   <X size={18} />
                 </button>
               </div>
@@ -664,7 +664,7 @@ export default function VickreyAuctionsPage() {
               <div className="space-y-1.5">
                 <label className="text-xs text-[var(--text-muted)] font-medium">Token to Auction</label>
                 <select value={cToken} onChange={(e) => setCToken(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--border-dash)] transition-colors">
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--border-dash)] transition-colors">
                   {TOKEN_OPTIONS.map((t) => <option key={t.address} value={t.address}>{t.symbol}</option>)}
                 </select>
               </div>
@@ -672,7 +672,7 @@ export default function VickreyAuctionsPage() {
               <div className="space-y-1.5">
                 <label className="text-xs text-[var(--text-muted)] font-medium">Payment Token</label>
                 <select value={cPayToken} onChange={(e) => setCPayToken(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--border-dash)] transition-colors">
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--border-dash)] transition-colors">
                   <option value="">Select token</option>
                   {TOKEN_OPTIONS.map((t) => <option key={t.address} value={t.address}>{t.symbol}</option>)}
                 </select>
@@ -681,7 +681,7 @@ export default function VickreyAuctionsPage() {
               <div className="space-y-1.5">
                 <label className="text-xs text-[var(--text-muted)] font-medium">Amount</label>
                 <input type="number" value={cAmount} onChange={(e) => setCAmount(e.target.value)} placeholder="0" min="0"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-dash)] transition-colors" />
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-dash)] transition-colors" />
               </div>
 
               <div className="space-y-1.5">
@@ -689,7 +689,7 @@ export default function VickreyAuctionsPage() {
                 <div className="grid grid-cols-2 gap-2">
                   {DURATION_OPTS.map((d) => (
                     <button key={d.value} type="button" onClick={() => setCDuration(d.value)}
-                      className={`rounded-lg px-3 py-2 text-xs font-medium border transition-all ${
+                      className={`rounded px-3 py-2 text-xs font-medium border transition-all ${
                         cDuration === d.value
                           ? "bg-[var(--bg-alt)] border-[var(--border-dash)] text-[var(--text)]"
                           : "bg-[var(--bg)] border-[var(--border-dash)] text-[var(--text-muted)] hover:border-[var(--border-dash)]"
@@ -702,7 +702,7 @@ export default function VickreyAuctionsPage() {
 
               <button onClick={handleCreate}
                 disabled={txState === "signing" || txState === "confirming" || !cAmount || !cPayToken}
-                className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
+                className="w-full flex items-center justify-center gap-2 rounded py-3 text-sm font-semibold
                            bg-[var(--text)] text-[var(--bg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {txState === "signing" || txState === "confirming" ? (
                   <><Loader2 size={16} className="animate-spin" /> Processing...</>
@@ -727,24 +727,24 @@ export default function VickreyAuctionsPage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-6 space-y-5 border border-[var(--border-dash)] shadow-2xl">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-6 space-y-5 ">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                   <Lock size={18} className="text-[var(--text)]" /> Place Sealed Bid
                 </h3>
-                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors">
+                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard transition-colors">
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3 space-y-1">
+              <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3 space-y-1">
                 <p className="text-xs text-[var(--text-muted)]">Auction #{selectedAuction.id}</p>
                 <p className="text-sm font-semibold text-[var(--text)]">
                   {selectedAuction.amount} {tokenSymbol(selectedAuction.token)}
                 </p>
               </div>
 
-              <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
+              <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
                 <p className="text-xs text-[var(--text)]/80">
                   <strong>Vickrey rule:</strong> Bid your true valuation. If you win, you pay the
                   second-highest bid, not yours. Overbidding has no extra cost.
@@ -754,12 +754,12 @@ export default function VickreyAuctionsPage() {
               <div className="space-y-1.5">
                 <label className="text-xs text-[var(--text-muted)] font-medium">Your Bid Amount</label>
                 <input type="number" value={bidAmount} onChange={(e) => setBidAmount(e.target.value)} placeholder="0" min="0"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-dash)] transition-colors" />
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-[var(--border-dash)] text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--border-dash)] transition-colors" />
               </div>
 
               <button onClick={handleBid}
                 disabled={txState === "signing" || txState === "confirming" || encrypting || !bidAmount}
-                className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
+                className="w-full flex items-center justify-center gap-2 rounded py-3 text-sm font-semibold
                            bg-[var(--text)] text-[var(--bg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {encrypting ? (
                   <><Loader2 size={16} className="animate-spin" /> Encrypting bid...</>

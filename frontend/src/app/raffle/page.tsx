@@ -327,14 +327,14 @@ export default function RafflePage() {
           <button
             onClick={() => setRefreshKey((k) => k + 1)}
             aria-label="Refresh raffles"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors"
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors"
           >
             <RefreshCw size={16} />
           </button>
           <button
             onClick={() => setModalOpen(true)}
             disabled={!account}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+            className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium
                        bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all"
           >
@@ -409,7 +409,7 @@ export default function RafflePage() {
                   {r.status === 0 && !expired && r.ticketCount < r.maxTickets && account && (
                     <button
                       onClick={() => handleBuy(r)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium
                                  bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors"
                     >
                       <Ticket size={12} /> Buy ticket
@@ -418,7 +418,7 @@ export default function RafflePage() {
                   {r.status === 0 && expired && r.ticketCount > 0 && (
                     <button
                       onClick={() => handleDraw(r)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium
                                  bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors"
                     >
                       <Sparkles size={12} /> Draw winner
@@ -427,7 +427,7 @@ export default function RafflePage() {
                   {r.status === 2 && (
                     <button
                       onClick={() => handleReveal(r)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium
                                  bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors"
                     >
                       <Lock size={12} /> Reveal index
@@ -436,7 +436,7 @@ export default function RafflePage() {
                   {r.status === 3 && account?.toLowerCase() === r.winner.toLowerCase() && (
                     <button
                       onClick={() => handleClaim(r)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium
                                  bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors"
                     >
                       <Gift size={12} /> Claim prize
@@ -465,7 +465,7 @@ export default function RafflePage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4"
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-5 space-y-4"
             >
               <div className="flex items-center justify-between">
                 <h3 id="raffle-modal-title" className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
@@ -474,7 +474,7 @@ export default function RafflePage() {
                 <button
                   onClick={() => setModalOpen(false)}
                   aria-label="Close modal"
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard"
                 >
                   <X size={18} />
                 </button>
@@ -486,7 +486,7 @@ export default function RafflePage() {
                   value={ticketPrice}
                   onChange={(e) => setTicketPrice(e.target.value)}
                   placeholder="10"
-                  className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                  className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                 />
               </div>
 
@@ -499,7 +499,7 @@ export default function RafflePage() {
                     type="number"
                     min={2}
                     max={1000}
-                    className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                    className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -509,12 +509,12 @@ export default function RafflePage() {
                     onChange={(e) => setDuration(e.target.value)}
                     type="number"
                     min={60}
-                    className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                    className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                   />
                 </div>
               </div>
 
-              <div className="rounded-lg bg-[var(--text)]/10 border border-[var(--text)]/20 p-3 flex items-start gap-2 text-xs">
+              <div className="rounded bg-[var(--text)]/10 border border-[var(--text)]/20 p-3 flex items-start gap-2 text-xs">
                 <AlertCircle size={14} className="text-[var(--text)] shrink-0 mt-0.5" />
                 <span className="text-[var(--text)]">
                   Winner index is generated via <code>FHE.randomEuint64()</code> — neither you
@@ -525,7 +525,7 @@ export default function RafflePage() {
               <button
                 onClick={handleCreate}
                 disabled={!ticketPrice || !maxTickets || !duration || txState === "signing" || txState === "confirming"}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                            bg-text from-[var(--text)] to-[var(--text)]
                            text-[var(--bg)] hover:shadow-lg hover:shadow-[var(--text)]/25
                            transition-all disabled:opacity-50"

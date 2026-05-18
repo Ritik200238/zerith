@@ -268,11 +268,11 @@ export default function EscrowPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
           <button onClick={() => setModalView("create")} disabled={!account}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+            className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium
                        bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all">
             <Plus size={14} /> New deal
@@ -322,19 +322,19 @@ export default function EscrowPage() {
                 <div className="mt-3 flex items-center gap-2 flex-wrap">
                   {(isA || isB) && d.status < 2 && (
                     <button onClick={() => { setSelectedDeal(d); setModalView("fund"); }}
-                      className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                       <Wallet size={11} /> Fund
                     </button>
                   )}
                   {d.status === 2 && (isA || isB) && (
                     <button onClick={() => handleRelease(d)}
-                      className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
                       <Send size={11} /> Release
                     </button>
                   )}
                   {d.status < 3 && (isA || isB) && (
                     <button onClick={() => handleCancel(d)}
-                      className="flex items-center gap-1 px-3 py-1 rounded-lg text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
+                      className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
                       <X size={11} /> Cancel
                     </button>
                   )}
@@ -352,7 +352,7 @@ export default function EscrowPage() {
             onClick={() => setModalView("none")} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto">
 
               {modalView === "create" && (
                 <>
@@ -360,25 +360,25 @@ export default function EscrowPage() {
                     <h3 id="escrow-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <ShieldCheck size={18} className="text-[var(--text)]" /> New escrow deal
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Party B (counterparty)</label>
                     <input value={partyB} onChange={(e) => setPartyB(e.target.value)} placeholder="0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
                       <label className="text-xs text-[var(--text-muted)] font-medium">Token A (you give)</label>
                       <input value={tokenA} onChange={(e) => setTokenA(e.target.value)} placeholder="0x..."
-                        className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                        className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs text-[var(--text-muted)] font-medium">Token B (B gives)</label>
                       <input value={tokenB} onChange={(e) => setTokenB(e.target.value)} placeholder="0x..."
-                        className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                        className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-[11px] font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -387,34 +387,34 @@ export default function EscrowPage() {
                         <Lock size={11} className="text-[var(--text)]" /> Terms A
                       </label>
                       <input value={termsA} onChange={(e) => setTermsA(e.target.value)} placeholder="100"
-                        className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                        className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs text-[var(--text-muted)] font-medium flex items-center gap-1">
                         <Lock size={11} className="text-[var(--text)]" /> Terms B
                       </label>
                       <input value={termsB} onChange={(e) => setTermsB(e.target.value)} placeholder="200"
-                        className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                        className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Deal label (hashed)</label>
                     <input value={dealLabel} onChange={(e) => setDealLabel(e.target.value)} placeholder="my-trade-spec"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Duration (seconds)</label>
                     <input value={duration} onChange={(e) => setDuration(e.target.value)} type="number" min={60}
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   {!initialized && (
-                    <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                    <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
                       <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
                       <span className="text-[var(--text-muted)]">Initializing FHE encryption…</span>
                     </div>
                   )}
                   <button onClick={handleCreate} disabled={!initialized || !partyB || !termsA || !termsB || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
@@ -431,7 +431,7 @@ export default function EscrowPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Wallet size={18} className="text-[var(--text)]" /> Fund deal #{selectedDeal.id}
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -443,10 +443,10 @@ export default function EscrowPage() {
                       <Lock size={11} className="text-[var(--text)]" /> Amount (encrypted)
                     </label>
                     <input value={fundAmount} onChange={(e) => setFundAmount(e.target.value)} placeholder="100"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <button onClick={handleFund} disabled={!initialized || !fundAmount || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
                       ? <Loader2 size={14} className="animate-spin" />
                       : <Wallet size={14} />}

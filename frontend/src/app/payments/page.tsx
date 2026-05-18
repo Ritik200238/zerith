@@ -692,7 +692,7 @@ export default function PaymentsPage() {
                 <button
                   onClick={() => setModalView("none")}
                   aria-label="Close modal"
-                  className="p-1 rounded-lg transition-colors hover:opacity-80"
+                  className="p-1 rounded transition-colors hover:opacity-80"
                   style={{ color: "var(--text-muted)" }}
                 >
                   <X size={18} />
@@ -869,7 +869,7 @@ export default function PaymentsPage() {
                 <button
                   onClick={() => setModalView("none")}
                   aria-label="Close modal"
-                  className="p-1 rounded-lg transition-colors hover:opacity-80"
+                  className="p-1 rounded transition-colors hover:opacity-80"
                   style={{ color: "var(--text-muted)" }}
                 >
                   <X size={18} />

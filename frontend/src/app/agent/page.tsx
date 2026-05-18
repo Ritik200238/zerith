@@ -247,7 +247,7 @@ export default function AgentPage() {
       </header>
 
       {/* Input */}
-      <section className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl p-5 mb-5">
+      <section className="bg-white border border-dashed border-[var(--border-dash)] rounded p-5 mb-5">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">
           <Wand2 size={12} className="text-[var(--text)]" /> Command
         </div>
@@ -277,7 +277,7 @@ export default function AgentPage() {
             <button
               onClick={runIntent}
               disabled={!canRun || !account || txState === "signing" || txState === "confirming"}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
+              className="flex items-center gap-1.5 px-4 py-2 rounded text-sm font-medium
                          bg-text from-[var(--text)] to-[var(--text)]
                          text-[var(--bg)] hover:shadow-lg hover:shadow-[var(--text)]/25
                          transition-all disabled:opacity-40 disabled:cursor-not-allowed"
@@ -326,7 +326,7 @@ export default function AgentPage() {
               </div>
             )}
 
-            <div className="bg-[var(--bg-alt)]/50 rounded-lg p-3">
+            <div className="bg-[var(--bg-alt)]/50 rounded p-3">
               <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] mb-2">Structured fields</div>
               <pre className="text-[11px] font-mono text-[var(--text-secondary)] overflow-x-auto">
 {JSON.stringify(intent.fields, null, 2)}
@@ -351,7 +351,7 @@ export default function AgentPage() {
             <button
               key={cmd}
               onClick={() => handleExampleClick(cmd)}
-              className="w-full text-left rounded-lg bg-[var(--bg-alt)]/40 hover:bg-[var(--bg-alt)]/80
+              className="w-full text-left rounded bg-[var(--bg-alt)]/40 hover:bg-[var(--bg-alt)]/80
                          border border-[var(--border-dash)] hover:border-[var(--text)]/40
                          px-3 py-2 text-xs font-mono text-[var(--text-secondary)] transition-colors"
             >

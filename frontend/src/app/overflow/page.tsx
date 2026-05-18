@@ -458,7 +458,7 @@ export default function OverflowSalePage() {
           {account && (
             <button
               onClick={() => { setModalView("create"); setTxState("idle"); }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg
+              className="flex items-center gap-2 px-4 py-2 rounded
                          bg-text text-[var(--bg)] text-sm font-medium
                            transition-all"
             >
@@ -471,7 +471,7 @@ export default function OverflowSalePage() {
 
       {!account && (
         <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-10 text-center space-y-3">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-text flex items-center justify-center">
+          <div className="w-14 h-14 mx-auto rounded bg-text flex items-center justify-center">
             <Droplets size={24} className="text-text" />
           </div>
           <h2 className="text-lg font-semibold text-[var(--text)]">Connect your wallet</h2>
@@ -493,7 +493,7 @@ export default function OverflowSalePage() {
       )}
 
       {account && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-bgAlt border border-borderDash">
+        <div className="flex items-center gap-3 px-4 py-3 rounded bg-bgAlt border border-borderDash">
           <TrendingUp size={16} className="text-text shrink-0" />
           <p className="text-xs text-text/80">
             <strong>Fair overflow:</strong> Deposit encrypted amounts at a fixed price.
@@ -592,7 +592,7 @@ export default function OverflowSalePage() {
 
                       {/* Allocation (after settle) */}
                       {sale.status === 1 && sale.myAllocation !== null && (
-                        <div className="rounded-lg bg-bgAlt border border-borderDash px-3 py-2">
+                        <div className="rounded bg-bgAlt border border-borderDash px-3 py-2">
                           <p className="text-[10px] text-text/60 uppercase tracking-wider font-semibold">Your Allocation</p>
                           <p className="text-sm text-text font-semibold font-mono">{sale.myAllocation} tokens</p>
                         </div>
@@ -608,7 +608,7 @@ export default function OverflowSalePage() {
                       {sale.status === 0 && !ended && !mine && (
                         <button
                           onClick={() => { setSelectedSale(sale); setDepositAmount(""); setModalView("deposit"); setTxState("idle"); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-text text-[var(--bg)] transition-all"
                         >
                           <Lock size={12} /> Deposit
@@ -616,14 +616,14 @@ export default function OverflowSalePage() {
                       )}
                       {sale.status === 0 && mine && ended && (
                         <button onClick={() => handleSettle(sale.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
                           <CheckCircle2 size={12} /> Settle
                         </button>
                       )}
                       {sale.status === 1 && !mine && (
                         <button onClick={() => handleClaim(sale.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
                           <Download size={12} /> Claim Tokens
                         </button>
@@ -631,7 +631,7 @@ export default function OverflowSalePage() {
                       {sale.status === 1 && sale.myAllocation === null && !mine && (
                         <button onClick={() => handleUnsealAllocation(sale)}
                           disabled={unsealing}
-                          className="rounded-lg px-3 py-2 text-xs font-medium bg-bgCard border border-borderDash text-[var(--text-muted)]
+                          className="rounded px-3 py-2 text-xs font-medium bg-bgCard border border-borderDash text-[var(--text-muted)]
                                      hover:text-[var(--text)] hover:bg-bgCard transition-all disabled:opacity-50">
                           {unsealing ? <Loader2 size={12} className="animate-spin" /> : <PieChart size={12} />}
                           {unsealing ? "..." : "Allocation"}
@@ -658,12 +658,12 @@ export default function OverflowSalePage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-lg p-6 space-y-5 border border-borderDash shadow-2xl max-h-[90vh] overflow-y-auto">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-lg p-6 space-y-5  max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                   <Droplets size={18} className="text-text" /> Create Overflow Sale
                 </h3>
-                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors">
+                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard transition-colors">
                   <X size={18} />
                 </button>
               </div>
@@ -671,7 +671,7 @@ export default function OverflowSalePage() {
               <div className="space-y-1.5">
                 <label className="text-xs text-[var(--text-muted)] font-medium">Token to Sell</label>
                 <select value={cToken} onChange={(e) => setCToken(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-borderDash text-sm text-[var(--text)] focus:outline-none focus:border-borderDash transition-colors">
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-borderDash text-sm text-[var(--text)] focus:outline-none focus:border-borderDash transition-colors">
                   {TOKEN_OPTIONS.map((t) => <option key={t.address} value={t.address}>{t.symbol}</option>)}
                 </select>
               </div>
@@ -679,7 +679,7 @@ export default function OverflowSalePage() {
               <div className="space-y-1.5">
                 <label className="text-xs text-[var(--text-muted)] font-medium">Payment Token</label>
                 <select value={cPayToken} onChange={(e) => setCPayToken(e.target.value)}
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-borderDash text-sm text-[var(--text)] focus:outline-none focus:border-borderDash transition-colors">
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-borderDash text-sm text-[var(--text)] focus:outline-none focus:border-borderDash transition-colors">
                   <option value="">Select token</option>
                   {TOKEN_OPTIONS.map((t) => <option key={t.address} value={t.address}>{t.symbol}</option>)}
                 </select>
@@ -689,12 +689,12 @@ export default function OverflowSalePage() {
                 <div className="space-y-1.5">
                   <label className="text-xs text-[var(--text-muted)] font-medium">Total Supply</label>
                   <input type="number" value={cSupply} onChange={(e) => setCSupply(e.target.value)} placeholder="10000" min="0"
-                    className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-borderDash text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-borderDash transition-colors" />
+                    className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-borderDash text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-borderDash transition-colors" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs text-[var(--text-muted)] font-medium">Price per Token</label>
                   <input type="number" value={cPrice} onChange={(e) => setCPrice(e.target.value)} placeholder="100" min="0"
-                    className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-borderDash text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-borderDash transition-colors" />
+                    className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-borderDash text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-borderDash transition-colors" />
                 </div>
               </div>
 
@@ -703,7 +703,7 @@ export default function OverflowSalePage() {
                 <div className="grid grid-cols-2 gap-2">
                   {DURATION_OPTS.map((d) => (
                     <button key={d.value} type="button" onClick={() => setCDuration(d.value)}
-                      className={`rounded-lg px-3 py-2 text-xs font-medium border transition-all ${
+                      className={`rounded px-3 py-2 text-xs font-medium border transition-all ${
                         cDuration === d.value
                           ? "bg-bgAlt border-borderDash text-text"
                           : "bg-[var(--bg)] border-borderDash text-[var(--text-muted)] hover:border-borderDash"
@@ -716,7 +716,7 @@ export default function OverflowSalePage() {
 
               <button onClick={handleCreate}
                 disabled={txState === "signing" || txState === "confirming" || !cSupply || !cPrice || !cPayToken}
-                className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
+                className="w-full flex items-center justify-center gap-2 rounded py-3 text-sm font-semibold
                            bg-text text-[var(--bg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {txState === "signing" || txState === "confirming" ? (
                   <><Loader2 size={16} className="animate-spin" /> Processing...</>
@@ -741,17 +741,17 @@ export default function OverflowSalePage() {
               exit={{ scale: 0.95, opacity: 0, y: 12 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-6 space-y-5 border border-borderDash shadow-2xl">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-6 space-y-5 ">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                   <Lock size={18} className="text-text" /> Deposit
                 </h3>
-                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors">
+                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard transition-colors">
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="rounded-lg bg-bgAlt border border-borderDash px-4 py-3 space-y-1">
+              <div className="rounded bg-bgAlt border border-borderDash px-4 py-3 space-y-1">
                 <p className="text-xs text-[var(--text-muted)]">Sale #{selectedSale.id}</p>
                 <p className="text-sm font-semibold text-[var(--text)]">
                   {selectedSale.totalSupply} {tokenSymbol(selectedSale.token)} @ {selectedSale.pricePerToken} each
@@ -762,10 +762,10 @@ export default function OverflowSalePage() {
               <div className="space-y-1.5">
                 <label className="text-xs text-[var(--text-muted)] font-medium">Deposit Amount</label>
                 <input type="number" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} placeholder="0" min="0"
-                  className="w-full rounded-lg px-3 py-2.5 bg-[var(--bg)] border border-borderDash text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-borderDash transition-colors" />
+                  className="w-full rounded px-3 py-2.5 bg-[var(--bg)] border border-borderDash text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-borderDash transition-colors" />
               </div>
 
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bgAlt border border-borderDash">
+              <div className="flex items-center gap-2 px-3 py-2 rounded bg-bgAlt border border-borderDash">
                 <Shield size={12} className="text-text shrink-0" />
                 <p className="text-[10px] text-text/70">
                   Your deposit amount is encrypted. If oversubscribed, you receive a proportional allocation and a refund.
@@ -774,7 +774,7 @@ export default function OverflowSalePage() {
 
               <button onClick={handleDeposit}
                 disabled={txState === "signing" || txState === "confirming" || encrypting || !depositAmount}
-                className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
+                className="w-full flex items-center justify-center gap-2 rounded py-3 text-sm font-semibold
                            bg-text text-[var(--bg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {encrypting ? (
                   <><Loader2 size={16} className="animate-spin" /> Encrypting deposit...</>

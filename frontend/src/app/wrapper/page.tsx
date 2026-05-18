@@ -283,7 +283,7 @@ export default function WrapperPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
         </div>
@@ -298,7 +298,7 @@ export default function WrapperPage() {
           Wrapped token
         </div>
         <input value={tokenAddress} onChange={(e) => setTokenAddress(e.target.value)} placeholder="0x..."
-          className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+          className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
         <p className="text-[10px] text-[var(--text-muted)] mt-1.5">
           Default = CipherDEX&apos;s {TOKEN_CONFIG.symbol} token. Paste any other ERC-20 address to wrap it.
         </p>
@@ -336,7 +336,7 @@ export default function WrapperPage() {
             </div>
             {unsealedBalance === null ? (
               <button onClick={handleUnsealBalance}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
                 <Eye size={12} /> Reveal to me
               </button>
             ) : (
@@ -351,17 +351,17 @@ export default function WrapperPage() {
         {/* Action buttons */}
         <div className="mt-4 flex items-center gap-2 flex-wrap">
           <button onClick={() => setModalView("deposit")} disabled={!account}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium
                        bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors disabled:opacity-40">
             <Plus size={12} /> Deposit (public → encrypted)
           </button>
           <button onClick={() => setModalView("transfer")} disabled={!account || !encBalance}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium
                        bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors disabled:opacity-40">
             <Send size={12} /> Transfer privately
           </button>
           <button onClick={() => setModalView("withdraw")} disabled={!account || !encBalance}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium
                        bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors disabled:opacity-40">
             <ArrowDownToLine size={12} /> Withdraw (encrypted → public)
           </button>
@@ -376,7 +376,7 @@ export default function WrapperPage() {
             onClick={() => setModalView("none")} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-5 space-y-4">
 
               {modalView === "deposit" && (
                 <>
@@ -384,18 +384,18 @@ export default function WrapperPage() {
                     <h3 id="wrapper-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Plus size={18} className="text-[var(--text)]" /> Deposit
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Amount</label>
                     <input value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} placeholder="100"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                     <p className="text-[10px] text-[var(--text-muted)]">Public on the way in. Encrypted once inside the wrapper.</p>
                   </div>
                   <button onClick={handleDeposit} disabled={!depositAmount || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
                       ? <Loader2 size={14} className="animate-spin" />
                       : <Wallet size={14} />}
@@ -410,30 +410,30 @@ export default function WrapperPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Send size={18} className="text-[var(--text)]" /> Confidential transfer
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Recipient</label>
                     <input value={transferTo} onChange={(e) => setTransferTo(e.target.value)} placeholder="0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium flex items-center gap-1">
                       <Lock size={11} className="text-[var(--text)]" /> Amount (encrypted)
                     </label>
                     <input value={transferAmount} onChange={(e) => setTransferAmount(e.target.value)} placeholder="50"
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   {!initialized && (
-                    <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                    <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
                       <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
                       <span className="text-[var(--text-muted)]">Initializing FHE encryption…</span>
                     </div>
                   )}
                   <button onClick={handleTransfer} disabled={!initialized || !transferTo || !transferAmount || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
                       ? <Loader2 size={14} className="animate-spin" />
                       : <Send size={14} />}
@@ -448,7 +448,7 @@ export default function WrapperPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <ArrowDownToLine size={18} className="text-[var(--text-muted)]" /> Withdraw
                     </h3>
-                    <button onClick={() => { setModalView("none"); setWithdrawStep("idle"); }} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => { setModalView("none"); setWithdrawStep("idle"); }} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -459,7 +459,7 @@ export default function WrapperPage() {
                         Withdraw is a 2-step flow. Step 1: open your encrypted balance for a Threshold Network reveal.
                       </p>
                       <button onClick={handleRequestWithdraw} disabled={txState === "signing" || txState === "confirming"}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
                         {txState === "signing" || txState === "confirming"
                           ? <Loader2 size={14} className="animate-spin" />
                           : <Eye size={14} />}
@@ -469,7 +469,7 @@ export default function WrapperPage() {
                   )}
 
                   {withdrawStep === "requesting" && (
-                    <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                    <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
                       <Loader2 size={14} className="text-[var(--text-muted)] animate-spin shrink-0" />
                       <span className="text-[var(--text-muted)]">Requesting reveal — confirming on-chain…</span>
                     </div>
@@ -477,18 +477,18 @@ export default function WrapperPage() {
 
                   {withdrawStep === "ready" && (
                     <>
-                      <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                      <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
                         <CheckCircle2 size={14} className="text-[var(--text)] shrink-0" />
                         <span className="text-[var(--text)]">Reveal opened. Now enter the public withdraw amount.</span>
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs text-[var(--text-muted)] font-medium">Amount to withdraw (public)</label>
                         <input value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} placeholder="50"
-                          className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                          className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                         <p className="text-[10px] text-[var(--text-muted)]">Must be ≤ your revealed encrypted balance.</p>
                       </div>
                       <button onClick={handleExecuteWithdraw} disabled={!withdrawAmount || txState === "decrypting" || txState === "signing" || txState === "confirming"}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
                         {txState === "decrypting" || txState === "signing" || txState === "confirming"
                           ? <Loader2 size={14} className="animate-spin" />
                           : <ArrowDownToLine size={14} />}
@@ -509,19 +509,19 @@ export default function WrapperPage() {
           <Lock size={12} className="text-[var(--text)]" /> Privacy stage
         </h3>
         <div className="grid md:grid-cols-3 gap-3 text-xs">
-          <div className="rounded-lg bg-[var(--bg-alt)]/40 p-3">
+          <div className="rounded bg-[var(--bg-alt)]/40 p-3">
             <div className="flex items-center gap-1.5 text-[var(--text)] font-semibold mb-1">
               <ArrowRight size={11} /> Deposit
             </div>
             <p className="text-[var(--text-muted)]">Public ERC-20 in. Internal balance encrypted from now on.</p>
           </div>
-          <div className="rounded-lg bg-[var(--bg-alt)]/40 p-3">
+          <div className="rounded bg-[var(--bg-alt)]/40 p-3">
             <div className="flex items-center gap-1.5 text-[var(--text)] font-semibold mb-1">
               <Send size={11} /> Transfer
             </div>
             <p className="text-[var(--text-muted)]">Stage-3 — encrypted amount, encrypted balance updates. Zero leak.</p>
           </div>
-          <div className="rounded-lg bg-[var(--bg-alt)]/40 p-3">
+          <div className="rounded bg-[var(--bg-alt)]/40 p-3">
             <div className="flex items-center gap-1.5 text-[var(--text-muted)] font-semibold mb-1">
               <ArrowDownToLine size={11} /> Withdraw
             </div>

@@ -210,11 +210,11 @@ export default function PortfolioPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
+            className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
           <button onClick={() => setModalOpen(true)} disabled={!account}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
+            className="flex items-center gap-1.5 px-3 py-2 rounded text-sm font-medium
                        bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all">
             <Plus size={14} /> Track token
@@ -232,7 +232,7 @@ export default function PortfolioPage() {
           </div>
           {tokens.length > 0 && (
             <button onClick={() => setComputeOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
               <Calculator size={12} /> Recompute
             </button>
           )}
@@ -256,7 +256,7 @@ export default function PortfolioPage() {
             </div>
             {unsealedValue === null ? (
               <button onClick={handleRevealValue}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-[var(--text)]/15 text-[var(--text)] hover:bg-[var(--text)]/25 transition-colors">
                 <Eye size={12} /> Reveal to me
               </button>
             ) : (
@@ -291,7 +291,7 @@ export default function PortfolioPage() {
                   )}
                 </div>
                 <button onClick={() => handleUntrack(t)} aria-label="Untrack"
-                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
+                  className="p-1.5 rounded text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-colors">
                   <Trash2 size={12} />
                 </button>
               </div>
@@ -307,7 +307,7 @@ export default function PortfolioPage() {
             onClick={() => { setModalOpen(false); setComputeOpen(false); }} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-dashed border-[var(--border-dash)] rounded-2xl w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+              className="bg-white border border-dashed border-[var(--border-dash)] rounded w-full max-w-md p-5 space-y-4 max-h-[90vh] overflow-y-auto">
 
               {modalOpen && (
                 <>
@@ -315,20 +315,20 @@ export default function PortfolioPage() {
                     <h3 id="portfolio-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <PieChart size={18} className="text-[var(--text)]" /> Track token
                     </h3>
-                    <button onClick={() => setModalOpen(false)} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setModalOpen(false)} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Token address</label>
                     <input value={newToken} onChange={(e) => setNewToken(e.target.value)} placeholder="0x..."
-                      className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
+                      className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                     <p className="text-[10px] text-[var(--text-muted)]">
                       Two-step: delegate vault read to tracker, then add to your tracked list.
                     </p>
                   </div>
                   <button onClick={handleTrackToken} disabled={!newToken || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
@@ -345,7 +345,7 @@ export default function PortfolioPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Calculator size={18} className="text-[var(--text)]" /> Recompute portfolio
                     </h3>
-                    <button onClick={() => setComputeOpen(false)} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
+                    <button onClick={() => setComputeOpen(false)} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -360,19 +360,19 @@ export default function PortfolioPage() {
                           value={priceInputs[t] || ""}
                           onChange={(e) => setPriceInputs({ ...priceInputs, [t]: e.target.value })}
                           type="number" min={1} placeholder="100"
-                          className="w-full bg-[var(--bg-alt)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
+                          className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]"
                         />
                       </div>
                     ))}
                   </div>
                   {!account && (
-                    <div className="rounded-lg bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
+                    <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">
                       <AlertCircle size={14} className="text-[var(--text-muted)] shrink-0" />
                       <span className="text-[var(--text-muted)]">Connect wallet to compute.</span>
                     </div>
                   )}
                   <button onClick={handleCompute} disabled={tokens.length === 0 || txState === "signing" || txState === "confirming"}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium
                                bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
