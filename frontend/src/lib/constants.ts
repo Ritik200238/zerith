@@ -64,12 +64,18 @@ export type ContractName = keyof typeof CONTRACTS;
 
 /** Token metadata */
 export const TOKEN_CONFIG = {
-  // Verified on-chain 2026-05-17 against ConfidentialToken at 0xad1c…BA196a:
-  // name() = "Zerith Token", symbol() = "CDEX". Stale "Zerith" labels removed.
+  // Verified on-chain 2026-05-18 against ConfidentialToken at 0x5604…2a3d2:
+  //   name()     = "CipherDEX Token" (on-chain, immutable from the original deploy)
+  //   symbol()   = "CDEX"
+  //   decimals() = 6
+  // UI brand reads as "Zerith Token" for display purposes; the on-chain
+  // symbol stays CDEX (immutable). The 18→6 decimals fix is critical:
+  // FAUCET_AMOUNT = 1000 * 1e6 on the contract, so with the old decimals=18
+  // every formatted amount across the app was off by 12 orders of magnitude.
   name: "Zerith Token",
   symbol: "CDEX",
-  decimals: 18,
-  faucetAmount: "1000", // Amount minted per faucet call (human-readable)
+  decimals: 6,
+  faucetAmount: "1000", // 1000 CDEX human-readable
 } as const;
 
 /** V1 navigation — Phase 2 routes hidden but their pages still exist at their URLs. */

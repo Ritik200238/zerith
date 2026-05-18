@@ -38,7 +38,7 @@ import {
   type SignatureProof,
 } from "@/components/shared/SignatureDrawer";
 import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
-import { parseAmount } from "@/lib/format";
+import { parseAmount, formatAmount } from "@/lib/format";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { ethers } from "ethers";
 
@@ -640,7 +640,7 @@ export default function FreelancePage() {
                         <div>
                           <p className="text-xs text-[var(--text-muted)]">Escrow</p>
                           <p className="text-sm font-bold text-[var(--text)]">
-                            {job.escrowAmount}{" "}
+                            {formatAmount(job.escrowAmount)}{" "}
                             <span className="text-xs font-medium text-[var(--text)]">CDEX</span>
                           </p>
                         </div>
@@ -892,7 +892,7 @@ export default function FreelancePage() {
                 <p className="text-xs text-[var(--text-muted)]">Job</p>
                 <p className="text-sm font-semibold text-[var(--text)]">{selectedJob.title}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-1">
-                  Escrow: {selectedJob.escrowAmount} CDEX
+                  Escrow: {formatAmount(selectedJob.escrowAmount)} CDEX
                 </p>
               </div>
 
@@ -987,7 +987,7 @@ export default function FreelancePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded bg-[var(--bg-alt)] px-3 py-2">
                   <p className="text-[10px] text-[var(--text-muted)] uppercase">Escrow</p>
-                  <p className="text-sm font-bold text-[var(--text)]">{selectedJob.escrowAmount} CDEX</p>
+                  <p className="text-sm font-bold text-[var(--text)]">{formatAmount(selectedJob.escrowAmount)} CDEX</p>
                 </div>
                 <div className="rounded bg-[var(--bg-alt)] px-3 py-2">
                   <p className="text-[10px] text-[var(--text-muted)] uppercase">Bids</p>
