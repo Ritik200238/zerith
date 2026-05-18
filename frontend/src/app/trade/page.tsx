@@ -639,7 +639,7 @@ export default function TradePage() {
               />
               <p className="text-[10px] text-[var(--text)]/60 flex items-center gap-1">
                 <Lock size={8} />
-                Encrypted on submit -- nobody sees your price
+                Encrypted on submit — nobody sees your price
               </p>
             </div>
 
@@ -878,7 +878,7 @@ export default function TradePage() {
               <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
                 <p className="text-xs text-[var(--text)]/80 leading-relaxed">
                   If your price &gt;= the maker&apos;s hidden price, the trade
-                  executes via FHE. If not, nothing happens -- neither party
+                  executes via FHE. If not, nothing happens — neither party
                   sees the other&apos;s price.
                 </p>
               </div>

@@ -499,7 +499,7 @@ export default function DutchAuctionPage() {
           <ArrowDown size={16} className="text-[var(--text-muted)] shrink-0" />
           <p className="text-xs text-[var(--text-muted)]/80">
             <strong>Dutch auction:</strong> Price starts high and decays linearly toward a floor
-            price. Buy at any time -- the current price is what you pay. Your purchase amount
+            price. Buy at any time — the current price is what you pay. Your purchase amount
             is encrypted with FHE.
           </p>
         </div>

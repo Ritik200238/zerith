@@ -521,7 +521,7 @@ export default function FreelancePage() {
           </div>
           <h2 className="text-lg font-semibold text-[var(--text)]">Connect your wallet</h2>
           <p className="text-sm text-[var(--text-muted)] max-w-md mx-auto">
-            Post jobs with milestone escrow, submit encrypted bids, and manage deliverables --
+            Post jobs with milestone escrow, submit encrypted bids, and manage deliverables —
             all with FHE-encrypted pricing.
           </p>
         </div>

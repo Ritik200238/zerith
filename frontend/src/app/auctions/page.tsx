@@ -1358,7 +1358,7 @@ export default function AuctionsPage() {
               {/* privacy note */}
               <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
                 <p className="text-xs text-[var(--text)]/80 leading-relaxed">
-                  Your bid is encrypted -- nobody sees it until the auction
+                  Your bid is encrypted — nobody sees it until the auction
                   closes. The highest bid wins, discovered via FHE.gt() and
                   FHE.max() without revealing losing bids.
                 </p>
