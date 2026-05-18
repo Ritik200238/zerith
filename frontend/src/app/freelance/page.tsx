@@ -256,12 +256,15 @@ export default function FreelancePage() {
         setTxState("idle");
         return;
       }
+      // Contract signature: (token, escrowAmount, duration, title, milestoneDescs, milestonePcts)
+      // Default duration = 7 days. MIN_DURATION on the contract is 300s.
       const tx = await freelanceContract.postJob(
-        jobTitle,
-        escrowBn,
         CONTRACTS.ConfidentialToken,
+        escrowBn,
+        BigInt(604800), // 7 days
+        jobTitle,
         valid.map((m) => m.desc),
-        valid.map((m) => BigInt(m.pct)),
+        valid.map((m) => Number(m.pct)),
       );
       setTxState("confirming");
       setTxHash(tx.hash);
