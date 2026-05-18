@@ -42,3 +42,6 @@ packages/sdk/
 # burner wallets — never commit
 .burner-wallet.json
 .multibid-burners.json
+
+# Playwright demo video output dir is committed for the demo; .last-run trace not
+demo-video/.last-run.json
