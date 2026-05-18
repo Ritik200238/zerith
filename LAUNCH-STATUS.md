@@ -91,7 +91,7 @@ Each was invisible to contract-layer testing — the verify-*.ts scripts call co
 
 ## Known open items (not launch-blocking)
 
-- **UI `useDecryptForTx` hook returns null in browser** where the same SDK call from Hardhat returns a valid TN signature. Instrumentation deployed (`d47e93a`) to surface the failure mode. The underlying PoR / multibid-auction reveal primitives are proven working at the contract layer. Users can complete reveals via Etherscan with the TN signature if the UI hook can't surface it.
+- **UI `useDecryptForTx` hook returns null in browser** — root cause identified: the `Cofhe2Provider` was calling `createCofheClient({...config, publicClient, walletClient})` in one shot. The SDK requires the two-step pattern `createCofheClient(config)` + `await client.connect(publicClient, walletClient)`. The instrumentation in commit `d47e93a` surfaced the exact error: `CofheError: Client must be connected, account and chainId must be initialized`. Fix is committed as `0473044`. **However: Vercel free-tier hit its 100 deploys/day cap, so the fix is on `origin/main` but not yet live in production. It will deploy automatically once the daily quota resets (~24h).**
 - **Two pre-decimals-fix Freelance jobs** display escrow as "100000000.00B CDEX" because their on-chain values were 10^18-scaled. New jobs render correctly. This is residue Sepolia state; a fresh deploy would erase it.
 - **Wrapper deposit** flow couldn't be exercised end-to-end because the test deployment has no native public ERC-20 (the "MockToken" is itself a ConfidentialToken). Contract path is proven; full UI walkthrough requires a real underlying token.
 
