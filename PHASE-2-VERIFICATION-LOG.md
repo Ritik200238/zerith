@@ -56,6 +56,8 @@ Source: `tasks/launch-day-check.ts` · Result: **20/20 pass**
 | 13 | BatchAuction encrypted buyOrder | same script | `0x44414962eb5ae9cb1e7006def376e3db931296f16372c47060d3760d2aac0028` | [view](https://sepolia.etherscan.io/tx/0x44414962eb5ae9cb1e7006def376e3db931296f16372c47060d3760d2aac0028) | ✅ — encrypted maxPrice + public amount, clearing price computed via FHE across all buys |
 | 14 | OverflowSale createSale | same script | `0x6bc7fd03647ff506864eecf930771cf496f35724a5ebace5544b09500e7bb0dc` | [view](https://sepolia.etherscan.io/tx/0x6bc7fd03647ff506864eecf930771cf496f35724a5ebace5544b09500e7bb0dc) | ✅ |
 | 15 | OverflowSale encrypted deposit | same script | `0xe112e97732d297581fd0c664a012f87b0be2824a6fe66f04e3332b0430f69cd4` | [view](https://sepolia.etherscan.io/tx/0xe112e97732d297581fd0c664a012f87b0be2824a6fe66f04e3332b0430f69cd4) | ✅ — encrypted token amount accepted; will pro-rata when oversubscribed |
+| 16 | Vault.delegateBalanceRead(PoR, token) | `tasks/verify-por-e2e.ts` Step 1 | `0x4579653316690d1c935e8af8cce0941e97dccfc672a498bde657cee9325eef98` | [view](https://sepolia.etherscan.io/tx/0x4579653316690d1c935e8af8cce0941e97dccfc672a498bde657cee9325eef98) | ✅ — vault grants PoR contract read access to burner's encrypted balance |
+| 17 | ProofOfReserves.requestProof (threshold=1) | same script | `0xec68150defc17ff9446e0ae27c7b29c490860b1e7fc6a52c918f964c2a7fbd59` | [view](https://sepolia.etherscan.io/tx/0xec68150defc17ff9446e0ae27c7b29c490860b1e7fc6a52c918f964c2a7fbd59) | ✅ — PoR reads burner's encrypted vault balance, does FHE.gte vs threshold, stores ebool. Cross-contract encrypted read + FHE comparison verified. |
 
 ## Summary: 15 real Sepolia txs prove the full encrypted feature set works end-to-end
 
