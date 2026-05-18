@@ -561,6 +561,37 @@ function smokeDriver(featurePath, primaryButtonRegex) {
 
 const DRIVERS = {
   treasury: driveTreasury,
+  "treasury-reveal": async (page, outDir) => {
+    await page.goto(`${BASE}/treasury?_cb=${Date.now()}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(3000);
+    await shotsAndToast(page, outDir, "01-loaded");
+    await clickConnectAndWait(page, outDir);
+    await page.waitForTimeout(5000); // claims need fetch time
+
+    // Find the first "Reveal via TN" button
+    // Try the LAST (oldest) Reveal button — its encResult handle has had
+    // longer for the Threshold Network to sign vs a newly-requested claim.
+    const revealBtn = page.getByRole("button", { name: /Reveal via TN/i }).last();
+    if (!(await revealBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
+      return { feature: "treasury-reveal", skipped: "no Reveal via TN button" };
+    }
+    await revealBtn.click({ force: true });
+    await page.waitForTimeout(8000);
+    await shotsAndToast(page, outDir, "03-reveal-clicked");
+    await waitForEncryptionDone(page);
+    await page.waitForFunction(() => {
+      const el = Array.from(document.querySelectorAll("*")).find(
+        (n) => /Processing…|Confirming…|Signing…|Fetching TN/i.test(n.textContent || "")
+      );
+      return !el || el.offsetParent === null;
+    }, { timeout: 120000 }).catch(() => {});
+    await page.waitForTimeout(8000);
+    await shotsAndToast(page, outDir, "04-reveal-done");
+    const toast = await page.waitForSelector('text=/Proof revealed|Verified|Public proof recorded/i', { timeout: 60000 }).catch(() => null);
+    await shotsAndToast(page, outDir, "05-reveal-toast");
+    return { feature: "treasury-reveal", toastText: toast ? await toast.textContent() : null };
+  },
+
   "treasury-unseal": async (page, outDir) => {
     await page.goto(`${BASE}/treasury?_cb=${Date.now()}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(2000);
