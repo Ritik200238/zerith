@@ -153,16 +153,18 @@ export default function FreelancePage() {
 
       for (let i = 0; i < total; i++) {
         const j = await freelanceRead.getJob(i);
+        // Contract returns: (client, token, escrowAmount, deadline, bidCount,
+        // status, revealedBid, revealedBidder, title, milestoneCount, milestonesApproved)
         list.push({
           id: i,
           poster: j[0],
-          title: j[1],
+          token: j[1],
           escrowAmount: j[2].toString(),
-          token: j[3],
           bidCount: Number(j[4]),
-          assignee: j[5],
-          status: Number(j[6]),
-          milestoneCount: Number(j[7]),
+          status: Number(j[5]),
+          assignee: j[7] as string,
+          title: j[8] as string,
+          milestoneCount: Number(j[9]),
         });
       }
 
