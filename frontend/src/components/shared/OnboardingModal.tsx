@@ -47,6 +47,18 @@ export function OnboardingModal() {
     } catch {
       // localStorage unavailable
     }
+    // QA / screenshot escape: ?noOnboarding=1 skips the modal so we can
+    // capture page contents in screenshot tooling that runs a fresh browser.
+    try {
+      if (
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("noOnboarding") === "1"
+      ) {
+        setVisible(false);
+      }
+    } catch {
+      // noop
+    }
   }, []);
 
   const dismiss = useCallback(() => {
