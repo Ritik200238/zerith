@@ -274,7 +274,7 @@ export default function VickreyAuctionsPage() {
       // Contract signature: (token, paymentToken, amount, duration, snipeExtension)
       // 0 means use DEFAULT_SNIPE_EXTENSION internally.
       const tx = await auctionContract.createAuction(
-        cToken, cPayToken, amountBn, BigInt(cDuration), 0n,
+        cToken, cPayToken, amountBn, BigInt(cDuration), BigInt(0),
       );
       setTxState("confirming");
       setTxHash(tx.hash);
