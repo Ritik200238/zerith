@@ -1,5 +1,5 @@
 {
   "feature": "/org",
-  "connected": true,
-  "primaryButtonFound": true
+  "submitted": true,
+  "toastText": "Transaction confirmed"
 }

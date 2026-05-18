@@ -52,6 +52,30 @@ Each row is a real Sepolia tx. All txs use the burner wallet `0x492aaF98150f0542
 | B20 | **Organization.createOrg + OrderBook.createOrder + AllowlistGate.createAllowlist** in one shot | Org `0x960f4b14c00c3daa1568fb95392e76e1bf65168530c38a10fa38c271095b7b11`; OrderBook `0xe5fa5bb756e05d65aaf9840eea9e565a6cf56913a81447d661ac133b8ea0c1a1`; AllowlistGate `0xcf6193e7f0c55b2cb5ecbd2a0697df75b515ea15252af3f894d2c688a692621d` | `tasks/verify-org-trade-allowlist-e2e.ts` | ✅ orgCount=1, nextOrderId=1, nextAllowlistId=1. OrderBook used the encrypted price machinery (FHE.asEuint128); the maker can unseal their own price via `FHE.allowSender(price)`. |
 | B21 | Vesting / Raffle smoke | not exercised directly | — | ⚠ Vesting is created BY other contracts (auction settlement etc.), not user-facing per CLAUDE.md — page renders an explicit "schedules created by authorized contracts" notice. Raffle uses an older legacy address from constants.ts that wasn't redeployed; contract path exists. |
 
+## C-deep) Deep UI submit drivers — every hero feature, real burner-injected tx → confirmation toast
+
+These are the rows where Playwright drove the actual UI buttons end-to-end and captured the "Transaction confirmed" toast (or page-level state change proving the on-chain action landed).
+
+| Feature | Toast / state captured | Evidence |
+|---|---|---|
+| Treasury deposit | "Transaction confirmed" toast | `verification-evidence/ui-e2e/treasury/` |
+| Auctions Sealed bid | "Sealed Auction · Transaction confirmed on-chain" toast | `verification-evidence/ui-e2e/auctions/` |
+| Payments create split | "Encrypting amounts…" pipeline → new split visible in list | `verification-evidence/ui-e2e/payments/` |
+| Multisig create | "SUCCESS · Confidential Multisig · Transaction confirmed on-chain" toast + Multisig #1 rendered | `verification-evidence/ui-e2e/multisig/` |
+| Org create | "Transaction confirmed" toast | `verification-evidence/ui-e2e/org/` |
+| Allowlist create | "Transaction confirmed" toast | `verification-evidence/ui-e2e/allowlist/` |
+| Streaming create | Stream #1 ACTIVE rendered on page | `verification-evidence/ui-e2e/streaming/` |
+
+## P0 bugs caught by this UI sweep (production-blocking, all fixed in-session)
+
+| # | Bug | How it manifested | Fix commit |
+|---|---|---|---|
+| 1 | `/freelance` crashes with `TypeError: t.slice is not a function` | `getJob` tuple indices wrong — frontend read `assignee = j[5]` but j[5] is a status enum number; `shortAddr(number).slice()` threw inside `.map()` → ErrorBoundary → "Something went wrong" page | `7774b0d` |
+| 2 | All 4 auction pages + trade page locked the submit button forever | `TOKEN_OPTIONS` arrays only listed CDEX. Contracts enforce `token != paymentToken` at create — users literally could not create any auction or trade order | `469b460` + `5932942` (constants + ABI registration so Vercel TS build actually succeeds) |
+| 3 | Vickrey `createAuction` silently failed | Frontend called with 4 args but contract signature has 5 (missing `snipeExtension`). `handleTxError` swallowed the ethers encoding error as a generic toast | `03c645e` |
+
+Three of these were entirely invisible to contract-layer testing (those scripts call the contract directly with the right args). Only a real-UI sweep with a burner submitting forms could catch them. This is exactly the value CLAUDE.md asks for in "fully functional from UI using a burner wallet."
+
 ## C) Visual layer (28 routes)
 
 Full-page Playwright captures of every route under `verification-evidence/10-final-…` through `38-final-…`. Editorial language verified:

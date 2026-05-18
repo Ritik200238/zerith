@@ -1,5 +1,4 @@
 {
   "feature": "/overflow",
-  "connected": true,
-  "primaryButtonFound": true
+  "skipped": "open button not found (/^\\+ Create Sale$|\\+ Create Sale|New Sale|\\+ New/i)"
 }

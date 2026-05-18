@@ -1,5 +1,4 @@
 {
   "feature": "/batch",
-  "connected": true,
-  "primaryButtonFound": false
+  "skipped": "open button not found (/Submit buy|Submit order|^Submit/i)"
 }

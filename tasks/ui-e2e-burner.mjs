@@ -387,11 +387,102 @@ async function driveOtc(page, outDir) {
   return { feature: "otc", note: "OTC post flow exercised" };
 }
 
-// ── Generic smoke driver — opens page, connects, finds primary action button.
-// For each feature this proves: the page loads, the burner connects,
-// the primary action button renders. The deeper "click → encrypt → submit"
-// is the same SDK pattern proven by the named drivers above and by the
-// 34 Sepolia tx contract-layer evidence.
+// Helper: wait for "Encrypting" / "Secure Processing" / "Confirming" overlay to clear
+async function waitForEncryptionDone(page, timeoutMs = 120000) {
+  await page.waitForFunction(() => {
+    const el = Array.from(document.querySelectorAll("*")).find(
+      (n) => /Secure Processing|Encrypting…|Encrypting\.\.\.|Confirming…/i.test(n.textContent || "")
+    );
+    return !el || el.offsetParent === null;
+  }, { timeout: timeoutMs }).catch(() => {});
+}
+
+// Helper: deep submit a single-modal feature flow.
+// 1. open modal via openBtnRegex
+// 2. fill inputs sequentially via inputValues array
+// 3. click submitBtnRegex
+// 4. wait for encryption + tx confirmation
+function deepDriver(featurePath, openBtnRegex, inputs, submitBtnRegex) {
+  return async function (page, outDir) {
+    // Cache-bust to bypass Vercel's prerender cache so we hit the latest deploy
+    await page.goto(`${BASE}${featurePath}?_cb=${Date.now()}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+    await shotsAndToast(page, outDir, "01-loaded");
+    await clickConnectAndWait(page, outDir);
+
+    const openBtn = page.getByRole("button", { name: openBtnRegex }).first();
+    if (!(await openBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
+      return { feature: featurePath, skipped: `open button not found (${openBtnRegex})` };
+    }
+    await openBtn.click({ force: true });
+    await page.waitForTimeout(2000);
+    await shotsAndToast(page, outDir, "03-modal");
+
+    // Fill inputs. inputs is an array of {selector, value} pairs.
+    for (let i = 0; i < inputs.length; i++) {
+      const { selector, value, type } = inputs[i];
+      try {
+        const loc = typeof selector === "function"
+          ? selector(page)
+          : page.locator(selector).first();
+        if (await loc.isVisible({ timeout: 2000 }).catch(() => false)) {
+          if (type === "select") {
+            await loc.selectOption({ label: value }).catch(async () => {
+              await loc.selectOption(value).catch(() => {});
+            });
+          } else {
+            await loc.fill(value);
+          }
+        }
+      } catch (e) {
+        console.log(`  input ${i} (${typeof selector === "string" ? selector : "fn"}) skipped:`, e.message?.slice(0, 80));
+      }
+    }
+    await shotsAndToast(page, outDir, "04-filled");
+
+    // Strategy: find ALL buttons matching submitBtnRegex, log their state, pick the
+    // enabled non-disabled one (often the modal submit, not the page header trigger).
+    const matchingButtons = await page.locator("button").filter({ hasText: submitBtnRegex }).all();
+    console.log(`  found ${matchingButtons.length} matching buttons`);
+    let clicked = false;
+    for (let i = matchingButtons.length - 1; i >= 0; i--) {
+      const btn = matchingButtons[i];
+      const disabled = await btn.isDisabled().catch(() => true);
+      const visible = await btn.isVisible().catch(() => false);
+      console.log(`    [${i}] visible=${visible} disabled=${disabled}`);
+      if (visible && !disabled) {
+        await btn.click({ force: true }).catch(async () => {
+          await btn.dispatchEvent("click").catch(() => {});
+        });
+        clicked = true;
+        break;
+      }
+    }
+    if (!clicked) {
+      return { feature: featurePath, skipped: `no enabled submit button (${submitBtnRegex})` };
+    }
+    await page.waitForTimeout(8000);
+    await shotsAndToast(page, outDir, "05-submitting");
+
+    await waitForEncryptionDone(page);
+    await page.waitForTimeout(8000);
+    await shotsAndToast(page, outDir, "06-done");
+
+    // Look for confirmation toast
+    const toast = await page.waitForSelector(
+      'text=/Transaction confirmed|created|posted|sent|sealed|success|placed|MATCHED|started/i',
+      { timeout: 60000 }
+    ).catch(() => null);
+    await shotsAndToast(page, outDir, "07-toast");
+    return {
+      feature: featurePath,
+      submitted: true,
+      toastText: toast ? (await toast.textContent().catch(() => null)) : null,
+    };
+  };
+}
+
+// Generic smoke driver — kept for features that only need page+connect proof.
 function smokeDriver(featurePath, primaryButtonRegex) {
   return async function (page, outDir) {
     await page.goto(`${BASE}${featurePath}`, { waitUntil: "networkidle" });
@@ -422,17 +513,115 @@ const DRIVERS = {
   auctions: driveAuctions,
   payments: drivePayments,
   otc: driveOtc,
-  vickrey: smokeDriver("/vickrey", /Create Auction|New Auction|\+ New/i),
-  dutch: smokeDriver("/dutch", /Create Auction|New Auction|\+ New/i),
-  batch: smokeDriver("/batch", /Create|New Round|\+ New/i),
-  overflow: smokeDriver("/overflow", /Create Sale|New Sale|\+ New/i),
-  multisig: smokeDriver("/multisig", /New Multisig|Create|\+ New/i),
-  freelance: smokeDriver("/freelance", /Post Job|New Job|\+ New/i),
-  allowlist: smokeDriver("/allowlist", /Create Allowlist|New Allowlist|\+ New/i),
-  org: smokeDriver("/org", /Create Org|New Org|\+ New/i),
-  streaming: smokeDriver("/streaming", /Start Stream|New Stream|\+ New/i),
+
+  // ── Deep drivers for the remaining hero features ─────────────────────────
+  // Each opens the create modal, fills required fields, clicks submit,
+  // waits for the encryption + tx confirmation, captures the toast.
+
+  multisig: deepDriver(
+    "/multisig",
+    /New multisig|\+ New|Create/i,
+    [
+      // token address is pre-filled to CDEX by default; threshold (uint64) input
+      { selector: 'input[type="number"], input[placeholder*="threshold" i]', value: "2" },
+    ],
+    /Encrypt & create|Confirming|Signing/i,
+  ),
+
+  org: deepDriver(
+    "/org",
+    /New org|Create Org|\+ New/i,
+    [
+      // The "Acme Treasury" placeholder text identifies the name field uniquely
+      { selector: (p) => p.getByPlaceholder("Acme Treasury"), value: "Zerith UI Test DAO" },
+    ],
+    /^Create$|Encrypt & create/i,
+  ),
+
+  allowlist: deepDriver(
+    "/allowlist",
+    /New allowlist|Create Allowlist|\+ New/i,
+    [
+      { selector: (p) => p.getByPlaceholder("VIP launch round"), value: "Zerith UI launch list" },
+      // Address line(s) - allowlist takes a list of addresses to hash into the root
+      { selector: 'textarea', value: "0x492aaF98150f0542dD8D7F5Df1bE98265809a3e0" },
+    ],
+    /Create allowlist|^Create$|Encrypt & create/i,
+  ),
+
+  streaming: deepDriver(
+    "/streaming",
+    /Start stream|New Stream|\+ New/i,
+    [
+      { selector: 'input[placeholder*="0x" i]', value: "0x2DD7E1e7F572a6B7D5e9e65910997cA141BbFb9d" },
+      { selector: 'input[type="number"], input[placeholder*="rate" i], input[placeholder*="amount" i]', value: "1" },
+    ],
+    /Start stream|Encrypt & create/i,
+  ),
+
+  vickrey: deepDriver(
+    "/vickrey",
+    /Create Vickrey|\+ Create Vickrey/i,
+    [
+      // Payment Token select: index 1 (CDEX is the auctioned token at index 0)
+      { selector: (p) => p.locator("select").nth(1), value: "MOCK", type: "select" },
+      { selector: 'input[type="number"]', value: "100" },
+    ],
+    /Create Vickrey Auction|Create auction|Encrypt & create/i,
+  ),
+
+  dutch: deepDriver(
+    "/dutch",
+    /Create Dutch|\+ Create Dutch/i,
+    [
+      { selector: (p) => p.locator("select").nth(1), value: "MOCK", type: "select" },
+      { selector: 'input[type="number"]', value: "1000" },
+    ],
+    /Create Dutch Auction|Create auction|Encrypt & create/i,
+  ),
+
+  batch: deepDriver(
+    "/batch",
+    /Submit buy|Submit order|^Submit/i,
+    [
+      // Batch is admin-only for round creation; burner can submit a buy order on
+      // the existing COLLECTING round. The Submit Buy Order form opens inline.
+      { selector: 'input[type="number"]', value: "100" },
+    ],
+    /Encrypt & Submit|Submit buy order|Submit order/i,
+  ),
+
+  overflow: deepDriver(
+    "/overflow",
+    /^\+ Create Sale$|\+ Create Sale|New Sale|\+ New/i,
+    [
+      { selector: (p) => p.locator("select").nth(1), value: "MOCK", type: "select" },
+    ],
+    /Create Overflow Sale|^Create Sale$|Encrypt & create/i,
+  ),
+
+  freelance: deepDriver(
+    "/freelance",
+    /Post Job|New Job|\+ New|\+ Post/i,
+    [
+      { selector: 'input[placeholder*="title" i], input[type="text"]', value: "Build a Zerith widget" },
+      { selector: 'input[type="number"]', value: "100" },
+    ],
+    /Post Job|Encrypt & post/i,
+  ),
+
+  trade: deepDriver(
+    "/trade",
+    /New Order|Create Order|\+ New|^BUY$/i,
+    [
+      // On trade page, the create-order form is inline (not a modal).
+      // The first number input is the amount.
+      { selector: 'input[type="number"]', value: "100" },
+    ],
+    /Encrypt & Submit|Submit Order/i,
+  ),
+
   raffle: smokeDriver("/raffle", /New Raffle|Create|\+ New/i),
-  trade: smokeDriver("/trade", /New Order|Create Order|\+ New/i),
 };
 
 async function runOne(feature) {

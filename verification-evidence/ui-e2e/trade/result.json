@@ -1,5 +1,5 @@
 {
   "feature": "/trade",
-  "connected": true,
-  "primaryButtonFound": false
+  "submitted": true,
+  "toastText": null
 }
