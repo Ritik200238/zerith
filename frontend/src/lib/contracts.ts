@@ -1,5 +1,5 @@
 /**
- * Contract ABIs and factory functions for CipherDEX.
+ * Contract ABIs and factory functions for Zerith.
  *
  * ABIs are copied from Hardhat artifacts via `node copy-abis.js`.
  * Run that script after recompiling contracts to keep these in sync.
@@ -70,7 +70,7 @@ export const ABIS: Record<ContractName, ethers.InterfaceAbi> = {
 };
 
 /**
- * Create an ethers.Contract instance for a named CipherDEX contract.
+ * Create an ethers.Contract instance for a named Zerith contract.
  * Uses a read-only provider if no signer is given.
  */
 export function getContract(

@@ -124,7 +124,7 @@ export default function DashboardPage() {
               color: "var(--text-secondary)",
             }}
           >
-            CipherDEX is the encrypted operating system for DAOs. Launch tokens
+            Zerith is the encrypted operating system for DAOs. Launch tokens
             via sealed auctions. Pay contributors with encrypted splits. Trade
             without MEV. Hire without revealing budgets. All powered by{" "}
             <span className="gradient-text font-semibold">
@@ -452,7 +452,7 @@ export default function DashboardPage() {
             color: "var(--text-muted)",
           }}
         >
-          <span>CipherDEX · Built on Fhenix CoFHE</span>
+          <span>Zerith · Built on Fhenix CoFHE</span>
           <span>Arbitrum Sepolia · 421614</span>
         </div>
       </div>

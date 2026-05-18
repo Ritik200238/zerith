@@ -186,7 +186,7 @@ export default function ReputationPage() {
               Encrypted ratings.{" "}<em className="font-serif italic font-normal">Composable credit</em>.
             </h1>
             <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
-              Build a reputation score across every CipherDEX feature. Ratings encrypted — only counterparties you choose can read.
+              Build a reputation score across every Zerith feature. Ratings encrypted — only counterparties you choose can read.
             </p>
           </div>
         <div className="flex items-center gap-2">

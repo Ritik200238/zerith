@@ -30,13 +30,25 @@ export function Navbar() {
         <Link
           href="/"
           className="hidden md:flex items-center gap-2.5 group"
-          aria-label="CipherDEX home"
+          aria-label="Zerith home"
         >
-          <span className="font-display text-[17px] font-bold tracking-tight text-text leading-none">
-            CipherDEX
+          <span
+            className="font-display font-bold tracking-tight text-text leading-none"
+            style={{ fontSize: 17, letterSpacing: "-0.02em" }}
+          >
+            Zer<em className="font-serif italic font-normal">ith</em>
           </span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted leading-none mt-[2px] hidden lg:inline">
-            Fhenix FHE
+          <span
+            className="font-mono leading-none hidden lg:inline"
+            style={{
+              fontSize: 10,
+              color: "var(--text-muted)",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              marginTop: 2,
+            }}
+          >
+            Private finance
           </span>
         </Link>
 

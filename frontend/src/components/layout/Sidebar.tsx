@@ -143,17 +143,36 @@ export function Sidebar() {
         >
           <Link href="/" className="flex items-center gap-2.5 group min-w-0">
             <div
-              className="relative w-8 h-8 rounded shrink-0 flex items-center justify-center"
-              style={{ background: "var(--gradient)" }}
+              className="relative w-8 h-8 shrink-0 flex items-center justify-center"
+              style={{
+                background: "var(--text)",
+                borderRadius: "var(--radius)",
+              }}
             >
-              <Shield size={14} className="text-text drop-shadow-sm" />
+              <span
+                className="font-serif italic"
+                style={{ color: "var(--bg)", fontSize: 16, lineHeight: 1, fontWeight: 400 }}
+              >
+                Z
+              </span>
             </div>
             {expanded && (
               <div className="overflow-hidden">
-                <h1 className="font-display text-sm font-bold text-text tracking-tight leading-none">
-                  Cipher<em className="font-serif italic font-normal">DEX</em>
+                <h1
+                  className="font-display font-bold text-text tracking-tight leading-none"
+                  style={{ fontSize: 15, letterSpacing: "-0.02em" }}
+                >
+                  Zer<em className="font-serif italic font-normal">ith</em>
                 </h1>
-                <p className="font-mono text-[9px] text-textMuted tracking-[0.15em] uppercase mt-1">
+                <p
+                  className="font-mono mt-1"
+                  style={{
+                    fontSize: 9,
+                    color: "var(--text-muted)",
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                  }}
+                >
                   Private finance
                 </p>
               </div>

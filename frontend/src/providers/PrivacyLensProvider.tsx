@@ -31,7 +31,7 @@ interface PrivacyLensContextValue {
 
 const PrivacyLensContext = createContext<PrivacyLensContextValue | null>(null);
 
-const STORAGE_KEY = "cipherdex-privacy-lens-mode";
+const STORAGE_KEY = "zerith-privacy-lens-mode";
 const MODES: PrivacyMode[] = ["me", "counterparty", "observer"];
 
 export function PrivacyLensProvider({ children }: { children: ReactNode }) {

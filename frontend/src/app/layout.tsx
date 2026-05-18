@@ -9,9 +9,9 @@ import "./globals.css";
 // are defined in globals.css and consumed by Tailwind config.
 
 export const metadata: Metadata = {
-  title: "CipherDEX — Private Finance Infrastructure on Fhenix FHE",
+  title: "Zerith — Private Finance Infrastructure",
   description:
-    "Launch tokens, pay contributors, trade privately, hire talent. Every bid, payment, and trade encrypted on-chain with Fhenix FHE.",
+    "Launch tokens, pay contributors, trade privately, hire talent. Every bid, payment, and trade encrypted on-chain with fully homomorphic encryption on Fhenix.",
 };
 
 export default function RootLayout({

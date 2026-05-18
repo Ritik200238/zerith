@@ -141,7 +141,7 @@ export default function AuditPage() {
           className="max-w-2xl"
           style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}
         >
-          Every contract CipherDEX deploys is listed below. For each, we publish the schema —
+          Every contract Zerith deploys is listed below. For each, we publish the schema —
           which fields are encrypted, which are public, and which FHE operations the contract
           calls. Live counts come straight from the chain. No claim is unverifiable.
         </p>

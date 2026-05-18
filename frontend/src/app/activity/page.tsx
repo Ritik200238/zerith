@@ -237,7 +237,7 @@ export default function ActivityPage() {
           Your encrypted <em>history</em>, in one feed.
         </h1>
         <p className="body-lg max-w-2xl">
-          Payments, auction bids, reserve proofs — every action you&apos;ve taken on CipherDEX
+          Payments, auction bids, reserve proofs — every action you&apos;ve taken on Zerith
           in chronological order. Amounts stay sealed; only you can unseal your own data.
         </p>
         <div className="flex gap-3 pt-2">

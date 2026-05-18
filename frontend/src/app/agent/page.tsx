@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 /**
- * CipherDEX Agent — natural-language → encrypted tx, at /agent.
+ * Zerith Agent — natural-language → encrypted tx, at /agent.
  *
  * Wave 4 WOW feature. User types a command in English; we parse, show the
  * resolved intent + the exact contract call we will make, encrypt the
@@ -56,7 +56,7 @@ export default function AgentPage() {
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash] = useState<string | undefined>();
   const [txError, setTxError] = useState<string | undefined>();
-  useTxFeedback(txState, { label: "CipherDEX Agent", type: "system", href: "/agent", txHash });
+  useTxFeedback(txState, { label: "Zerith Agent", type: "system", href: "/agent", txHash });
 
   const handleExampleClick = (cmd: string) => setInput(cmd);
 
@@ -227,7 +227,7 @@ export default function AgentPage() {
           className="font-mono text-[11px] uppercase tracking-[0.1em]"
           style={{ color: "var(--text-muted)" }}
         >
-          — CipherDEX Agent · Beta
+          — Zerith Agent · Beta
         </div>
         <h1
           className="font-display font-bold tracking-tight leading-[1.02] mb-4"

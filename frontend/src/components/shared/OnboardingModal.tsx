@@ -11,7 +11,7 @@ import { useWallet } from "@/providers/WalletProvider";
 import { useContract } from "@/hooks/useContract";
 import { useToast } from "@/components/shared/Toast";
 
-const STORAGE_KEY = "cipherdex-onboarding-seen";
+const STORAGE_KEY = "zerith-onboarding-seen";
 
 type StepKey = "welcome" | "fhe" | "connect" | "faucet" | "path";
 
@@ -310,7 +310,7 @@ function ScreenWelcome() {
         </p>
       </div>
       <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.65 }}>
-        Every payment, bid, trade, and salary on CipherDEX is encrypted on-chain.
+        Every payment, bid, trade, and salary on Zerith is encrypted on-chain.
         Smart contracts compute on the ciphertext directly — the plaintext never
         exists publicly.
       </p>
@@ -454,7 +454,7 @@ function ScreenConnect({
           lineHeight: 1.5,
         }}
       >
-        CipherDEX never holds your keys, never sees your private values, and
+        Zerith never holds your keys, never sees your private values, and
         never charges custodial fees.
       </p>
     </div>

@@ -59,7 +59,7 @@ export default function GlobalError({
             .
           </h2>
           <p style={{ color: "#3D3D3A", marginBottom: 32, lineHeight: 1.6 }}>
-            CipherDEX hit an unexpected error. The protocol is fine — try again or
+            Zerith hit an unexpected error. The protocol is fine — try again or
             refresh the page.
           </p>
           <button

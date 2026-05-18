@@ -10,7 +10,7 @@ import { FHENIX_TESTNET } from "@/lib/constants";
 /**
  * Permit Manager — header dropdown that surfaces the user's privacy keys.
  *
- * Permits authorize CipherDEX contracts to share encrypted data with the
+ * Permits authorize Zerith contracts to share encrypted data with the
  * caller. Previously they were silently auto-rotated every 23h with zero
  * visibility. Two changes:
  *   1. Rotation cadence raised to 30 DAYS (matches typical user session

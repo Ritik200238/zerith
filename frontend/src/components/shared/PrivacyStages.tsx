@@ -35,7 +35,7 @@ const STAGES: Stage[] = [
     subtitle: "Pure Cryptography",
     description:
       "Math, not hardware. Smart contracts compute directly on encrypted data with FHE. No TEE, no single trusted party.",
-    example: "CipherDEX is here today, powered by Fhenix CoFHE.",
+    example: "Zerith is here today, powered by Fhenix CoFHE.",
     icon: Lock,
     status: "current",
   },
@@ -45,7 +45,7 @@ const STAGES: Stage[] = [
     subtitle: "Defense in Depth",
     description:
       "Distributed key generation, permissionless operators, optional TEEs, economic incentives. Privacy survives partial compromise.",
-    example: "Where CipherDEX is heading as Fhenix's threshold network matures.",
+    example: "Where Zerith is heading as Fhenix's threshold network matures.",
     icon: ShieldCheck,
     status: "future",
   },
@@ -215,7 +215,7 @@ export function PrivacyStages() {
         style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.65 }}
       >
         Fhenix&apos;s public framework grades blockchain privacy on a 3-tier ladder.
-        We show you exactly where CipherDEX sits — and where we&apos;re heading.
+        We show you exactly where Zerith sits — and where we&apos;re heading.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

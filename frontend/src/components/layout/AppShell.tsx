@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="mx-auto w-full max-w-container px-5 md:px-10 pb-6 flex items-center justify-between">
             <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted">
-              CipherDEX · Fhenix FHE
+              Zerith · Private Finance Infrastructure
             </span>
             <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted">
               v1.0 · Buildathon

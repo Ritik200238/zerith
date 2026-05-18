@@ -1,5 +1,5 @@
 /**
- * Chain and contract configuration for CipherDEX on Fhenix (Ethereum Sepolia).
+ * Chain and contract configuration for Zerith on Fhenix (Ethereum Sepolia).
  * All 27 contracts below are deployed and live; addresses verified 2026-05-17.
  */
 
@@ -61,8 +61,8 @@ export type ContractName = keyof typeof CONTRACTS;
 /** Token metadata */
 export const TOKEN_CONFIG = {
   // Verified on-chain 2026-05-17 against ConfidentialToken at 0xad1c…BA196a:
-  // name() = "CipherDEX Token", symbol() = "CDEX". Stale "Sigil" labels removed.
-  name: "CipherDEX Token",
+  // name() = "Zerith Token", symbol() = "CDEX". Stale "Sigil" labels removed.
+  name: "Zerith Token",
   symbol: "CDEX",
   decimals: 18,
   faucetAmount: "1000", // Amount minted per faucet call (human-readable)

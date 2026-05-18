@@ -302,7 +302,7 @@ export default function WrapperPage() {
         <input value={tokenAddress} onChange={(e) => setTokenAddress(e.target.value)} placeholder="0x..."
           className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm font-mono text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
         <p className="text-[10px] text-[var(--text-muted)] mt-1.5">
-          Default = CipherDEX&apos;s {TOKEN_CONFIG.symbol} token. Paste any other ERC-20 address to wrap it.
+          Default = Zerith&apos;s {TOKEN_CONFIG.symbol} token. Paste any other ERC-20 address to wrap it.
         </p>
       </section>
 

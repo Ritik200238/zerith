@@ -69,7 +69,7 @@ export function ComingSoonBanner({
 
       <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-borderDash">
         <p className="text-xs text-[var(--text-muted)]">
-          Want to try CipherDEX now?
+          Want to try Zerith now?
         </p>
         <Link
           href={redirectHref}
