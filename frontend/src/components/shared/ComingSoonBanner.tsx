@@ -10,7 +10,7 @@ import Link from "next/link";
  * fully integrated. Removes the lie of pretending these pages work and
  * redirects users to the working hero flows.
  *
- * Per the Sigil integrity rule: never fake functionality, always be honest
+ * Per the Zerith integrity rule: never fake functionality, always be honest
  * about limitations.
  */
 

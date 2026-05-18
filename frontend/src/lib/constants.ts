@@ -61,7 +61,7 @@ export type ContractName = keyof typeof CONTRACTS;
 /** Token metadata */
 export const TOKEN_CONFIG = {
   // Verified on-chain 2026-05-17 against ConfidentialToken at 0xad1c…BA196a:
-  // name() = "Zerith Token", symbol() = "CDEX". Stale "Sigil" labels removed.
+  // name() = "Zerith Token", symbol() = "CDEX". Stale "Zerith" labels removed.
   name: "Zerith Token",
   symbol: "CDEX",
   decimals: 18,

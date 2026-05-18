@@ -1,5 +1,5 @@
 /**
- * Sigil Agent — natural-language → structured intent parser.
+ * Zerith Agent — natural-language → structured intent parser.
  *
  * Wave 4 WOW feature. Takes free-text user input and returns a structured
  * `Intent` describing which contract to call and with what arguments. The
@@ -57,7 +57,7 @@ function durationToSeconds(s: string): number | null {
 /*  Parsers — return null on no match                                  */
 /* ------------------------------------------------------------------ */
 
-/** "pay 0xAlice 500", "send 50 SIGIL to 0x...", "transfer 10 to 0x..." */
+/** "pay 0xAlice 500", "send 50 CDEX to 0x...", "transfer 10 to 0x..." */
 function parsePay(raw: string): Intent | null {
   // Form A: "pay/send/transfer NUMBER (sigil)? (to)? ADDRESS"
   const reA = /^(pay|send|transfer)\s+(\d+(?:\.\d+)?)\s+(?:sigil\s+)?(?:to\s+)?(0x[0-9a-fA-F]{40})/i;
@@ -69,7 +69,7 @@ function parsePay(raw: string): Intent | null {
       return {
         kind: "pay",
         raw,
-        summary: `Send ${num} SIGIL to ${addr.slice(0, 6)}…${addr.slice(-4)} privately`,
+        summary: `Send ${num} CDEX to ${addr.slice(0, 6)}…${addr.slice(-4)} privately`,
         fields: { recipient: addr, amount: String(num) },
         confidence: 0.95,
         rationale: "matched pay/send/transfer + amount + address",
@@ -88,7 +88,7 @@ function parsePay(raw: string): Intent | null {
       return {
         kind: "pay",
         raw,
-        summary: `Send ${num} SIGIL to ${addr.slice(0, 6)}…${addr.slice(-4)} privately`,
+        summary: `Send ${num} CDEX to ${addr.slice(0, 6)}…${addr.slice(-4)} privately`,
         fields: { recipient: addr, amount: String(num) },
         confidence: 0.95,
         rationale: "matched pay/send/transfer + address + amount",
@@ -135,7 +135,7 @@ function parseStream(raw: string): Intent | null {
       return {
         kind: "stream",
         raw,
-        summary: `Stream ~${num} SIGIL to ${addr.slice(0, 6)}…${addr.slice(-4)} over ${dur}s (rate stays encrypted)`,
+        summary: `Stream ~${num} CDEX to ${addr.slice(0, 6)}…${addr.slice(-4)} over ${dur}s (rate stays encrypted)`,
         fields: { recipient: addr, ratePerSecond: String(ratePerSecond), duration: dur },
         confidence: 0.9,
         rationale: "matched stream + total + address + duration",
@@ -158,7 +158,7 @@ function parseBid(raw: string): Intent | null {
   return {
     kind: "bid",
     raw,
-    summary: `Place encrypted bid of ${num} SIGIL on Sealed Auction #${id}`,
+    summary: `Place encrypted bid of ${num} CDEX on Sealed Auction #${id}`,
     fields: { amount: String(num), auctionId: id },
     confidence: 0.92,
     rationale: "matched bid + amount + auction id",
@@ -178,7 +178,7 @@ function parsePostJob(raw: string): Intent | null {
   return {
     kind: "post-job",
     raw,
-    summary: `Post job "${title}" with ${escrow} SIGIL escrow`,
+    summary: `Post job "${title}" with ${escrow} CDEX escrow`,
     fields: { title, escrow: String(escrow) },
     confidence: 0.88,
     rationale: "matched post job + quoted title + escrow",
@@ -187,7 +187,7 @@ function parsePostJob(raw: string): Intent | null {
   };
 }
 
-/** "auction 50 SIGIL" — minimal sealed auction creation */
+/** "auction 50 CDEX" — minimal sealed auction creation */
 function parseAuction(raw: string): Intent | null {
   const re = /^(?:create\s+)?(?:sealed\s+)?auction\s+(\d+(?:\.\d+)?)\s*(?:sigil)?$/i;
   const m = raw.trim().match(re);
@@ -197,7 +197,7 @@ function parseAuction(raw: string): Intent | null {
   return {
     kind: "auction",
     raw,
-    summary: `Create Sealed Auction selling ${amount} SIGIL`,
+    summary: `Create Sealed Auction selling ${amount} CDEX`,
     fields: { amount: String(amount) },
     confidence: 0.8,
     rationale: "matched auction + amount",
@@ -243,5 +243,5 @@ export const EXAMPLE_COMMANDS = [
   "stream 100 to 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1 over 1 hour",
   "bid 200 on auction 1",
   'post job "Build landing page" 1000',
-  "auction 50 SIGIL",
+  "auction 50 CDEX",
 ];

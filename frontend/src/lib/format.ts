@@ -42,7 +42,7 @@ export function formatAmount(
   }
 }
 
-/** Format an amount + symbol pair, e.g. "1,250 SIGIL". */
+/** Format an amount + symbol pair, e.g. "1,250 CDEX". */
 export function formatAmountWithSymbol(
   raw: bigint | string | number | null | undefined,
   symbol: string = TOKEN_CONFIG.symbol,
