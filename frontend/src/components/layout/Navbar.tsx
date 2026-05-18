@@ -56,7 +56,9 @@ export function Navbar() {
             (navbar would otherwise overflow 375px viewport). Both remain
             reachable via in-page surfaces (permit prompts, activity feed). */}
         <div className="flex items-center gap-2 md:gap-3 ml-auto">
-          <PrivacyLensToggle />
+          <div className="hidden md:flex items-center gap-2 md:gap-3">
+            <PrivacyLensToggle />
+          </div>
           <FaucetButton />
           <div className="hidden md:flex items-center gap-2 md:gap-3">
             <PermitManager />

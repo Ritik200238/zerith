@@ -105,7 +105,7 @@ export function FaucetButton() {
       ) : (
         <Droplets size={14} />
       )}
-      <span>
+      <span className="hidden sm:inline">
         {isBusy
           ? "Processing..."
           : status === "success"
@@ -113,6 +113,9 @@ export function FaucetButton() {
             : status === "error"
               ? "Failed — retry"
               : "Get Test Tokens"}
+      </span>
+      <span className="sm:hidden">
+        {isBusy ? "..." : status === "success" ? "Done" : status === "error" ? "Retry" : "Tokens"}
       </span>
     </button>
   );
