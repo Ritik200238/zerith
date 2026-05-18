@@ -22,8 +22,7 @@ async function main() {
   );
 
   const por = await ethers.getContractAt("ProofOfReserves", addr.ProofOfReserves);
-  // The oldest claim (#0 in current state)
-  const CLAIM_ID = 0n;
+  const CLAIM_ID = BigInt(process.env.CLAIM_ID ?? "1");
   const claim: any = await por.getClaim(CLAIM_ID);
   console.log("Claim", CLAIM_ID.toString(), "status:", claim[5].toString(), "revealedAt:", claim[4].toString());
 
