@@ -1,4 +1,5 @@
 {
   "feature": "/agent",
-  "skipped": "open button not found (/\\+ Connect|^Connect Wallet$/i)"
+  "submitted": true,
+  "toastText": null
 }

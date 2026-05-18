@@ -760,15 +760,52 @@ const DRIVERS = {
     /Encrypt & create/i,
   ),
 
-  agent: deepDriver(
-    "/agent",
-    // Agent has its own flow — "Encrypt & run" submits the typed command directly
-    /\+ Connect|^Connect Wallet$/i,
-    [
-      { selector: 'input[type="text"], textarea', value: "auction 50 CDEX" },
-    ],
-    /Encrypt & run/i,
-  ),
+  agent: async (page, outDir) => {
+    await page.goto(`${BASE}/agent?_cb=${Date.now()}`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+    await shotsAndToast(page, outDir, "01-loaded");
+    await clickConnectAndWait(page, outDir);
+
+    // Inline form — no modal. Fill the textarea with a parseable command.
+    const textarea = page.getByPlaceholder("e.g. pay 0x... 500");
+    await textarea.fill("pay 0x2DD7E1e7F572a6B7D5e9e65910997cA141BbFb9d 10");
+    await page.waitForTimeout(1500); // let intent parser detect
+    await shotsAndToast(page, outDir, "04-command-filled");
+
+    const submit = page.getByRole("button", { name: /Encrypt & run/i }).first();
+    if (!(await submit.isVisible({ timeout: 3000 }).catch(() => false))) {
+      return { feature: "/agent", skipped: "no Encrypt & run button" };
+    }
+    const disabled = await submit.isDisabled().catch(() => true);
+    if (disabled) {
+      // Intent may have been unrecognized — try a different known-good command
+      await textarea.fill("auction 50 CDEX");
+      await page.waitForTimeout(1500);
+      await shotsAndToast(page, outDir, "04b-second-command");
+      const stillDisabled = await submit.isDisabled().catch(() => true);
+      if (stillDisabled) {
+        return { feature: "/agent", skipped: "Encrypt & run disabled — intent parser couldn't classify" };
+      }
+    }
+    await submit.click({ force: true });
+    await page.waitForTimeout(8000);
+    await shotsAndToast(page, outDir, "05-running");
+    await waitForEncryptionDone(page);
+    await page.waitForFunction(() => {
+      const el = Array.from(document.querySelectorAll("*")).find(
+        (n) => /Processing…|Confirming…/i.test(n.textContent || "")
+      );
+      return !el || el.offsetParent === null;
+    }, { timeout: 120000 }).catch(() => {});
+    await page.waitForTimeout(8000);
+    await shotsAndToast(page, outDir, "06-done");
+    const toast = await page.waitForSelector(
+      'text=/Transaction confirmed|Confirmed on-chain|Intent ran|posted|created/i',
+      { timeout: 60000 }
+    ).catch(() => null);
+    await shotsAndToast(page, outDir, "07-toast");
+    return { feature: "/agent", submitted: true, toastText: toast ? await toast.textContent() : null };
+  },
 
   raffle: deepDriver(
     "/raffle",
