@@ -248,7 +248,7 @@ export default function AuctionSuitePage() {
             <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: "var(--accent-2)" }} />
             <p className="text-sm text-textSecondary">
               Every mechanism uses the same privacy backbone: encrypted bids submitted via
-              <code className="mx-1 px-1 font-mono text-xs" style={{ background: "var(--bg-alt)" }}>cofhejs</code>,
+              <code className="mx-1 px-1 font-mono text-xs" style={{ background: "var(--bg-alt)" }}>@cofhe/sdk</code>,
               compared on-chain via FHE.gt / FHE.max / FHE.gte, and revealed via the
               Fhenix Threshold Network with on-chain signature verification.
               <strong> Losing bids never decrypt — ever.</strong>

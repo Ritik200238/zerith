@@ -689,7 +689,7 @@ export default function TradePage() {
             {/* Privacy note */}
             <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3 space-y-1">
               <p className="text-[10px] text-[var(--text)]/60 leading-relaxed">
-                Your price is encrypted client-side via cofhejs and submitted
+                Your price is encrypted client-side via @cofhe/sdk and submitted
                 as a ciphertext. The contract uses FHE.gte() to match orders
                 without decrypting either price.
               </p>

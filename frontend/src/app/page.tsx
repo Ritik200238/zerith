@@ -287,7 +287,7 @@ export default function DashboardPage() {
               {
                 step: "01",
                 title: "Encrypt client-side",
-                desc: "Your values are encrypted via cofhejs before leaving your browser. A ZK proof guarantees validity without revealing the plaintext.",
+                desc: "Your values are encrypted via @cofhe/sdk before leaving your browser. A ZK proof guarantees validity without revealing the plaintext.",
               },
               {
                 step: "02",
