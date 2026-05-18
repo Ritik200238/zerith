@@ -166,7 +166,7 @@ export default function WrapperPage() {
     setTxState("signing");
     setTxError(undefined);
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint64(amount)]);
       if (!enc) throw new Error("Encryption failed");
       const tx = await wrapperContract.transferConfidential(tokenAddress, transferTo, enc[0]);

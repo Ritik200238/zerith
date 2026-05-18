@@ -140,7 +140,7 @@ export default function StreamingPage() {
     setTxError(undefined);
     setTxHash(undefined);
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint64(rateBn)]);
       if (!enc) throw new Error("Encryption failed");
 

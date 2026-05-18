@@ -164,7 +164,7 @@ export default function OTCPage() {
     }
     setTxState("signing");
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([
         Encryptable.uint128(amountBn),
         Encryptable.uint128(minBn),
@@ -201,7 +201,7 @@ export default function OTCPage() {
     }
     setTxState("signing");
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint128(priceBn), Encryptable.uint128(amtBn)]);
       if (!enc) throw new Error("Encryption failed");
       const tx = await otcContract.submitQuote(selectedRequest.id, enc[0], enc[1]);

@@ -128,7 +128,7 @@ export default function LimitsPage() {
 
     setTxState("signing");
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint128(priceBn)]);
       if (!enc) throw new Error("Encryption failed");
       const tx = await limitsContract.createLimitOrder(tokenBuy, tokenSell, BigInt(amt), enc[0], direction);

@@ -90,10 +90,40 @@ Visual issues found and fixed in this audit:
 
 Screenshots saved under `qa-shots/v2-*.png` (microlink) and `C:\Users\ritik\AppData\Local\Temp\.playwright-mcp\pw-*.png` (Playwright).
 
-## D) Open items for next pass
+## D) 🚨 LAUNCH-BLOCKING FINDING: cofhejs is deprecated, broken against current Fhenix backend
 
-- [ ] Encrypted-balance unseal via cofhejs (`Show balance` button) — depends on cofhejs WASM init in headless Playwright; works in real browsers (verified via injection test).
-- [ ] End-to-end Blind Floor flow (create with encrypted reserve, bid, reveal) — needs cofhejs encrypt step.
+Discovered 2026-05-18 by direct Playwright test against the live deploy.
+
+**Symptom:** `SystemStatus` shows "FHE PENDING" forever. Every encrypted-balance op (deposit, withdraw, bid, payroll create, OTC quote, unseal balance) silently fails to start.
+
+**Root cause** (verified via cofhejs.initializeWithEthers in Playwright):
+
+```
+CofhejsError: An internal error occurred
+  cause: Error: Error serializing public key
+         Custom("invalid value: integer `7809075072243073024`, expected usize")
+```
+
+The TFHE-rs WASM in our bundled `cofhejs@0.3.1` cannot deserialize the public key the Fhenix CoFHE backend currently returns. Why:
+
+- `cofhejs@0.3.1` depends on `tfhe@0.11.1`
+- `@cofhe/sdk@0.5.2` (also already in `package.json`) depends on `tfhe@1.5.3`
+- The Fhenix testnet backend has upgraded to the new TFHE encoding format, which `tfhe@0.11.1` cannot parse
+- The npm registry marks `cofhejs` as **"Package no longer supported"** — Fhenix moved to `@cofhe/sdk`
+
+This explains why the faucet tx worked end-to-end (it's a plain ERC-20 mint, no client-side encryption needed) but every truly encrypted user input is dead.
+
+**Scope of the fix (migration to @cofhe/sdk):**
+- 4 core files: `providers/CofheProvider.tsx`, `hooks/useEncrypt.ts`, `hooks/useUnseal.ts`, `components/shared/PermitManager.tsx`
+- 22 page files that `import { Encryptable } from "cofhejs/web"` — need to switch to the new SDK's encrypt API
+- API surface differences: new SDK uses `createCofheClient` + chain configs; the old `cofhejs.initializeWithEthers({ environment: "TESTNET" })` shape is gone
+
+Until this is migrated, **no encrypted feature on Zerith actually works for users**. Visual editorial work, contract deployment, brand identity, Vercel deploy, faucet — all green. But the headline Fhenix-FHE-on-Sepolia value prop is currently broken at the client SDK layer.
+
+## E) Open items for next pass (post-cofhejs migration)
+
+- [ ] Encrypted-balance unseal via the new SDK (`Show balance` button).
+- [ ] End-to-end Blind Floor flow (create with encrypted reserve, bid, reveal).
 - [ ] One end-to-end Payroll split test (create + recipients claim).
 - [ ] Demo video recording (60-sec pitch).
 

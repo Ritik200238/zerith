@@ -281,7 +281,7 @@ export default function OverflowSalePage() {
         setTxState("idle");
         return;
       }
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       // Audit fix B3: OverflowSale.deposit expects InEuint64
       const enc = await encrypt([Encryptable.uint64(depositBn)]);
       if (!enc) throw new Error("Encryption failed");

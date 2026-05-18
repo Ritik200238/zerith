@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Key, Plus, RefreshCw, ChevronDown, ShieldCheck, AlertCircle } from "lucide-react";
 import { useWallet } from "@/providers/WalletProvider";
 import { useCofhe } from "@/hooks/useCofhe";
-import { FHENIX_TESTNET } from "@/lib/constants";
 
 /**
  * Permit Manager — header dropdown that surfaces the user's privacy keys.
@@ -47,9 +46,20 @@ function shortenHash(h: string): string {
   return `${h.slice(0, 6)}…${h.slice(-4)}`;
 }
 
+type SdkPermit = { hash?: string; name?: string; expiration?: number };
+type CofheClient = {
+  permits: {
+    list?: () => Promise<SdkPermit[]> | SdkPermit[];
+    getAll?: () => Promise<SdkPermit[]> | SdkPermit[];
+    createSelf: (opts: { issuer: string; name?: string; expiration?: number }) => Promise<SdkPermit>;
+    getOrCreateSelfPermit?: () => Promise<SdkPermit>;
+    remove?: (hash: string) => Promise<void> | void;
+  };
+};
+
 export function PermitManager() {
   const { account, isCorrectChain } = useWallet();
-  const { initialized } = useCofhe();
+  const { initialized, client } = useCofhe();
   const [open, setOpen] = useState(false);
   const [permits, setPermits] = useState<PermitInfo[]>([]);
   const [busy, setBusy] = useState(false);
@@ -57,24 +67,23 @@ export function PermitManager() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
-    if (!initialized || !account) {
+    if (!initialized || !client || !account) {
       setPermits([]);
       return;
     }
     try {
-      const { cofhejs } = await import("cofhejs/web");
-      const result = cofhejs.getAllPermits();
-      const data = (result?.data ?? {}) as Record<string, { name?: string; expiration?: number }>;
-      const list: PermitInfo[] = Object.entries(data).map(([hash, p]) => ({
-        hash,
-        name: p?.name,
-        expiresAt: p?.expiration,
+      const c = client as CofheClient;
+      const list = (await (c.permits.list?.() ?? c.permits.getAll?.() ?? [])) as SdkPermit[];
+      const mapped: PermitInfo[] = list.map((p) => ({
+        hash: p.hash ?? "",
+        name: p.name,
+        expiresAt: p.expiration,
       }));
-      setPermits(list);
+      setPermits(mapped);
     } catch {
       setPermits([]);
     }
-  }, [initialized, account]);
+  }, [initialized, client, account]);
 
   useEffect(() => {
     refresh();
@@ -95,35 +104,32 @@ export function PermitManager() {
   }, [open]);
 
   const handleCreate = useCallback(async () => {
-    if (!account) return;
+    if (!account || !client) return;
     setBusy(true);
     setError(null);
     try {
-      const { cofhejs } = await import("cofhejs/web");
-      const result = await cofhejs.createPermit({
-        type: "self",
+      const c = client as CofheClient;
+      await c.permits.createSelf({
         issuer: account,
-        // 30-day expiry — set as seconds-from-now if supported by the SDK
+        name: "Zerith",
         expiration: Math.floor(Date.now() / 1000) + ROTATION_WINDOW_SECONDS,
-      } as Parameters<typeof cofhejs.createPermit>[0]);
-      if (result?.error) throw new Error(String(result.error));
+      });
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message.slice(0, 80) : "Failed to create permit");
     } finally {
       setBusy(false);
     }
-  }, [account, refresh]);
+  }, [account, client, refresh]);
 
   const handleRevoke = useCallback(
     async (permitHash: string) => {
-      if (!account) return;
+      if (!account || !client) return;
       setBusy(true);
       setError(null);
       try {
-        const { permitStore } = await import("cofhejs/web");
-        const chainId = FHENIX_TESTNET.chainId.toString();
-        permitStore.removePermit(chainId, account, permitHash, true);
+        const c = client as CofheClient;
+        await c.permits.remove?.(permitHash);
         await refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message.slice(0, 80) : "Failed to revoke");
@@ -131,7 +137,7 @@ export function PermitManager() {
         setBusy(false);
       }
     },
-    [account, refresh],
+    [account, client, refresh],
   );
 
   // Detect any permit expiring soon — surface the renew prompt

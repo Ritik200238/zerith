@@ -144,7 +144,7 @@ export default function EscrowPage() {
     }
     setTxState("signing");
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint128(aBn), Encryptable.uint128(bBn)]);
       if (!enc) throw new Error("Encryption failed");
       const deadline = Math.floor(Date.now() / 1000) + dur;
@@ -177,7 +177,7 @@ export default function EscrowPage() {
     }
     setTxState("signing");
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint128(amt)]);
       if (!enc) throw new Error("Encryption failed");
       const tx = await escrowContract.fundDeal(selectedDeal.id, enc[0]);

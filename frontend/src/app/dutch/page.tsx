@@ -336,7 +336,7 @@ export default function DutchAuctionPage() {
         setTxState("idle");
         return;
       }
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       // Audit fix B1: DutchAuction.buy expects InEuint64, not InEuint128
       const enc = await encrypt([Encryptable.uint64(buyBn)]);
       if (!enc) throw new Error("Encryption failed");

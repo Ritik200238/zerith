@@ -4,8 +4,8 @@ import { useCallback, useState } from "react";
 import { useCofhe } from "./useCofhe";
 
 /**
- * Encryption stages reported by cofhejs during the encrypt() call.
- * Matches the EncryptStep enum from cofhejs/web.
+ * Encryption stages reported by the @cofhe/sdk client during encryptInputs.
+ * Matches the EncryptStep enum.
  */
 export type EncryptStage =
   | "idle"
@@ -23,17 +23,26 @@ interface EncryptState {
   error: string | null;
 }
 
+type CofheClient = {
+  encryptInputs: (items: unknown[]) => {
+    onStep: (cb: (step: string) => void) => {
+      execute: () => Promise<unknown[]>;
+    };
+    execute: () => Promise<unknown[]>;
+  };
+};
+
 /**
- * Hook wrapping cofhejs.encrypt() with progress tracking.
+ * Hook wrapping @cofhe/sdk client.encryptInputs(...).execute() with progress.
  *
  * Usage:
  * ```ts
  * const { encrypt, stage, encrypting, error } = useEncrypt();
- * const result = await encrypt([Encryptable.uint128(price)]);
+ * const [encPrice] = await encrypt([Encryptable.uint128(price)]) ?? [];
  * ```
  */
 export function useEncrypt() {
-  const { initialized } = useCofhe();
+  const { initialized, client } = useCofhe();
   const [state, setState] = useState<EncryptState>({
     stage: "idle",
     encrypting: false,
@@ -42,33 +51,31 @@ export function useEncrypt() {
 
   const encrypt = useCallback(
     async <T extends unknown[]>(items: [...T]) => {
-      if (!initialized) {
-        setState({ stage: "error", encrypting: false, error: "cofhejs not initialized" });
+      if (!initialized || !client) {
+        setState({ stage: "error", encrypting: false, error: "cofhe client not initialized" });
         return null;
       }
 
       setState({ stage: "extract", encrypting: true, error: null });
 
       try {
-        const { cofhejs } = await import("cofhejs/web");
-
-        const result = await cofhejs.encrypt(items, (step) => {
-          setState((prev) => ({ ...prev, stage: step as EncryptStage }));
-        });
-
-        if (result.error) {
-          throw new Error(String(result.error));
-        }
+        const c = client as CofheClient;
+        const result = await c
+          .encryptInputs(items as unknown[])
+          .onStep((step) => {
+            setState((prev) => ({ ...prev, stage: step as EncryptStage }));
+          })
+          .execute();
 
         setState({ stage: "done", encrypting: false, error: null });
-        return result.data;
+        return result as T;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Encryption failed";
         setState({ stage: "error", encrypting: false, error: message });
         return null;
       }
     },
-    [initialized],
+    [initialized, client],
   );
 
   const reset = useCallback(() => {

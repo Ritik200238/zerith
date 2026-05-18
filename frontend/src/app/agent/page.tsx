@@ -88,7 +88,7 @@ export default function AgentPage() {
     setTxHash(undefined);
 
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
 
       switch (intent.kind) {
         case "pay": {

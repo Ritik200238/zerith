@@ -166,7 +166,7 @@ export default function BatchPage() {
       }
       setTxState("signing");
       try {
-        const { Encryptable } = await import("cofhejs/web");
+        const { Encryptable } = await import("@cofhe/sdk");
         const enc = await encrypt([Encryptable.uint128(priceBn)]);
         if (!enc) throw new Error("Encryption failed");
         const fn = side === "buy" ? "submitBuyOrder" : "submitSellOrder";

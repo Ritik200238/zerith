@@ -192,7 +192,7 @@ export default function TreasuryPage() {
     try {
       // Approve vault as operator for token (idempotent — sets max uint48 expiration)
       // Most users will already have this from prior operations; harmless re-set.
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const encrypted = await encrypt([Encryptable.uint64(BigInt(amount))]);
       if (!encrypted) throw new Error("Encryption failed");
 
@@ -223,7 +223,7 @@ export default function TreasuryPage() {
     setTxHash(undefined);
 
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const encrypted = await encrypt([Encryptable.uint64(BigInt(amount))]);
       if (!encrypted) throw new Error("Encryption failed");
 

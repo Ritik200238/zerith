@@ -292,7 +292,7 @@ export default function FreelancePage() {
         setTxState("idle");
         return;
       }
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint128(bidBn)]);
       if (!enc) throw new Error("Encryption failed");
 

@@ -273,7 +273,7 @@ export default function TradePage() {
         setTxState("idle");
         return;
       }
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const encrypted = await encrypt([Encryptable.uint128(priceBn)]);
       if (!encrypted) throw new Error("Encryption failed");
 
@@ -316,7 +316,7 @@ export default function TradePage() {
         setTxState("idle");
         return;
       }
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const encrypted = await encrypt([Encryptable.uint128(takerPriceBn)]);
       if (!encrypted) throw new Error("Encryption failed");
 

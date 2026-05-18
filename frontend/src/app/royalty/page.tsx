@@ -168,7 +168,7 @@ export default function RoyaltyPage() {
     setTxState("signing");
     setTxError(undefined);
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const encItems = valid.map((r) => Encryptable.uint64(BigInt(Number(r.bps))));
       const enc = await encrypt(encItems);
       if (!enc) throw new Error("Encryption failed");

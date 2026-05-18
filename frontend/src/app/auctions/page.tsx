@@ -408,7 +408,7 @@ export default function AuctionsPage() {
       let tx;
       if (cBlindFloor) {
         // Encrypt the reserve client-side; the value NEVER decrypts on-chain.
-        const { Encryptable } = await import("cofhejs/web");
+        const { Encryptable } = await import("@cofhe/sdk");
         const enc = await encrypt([Encryptable.uint128(BigInt(cReserve))]);
         if (!enc) throw new Error("Reserve encryption failed");
         tx = await auctionContract.createBlindAuction(
@@ -459,7 +459,7 @@ export default function AuctionsPage() {
     setTxHash(undefined);
 
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint128(BigInt(bidAmount))]);
       if (!enc) throw new Error("Encryption failed");
 

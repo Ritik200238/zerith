@@ -236,7 +236,7 @@ export default function OrgPage() {
     }
     setTxState("signing");
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint64(weightBn)]);
       if (!enc) throw new Error("Encryption failed");
       const tx = await orgContract.addMember(selectedOrg.id, memberAddr, enc[0]);

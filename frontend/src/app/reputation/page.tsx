@@ -130,7 +130,7 @@ export default function ReputationPage() {
     }
     setTxState("signing");
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint8(BigInt(rating))]);
       if (!enc) throw new Error("Encryption failed");
       const tx = await repContract.submitRating(counterparty, enc[0], BigInt(tid));

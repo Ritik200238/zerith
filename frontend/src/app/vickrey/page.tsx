@@ -297,7 +297,7 @@ export default function VickreyAuctionsPage() {
         setTxState("idle");
         return;
       }
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint128(bidBn)]);
       if (!enc) throw new Error("Encryption failed");
       const tx = await auctionContract.bid(selectedAuction.id, enc[0]);
@@ -326,7 +326,7 @@ export default function VickreyAuctionsPage() {
    * Vickrey verifiable reveal flow (audit fix D-VA1).
    *
    * Reads 3 encrypted handles (highestBid, secondBid, highestBidder), fetches
-   * Threshold-Network signatures for each via @cofhe/sdk decryptForTx, then
+   * Threshold-Network signatures for each via /sdk decryptForTx, then
    * submits revealWinner with all 7 args. Old single-arg call no longer exists
    * on chain — would revert. Same pattern as SealedAuction.
    */

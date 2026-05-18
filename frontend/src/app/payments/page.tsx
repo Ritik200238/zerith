@@ -213,7 +213,7 @@ export default function PaymentsPage() {
     setTxHash(undefined);
 
     try {
-      const { Encryptable } = await import("cofhejs/web");
+      const { Encryptable } = await import("@cofhe/sdk");
 
       // Audit fix B2: PrivatePayments.createSplit expects InEuint64[]
       const encItems = valid.map((r) => Encryptable.uint64(BigInt(r.amount)));
