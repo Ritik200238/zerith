@@ -26,6 +26,11 @@ export function formatAmount(
     // Trim trailing zeros, cap fraction digits
     const num = Number(formatted);
     if (Number.isFinite(num)) {
+      // Sanity guard: anything ≥ 10^12 is almost certainly residue from
+      // a pre-decimals-fix on-chain value (10^18 scaled at decimals=6 =
+      // 10^12). Display as 'Legacy' instead of leaking misleading huge
+      // numbers like '100000.00B CDEX' that confuse users about state.
+      if (num >= 1e12) return "Legacy";
       // For large numbers, abbreviate
       if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
       if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
