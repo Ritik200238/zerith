@@ -4,15 +4,8 @@ import { motion } from "framer-motion";
 import { Box, Lock, ShieldCheck, ArrowRight } from "lucide-react";
 
 /**
- * Privacy Stages — public taxonomy showing where we are on the privacy journey.
- *
- * Based on Fhenix's Jan 2026 framework: a 3-tier ladder of cryptographic guarantees.
- * Stage 0 = TEE-only (trust the box). Stage 1 = pure FHE crypto, where we live now.
- * Stage 2 = DKG + permissionless operators + defense-in-depth (the future).
- *
- * Why it's on the landing: investors and judges read about Privacy Stages in
- * Fhenix's blog. Showing exactly where we sit + where we're going builds credibility
- * faster than any marketing copy can.
+ * Privacy Stages — Fhenix's Jan 2026 framework: TEE → pure FHE → DKG +
+ * permissionless operators. Shows exactly where we sit and where we're going.
  */
 
 interface Stage {
@@ -67,20 +60,37 @@ function StageCard({ stage, index }: { stage: Stage; index: number }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ delay: index * 0.1, duration: 0.4 }}
-      className={`relative overflow-hidden rounded-xl border p-6 space-y-4 transition-all
-        ${isCurrent
-          ? "border-emerald-500/30 bg-emerald-500/[0.03] shadow-lg shadow-emerald-500/5"
-          : "border-[var(--border-subtle)] bg-[var(--void-2)]/40"
-        }`}
+      className="relative overflow-hidden p-6 space-y-4"
+      style={{
+        background: isCurrent ? "var(--bg-card-hover)" : "var(--bg-card)",
+        border: "1px dashed",
+        borderColor: isCurrent ? "var(--text-muted)" : "var(--border-dash)",
+        borderRadius: "var(--radius)",
+      }}
     >
-      {/* Pulse for current stage */}
+      {/* "You are here" mark for current stage */}
       {isCurrent && (
         <div className="absolute top-3 right-3 flex items-center gap-1.5">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+          <span className="relative flex h-1.5 w-1.5">
+            <span
+              className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
+              style={{ background: "var(--success)" }}
+            />
+            <span
+              className="relative inline-flex rounded-full h-1.5 w-1.5"
+              style={{ background: "var(--success)" }}
+            />
           </span>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+          <span
+            className="font-mono"
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--text)",
+              fontWeight: 600,
+            }}
+          >
             You are here
           </span>
         </div>
@@ -89,43 +99,57 @@ function StageCard({ stage, index }: { stage: Stage; index: number }) {
       {/* Icon + label */}
       <div className="flex items-start gap-3">
         <div
-          className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0
-          ${isCurrent
-            ? "bg-emerald-500/20 border border-emerald-500/30"
-            : "bg-white/[0.03] border border-white/5"
-          }`}
+          className="flex items-center justify-center shrink-0"
+          style={{
+            width: 36,
+            height: 36,
+            background: "var(--bg-alt)",
+            border: "1px dashed var(--border-dash)",
+            borderRadius: "var(--radius)",
+          }}
         >
-          <stage.icon
-            size={18}
-            className={isCurrent ? "text-emerald-400" : "text-gray-500"}
-          />
+          <stage.icon size={16} style={{ color: "var(--text)" }} />
         </div>
 
         <div className="flex-1 min-w-0">
           <p
-            className={`text-[10px] font-bold uppercase tracking-[0.15em] mb-0.5
-            ${isCurrent ? "text-emerald-400" : "text-gray-500"}`}
+            className="font-mono mb-0.5"
+            style={{
+              fontSize: 10,
+              fontWeight: 500,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--text-muted)",
+            }}
           >
+            <span style={{ opacity: 0.5 }}>— </span>
             {stage.title}
           </p>
-          <h3 className="text-base font-bold text-[var(--text-primary)]">
+          <h3
+            className="font-display font-semibold"
+            style={{ fontSize: 16, color: "var(--text)", letterSpacing: "-0.015em" }}
+          >
             {stage.subtitle}
           </h3>
         </div>
       </div>
 
       {/* Description */}
-      <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
+      <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6 }}>
         {stage.description}
       </p>
 
       {/* Example chip */}
       <div
-        className={`text-[11px] leading-relaxed px-3 py-2 rounded-md border
-        ${isCurrent
-          ? "border-emerald-500/15 bg-emerald-500/[0.04] text-emerald-200/90"
-          : "border-white/5 bg-white/[0.02] text-gray-400"
-        }`}
+        className="px-3 py-2"
+        style={{
+          fontSize: 11,
+          lineHeight: 1.55,
+          color: isCurrent ? "var(--text-secondary)" : "var(--text-muted)",
+          background: "var(--bg-alt)",
+          border: "1px dashed var(--border-dash)",
+          borderRadius: "var(--radius)",
+        }}
       >
         {stage.example}
       </div>
@@ -137,25 +161,61 @@ export function PrivacyStages() {
   return (
     <section
       id="privacy-stages"
-      className="rounded-xl border border-[var(--border-subtle)] bg-[var(--void-2)]/20 p-6 md:p-8"
+      className="p-6 md:p-8"
+      style={{
+        background: "var(--bg-card)",
+        border: "1px dashed var(--border-dash)",
+        borderRadius: "var(--radius)",
+      }}
     >
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-[0.15em]">
+      <div className="flex items-center justify-between mb-3">
+        <span
+          className="font-mono"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--text-muted)",
+          }}
+        >
+          <span style={{ opacity: 0.5 }}>— </span>
           Privacy Stages
-        </h2>
+        </span>
         <a
           href="https://www.fhenix.io/blog/the-different-stages-of-privacy-a-taxonomy"
           target="_blank"
           rel="noopener noreferrer"
-          className="hidden md:flex items-center gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition"
+          className="hidden md:flex items-center gap-1 font-mono transition-colors"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--text-muted)",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
         >
           Read the framework <ArrowRight size={11} />
         </a>
       </div>
-      <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6 max-w-2xl">
-        How private is &quot;private&quot;? Fhenix&apos;s public framework grades blockchain
-        privacy on a 3-tier ladder. We show you exactly where CipherDEX sits — and
-        where we&apos;re heading.
+      <h2
+        className="font-display font-bold mb-4"
+        style={{
+          fontSize: "clamp(24px, 2.4vw, 32px)",
+          letterSpacing: "-0.02em",
+          lineHeight: 1.15,
+          color: "var(--text)",
+        }}
+      >
+        How <em className="font-serif italic font-normal">private</em> is
+        &quot;private&quot;?
+      </h2>
+      <p
+        className="max-w-2xl mb-8"
+        style={{ fontSize: 15, color: "var(--text-secondary)", lineHeight: 1.65 }}
+      >
+        Fhenix&apos;s public framework grades blockchain privacy on a 3-tier ladder.
+        We show you exactly where CipherDEX sits — and where we&apos;re heading.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

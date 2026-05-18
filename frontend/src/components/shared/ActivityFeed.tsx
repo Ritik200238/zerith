@@ -31,24 +31,23 @@ type FeedEntry = {
   unit: string;
   href: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
-  color: string;
   /** view-function name returning a uint count */
   getter: string;
 };
 
 const FEED: FeedEntry[] = [
-  { contract: "SealedAuction",       label: "Sealed Auctions",   unit: "auctions",   href: "/auctions",  icon: Gavel,           color: "text-blue-400",    getter: "getAuctionCount" },
-  { contract: "VickreyAuction",      label: "Vickrey Auctions",  unit: "auctions",   href: "/vickrey",   icon: Eye,             color: "text-violet-400",  getter: "getAuctionCount" },
-  { contract: "DutchAuction",        label: "Dutch Auctions",    unit: "auctions",   href: "/dutch",     icon: TrendingDown,    color: "text-amber-400",   getter: "getAuctionCount" },
-  { contract: "BatchAuction",        label: "Batch Rounds",      unit: "rounds",     href: "/batch",     icon: Layers,          color: "text-cyan-400",    getter: "getRoundCount" },
-  { contract: "OverflowSale",        label: "Overflow Sales",    unit: "sales",      href: "/overflow",  icon: Droplets,        color: "text-teal-400",    getter: "getSaleCount" },
-  { contract: "PrivatePayments",     label: "Payment Splits",    unit: "splits",     href: "/payments",  icon: Send,            color: "text-emerald-400", getter: "getSplitCount" },
-  { contract: "FreelanceBidding",    label: "Freelance Jobs",    unit: "jobs",       href: "/freelance", icon: Briefcase,       color: "text-orange-400",  getter: "getJobCount" },
-  { contract: "OrderBook",           label: "Active Orders",     unit: "orders",     href: "/trade",     icon: ArrowLeftRight,  color: "text-purple-400",  getter: "getActiveOrderCount" },
-  { contract: "EncryptedStreaming",  label: "Active Streams",    unit: "streams",    href: "/streaming", icon: Activity,        color: "text-pink-400",    getter: "getStreamCount" },
-  { contract: "Organization",        label: "Organizations",     unit: "orgs",       href: "/agent",     icon: Building2,       color: "text-fuchsia-400", getter: "getOrgCount" },
-  { contract: "ConfidentialMultisig", label: "Confidential Multisigs", unit: "vaults", href: "/audit",   icon: Sparkles,        color: "text-rose-400",    getter: "getMultisigCount" },
-  { contract: "EncryptedRaffle",     label: "Encrypted Raffles", unit: "raffles",    href: "/raffle",    icon: Trophy,          color: "text-yellow-400",  getter: "getRaffleCount" },
+  { contract: "SealedAuction",       label: "Sealed Auctions",        unit: "auctions", href: "/auctions",  icon: Gavel,          getter: "getAuctionCount" },
+  { contract: "VickreyAuction",      label: "Vickrey Auctions",       unit: "auctions", href: "/vickrey",   icon: Eye,            getter: "getAuctionCount" },
+  { contract: "DutchAuction",        label: "Dutch Auctions",         unit: "auctions", href: "/dutch",     icon: TrendingDown,   getter: "getAuctionCount" },
+  { contract: "BatchAuction",        label: "Batch Rounds",           unit: "rounds",   href: "/batch",     icon: Layers,         getter: "getRoundCount" },
+  { contract: "OverflowSale",        label: "Overflow Sales",         unit: "sales",    href: "/overflow",  icon: Droplets,       getter: "getSaleCount" },
+  { contract: "PrivatePayments",     label: "Payment Splits",         unit: "splits",   href: "/payments",  icon: Send,           getter: "getSplitCount" },
+  { contract: "FreelanceBidding",    label: "Freelance Jobs",         unit: "jobs",     href: "/freelance", icon: Briefcase,      getter: "getJobCount" },
+  { contract: "OrderBook",           label: "Active Orders",          unit: "orders",   href: "/trade",     icon: ArrowLeftRight, getter: "getActiveOrderCount" },
+  { contract: "EncryptedStreaming",  label: "Active Streams",         unit: "streams",  href: "/streaming", icon: Activity,       getter: "getStreamCount" },
+  { contract: "Organization",        label: "Organizations",          unit: "orgs",     href: "/agent",     icon: Building2,      getter: "getOrgCount" },
+  { contract: "ConfidentialMultisig", label: "Confidential Multisigs", unit: "vaults",  href: "/audit",     icon: Sparkles,       getter: "getMultisigCount" },
+  { contract: "EncryptedRaffle",     label: "Encrypted Raffles",      unit: "raffles",  href: "/raffle",    icon: Trophy,         getter: "getRaffleCount" },
 ];
 
 interface Props {
@@ -96,15 +95,30 @@ export function ActivityFeed({ variant = "grid", title = "Live activity" }: Prop
   }, [fetchAll, blockTick]);
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-4">
       {title && (
         <div className="flex items-center justify-between">
-          <h3 className="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold flex items-center gap-1.5">
-            <Activity size={12} className="text-[var(--cipher-violet)]" />
+          <span
+            className="font-mono flex items-center gap-1.5"
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--text-muted)",
+            }}
+          >
+            <Activity size={11} />
             {title}
-          </h3>
+          </span>
           {lastUpdated && (
-            <span className="text-[10px] text-[var(--text-muted)]">
+            <span
+              className="font-mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.05em",
+                color: "var(--text-muted)",
+              }}
+            >
               updated {Math.round((Date.now() - lastUpdated) / 1000)}s ago
             </span>
           )}
@@ -114,8 +128,8 @@ export function ActivityFeed({ variant = "grid", title = "Live activity" }: Prop
       <div
         className={
           variant === "grid"
-            ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2"
-            : "space-y-1.5"
+            ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
+            : "space-y-2"
         }
       >
         {FEED.map((f, i) => {
@@ -130,20 +144,49 @@ export function ActivityFeed({ variant = "grid", title = "Live activity" }: Prop
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.025 }}
-              className="glass rounded-lg p-3 hover:bg-white/[0.02] transition-colors group"
+              className="block p-3 transition-colors group"
+              style={{
+                background: "var(--bg-card)",
+                border: "1px dashed var(--border-dash)",
+                borderRadius: "var(--radius)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--text-muted)";
+                e.currentTarget.style.background = "var(--bg-card-hover)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--border-dash)";
+                e.currentTarget.style.background = "var(--bg-card)";
+              }}
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Icon size={14} className={`${f.color} shrink-0`} />
-                  <span className="text-[11px] text-[var(--text-secondary)] truncate group-hover:text-[var(--text-primary)]">
+                  <Icon size={12} className="shrink-0 text-textMuted" />
+                  <span
+                    className="truncate"
+                    style={{ fontSize: 11, color: "var(--text-secondary)" }}
+                  >
                     {f.label}
                   </span>
                 </div>
-                <span className="text-sm font-mono text-[var(--text-primary)] font-semibold">
+                <span
+                  className="font-mono"
+                  style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}
+                >
                   {display}
                 </span>
               </div>
-              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{f.unit}</div>
+              <div
+                className="font-mono"
+                style={{
+                  fontSize: 9,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--text-muted)",
+                }}
+              >
+                {f.unit}
+              </div>
             </motion.a>
           );
         })}

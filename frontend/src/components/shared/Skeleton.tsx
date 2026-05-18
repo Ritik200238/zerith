@@ -16,8 +16,6 @@ interface SkeletonProps {
 }
 
 export function Skeleton({ variant = "card", className = "" }: SkeletonProps) {
-  const base =
-    "relative overflow-hidden rounded-lg bg-[var(--void-4)]/40 border border-[var(--border-subtle)]/50";
   const sizes: Record<string, string> = {
     card: "h-24 w-full",
     row: "h-12 w-full",
@@ -25,12 +23,23 @@ export function Skeleton({ variant = "card", className = "" }: SkeletonProps) {
   };
 
   return (
-    <div className={`${base} ${sizes[variant]} ${className}`}>
+    <div
+      className={`relative overflow-hidden ${sizes[variant]} ${className}`}
+      style={{
+        background: "var(--bg-alt)",
+        border: "1px dashed var(--border-dash)",
+        borderRadius: "var(--radius)",
+      }}
+    >
       <motion.div
         initial={{ x: "-100%" }}
         animate={{ x: "100%" }}
         transition={{ duration: 1.6, repeat: Infinity, ease: "linear" }}
-        className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-white/[0.04] to-transparent"
+        className="absolute inset-y-0 w-1/3"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent 0%, rgba(17,17,17,0.04) 50%, transparent 100%)",
+        }}
       />
     </div>
   );

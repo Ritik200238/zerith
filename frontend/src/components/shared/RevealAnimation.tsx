@@ -91,17 +91,26 @@ export function RevealAnimation({
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="glass rounded-xl p-5 text-center space-y-3"
+      className="editorial-card p-5 text-center space-y-3"
     >
       <div className="flex items-center justify-center gap-2">
         {revealed ? (
-          <Unlock size={14} className="text-[var(--cipher-cyan)]" />
+          <Unlock size={12} style={{ color: "var(--success)" }} />
         ) : (
-          <Lock size={14} className="text-[var(--cipher-violet)] animate-pulse" />
+          <Lock size={12} className="animate-pulse" style={{ color: "var(--text-muted)" }} />
         )}
-        <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+        <span
+          className="font-mono"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--text-muted)",
+          }}
+        >
+          <span style={{ opacity: 0.5 }}>— </span>
           {label}
         </span>
       </div>
@@ -111,14 +120,14 @@ export function RevealAnimation({
           <motion.span
             key={i}
             animate={{
-              color: i < (revealed ? display.length : 0)
-                ? "var(--cipher-cyan)"
-                : "var(--cipher-violet)",
+              color: revealed ? "var(--text)" : "var(--text-muted)",
             }}
-            className={`
-              font-mono-cipher text-2xl font-bold inline-block w-[1.2ch] text-center
-              ${revealed ? "text-[var(--cipher-cyan)]" : "text-[var(--cipher-violet)]"}
-            `}
+            className="font-mono font-bold inline-block w-[1.2ch] text-center"
+            style={{
+              fontSize: 26,
+              letterSpacing: "-0.01em",
+              color: revealed ? "var(--text)" : "var(--text-muted)",
+            }}
           >
             {ch}
           </motion.span>
@@ -130,7 +139,13 @@ export function RevealAnimation({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="text-xs text-[var(--cipher-green)]"
+          className="font-mono"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "var(--success)",
+          }}
         >
           Decryption complete
         </motion.p>

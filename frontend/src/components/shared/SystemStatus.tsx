@@ -96,11 +96,11 @@ export function SystemStatus() {
       {/* FHE */}
       <div className="flex items-center gap-1.5">
         {initialized ? (
-          <Shield size={10} className="text-[var(--cipher-violet)]" />
+          <Shield size={10} className="text-text" />
         ) : (
-          <ShieldOff size={10} className="text-[var(--text-muted)]" />
+          <ShieldOff size={10} className="text-textMuted" />
         )}
-        <span className={initialized ? "text-[var(--cipher-violet)]" : "text-[var(--text-muted)]"}>
+        <span className={initialized ? "text-text" : "text-textMuted"}>
           FHE {initialized ? "Ready" : "Pending"}
         </span>
       </div>
@@ -110,11 +110,11 @@ export function SystemStatus() {
       {/* Network */}
       <div className="flex items-center gap-1.5">
         {isCorrectChain ? (
-          <Wifi size={10} className="text-[var(--cipher-cyan)]" />
+          <Wifi size={10} className="text-success" />
         ) : (
-          <WifiOff size={10} className="text-[var(--cipher-red)]" />
+          <WifiOff size={10} className="text-danger" />
         )}
-        <span className={isCorrectChain ? "text-[var(--cipher-cyan)]" : "text-[var(--cipher-red)]"}>
+        <span className={isCorrectChain ? "text-success" : "text-danger"}>
           {isCorrectChain ? "Sepolia" : "Wrong network"}
         </span>
       </div>
@@ -123,8 +123,8 @@ export function SystemStatus() {
 
       {/* Block height */}
       <div className="flex items-center gap-1.5" title="Latest block (polled every 12s)">
-        <Activity size={10} className="text-[var(--text-secondary)]" />
-        <span className="text-[var(--text-secondary)] font-mono">
+        <Activity size={10} className="text-textSecondary" />
+        <span className="text-textSecondary font-mono">
           #{blockNumber !== null ? blockNumber.toLocaleString() : "—"}
         </span>
       </div>
@@ -133,8 +133,8 @@ export function SystemStatus() {
 
       {/* Gas */}
       <div className="flex items-center gap-1.5" title="Current gas price">
-        <Fuel size={10} className="text-[var(--text-secondary)]" />
-        <span className="text-[var(--text-secondary)] font-mono">{gasLabel} gwei</span>
+        <Fuel size={10} className="text-textSecondary" />
+        <span className="text-textSecondary font-mono">{gasLabel} gwei</span>
       </div>
 
       <Sep />
@@ -145,11 +145,11 @@ export function SystemStatus() {
         title="Threshold Network — signs reveal proofs for FHE.publishDecryptResult"
       >
         {tnOk ? (
-          <CheckCircle2 size={10} className="text-emerald-400" />
+          <CheckCircle2 size={10} className="text-success" />
         ) : (
-          <Network size={10} className="text-amber-400" />
+          <Network size={10} className="text-warning" />
         )}
-        <span className={tnOk ? "text-emerald-400" : "text-amber-400"}>
+        <span className={tnOk ? "text-success" : "text-warning"}>
           TN {tnOk ? "OK" : "Stale"}
         </span>
       </div>
@@ -161,15 +161,15 @@ export function SystemStatus() {
           <div className="flex items-center gap-1.5">
             {balance !== null ? (
               <>
-                <Unlock size={10} className="text-[var(--cipher-green)]" />
-                <span className="text-[var(--cipher-green)] font-mono-cipher">{balance} SIGIL</span>
+                <Unlock size={10} className="text-success" />
+                <span className="text-text font-mono">{balance} CDEX</span>
               </>
             ) : (
               <button
                 onClick={handleUnsealBalance}
                 disabled={unsealing || balanceLoading || !initialized}
                 aria-label="Unseal encrypted balance"
-                className="flex items-center gap-1 text-[var(--text-muted)] hover:text-[var(--cipher-violet)] transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 text-textMuted hover:text-text transition-colors disabled:opacity-50"
               >
                 {unsealing || balanceLoading ? (
                   <Loader2 size={10} className="animate-spin" />

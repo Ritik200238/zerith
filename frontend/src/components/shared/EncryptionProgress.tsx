@@ -27,35 +27,44 @@ export function EncryptionProgress({ stage, visible }: EncryptionProgressProps) 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
-      className="glass rounded-xl p-4 space-y-3"
+      className="editorial-card p-4 space-y-3"
     >
-      <div className="flex items-center gap-2 text-sm font-medium text-purple-300">
-        <Lock size={14} />
+      <div
+        className="flex items-center gap-2 font-mono"
+        style={{
+          fontSize: 11,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: "var(--text-muted)",
+        }}
+      >
+        <Lock size={12} />
         Secure Processing
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         {ENCRYPT_STAGES.map((s, i) => {
           const isComplete = currentIndex > i || stage === "done";
           const isCurrent = currentIndex === i && stage !== "done";
-          const isPending = currentIndex < i && stage !== "done";
 
           return (
             <div key={s.key} className="flex-1 flex flex-col gap-1.5">
               {/* Progress bar segment */}
-              <div className="h-1.5 rounded-full overflow-hidden bg-gray-700/50">
+              <div
+                className="overflow-hidden"
+                style={{
+                  height: 2,
+                  background: "var(--bg-alt)",
+                  borderRadius: 1,
+                }}
+              >
                 <motion.div
-                  className={`h-full rounded-full ${
-                    isComplete
-                      ? "bg-emerald-500"
-                      : isCurrent
-                        ? "bg-purple-500"
-                        : "bg-transparent"
-                  }`}
-                  initial={{ width: "0%" }}
-                  animate={{
-                    width: isComplete ? "100%" : isCurrent ? "60%" : "0%",
+                  style={{
+                    height: "100%",
+                    background: isComplete || isCurrent ? "var(--text)" : "transparent",
                   }}
+                  initial={{ width: "0%" }}
+                  animate={{ width: isComplete ? "100%" : isCurrent ? "60%" : "0%" }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                 />
               </div>
@@ -63,20 +72,21 @@ export function EncryptionProgress({ stage, visible }: EncryptionProgressProps) 
               {/* Label */}
               <div className="flex items-center gap-1">
                 {isComplete ? (
-                  <Check size={10} className="text-emerald-400" />
+                  <Check size={9} style={{ color: "var(--success)" }} />
                 ) : isCurrent ? (
-                  <Loader2 size={10} className="text-purple-400 animate-spin" />
+                  <Loader2 size={9} className="animate-spin" style={{ color: "var(--text)" }} />
                 ) : null}
                 <span
-                  className={`text-[10px] ${
-                    isComplete
-                      ? "text-emerald-400"
+                  className="font-mono"
+                  style={{
+                    fontSize: 9,
+                    letterSpacing: "0.06em",
+                    color: isComplete
+                      ? "var(--success)"
                       : isCurrent
-                        ? "text-purple-300"
-                        : isPending
-                          ? "text-gray-500"
-                          : "text-gray-400"
-                  }`}
+                        ? "var(--text)"
+                        : "var(--text-muted)",
+                  }}
                 >
                   {s.label}
                 </span>
@@ -87,7 +97,9 @@ export function EncryptionProgress({ stage, visible }: EncryptionProgressProps) 
       </div>
 
       {stage === "error" && (
-        <p className="text-xs text-red-400">Encryption failed. Please try again.</p>
+        <p style={{ fontSize: 12, color: "var(--danger)" }}>
+          Encryption failed. Please try again.
+        </p>
       )}
     </motion.div>
   );

@@ -4,39 +4,31 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
-  X, Shield, ArrowRight, Eye, Lock, Rocket, Wallet, Coins,
+  X, Shield, ArrowRight, Eye, Rocket, Wallet, Coins,
   CheckCircle2, Loader2, Gavel, Send, ArrowLeftRight,
 } from "lucide-react";
 import { useWallet } from "@/providers/WalletProvider";
 import { useContract } from "@/hooks/useContract";
 import { useToast } from "@/components/shared/Toast";
 
-const STORAGE_KEY = "sigil-onboarding-seen";
+const STORAGE_KEY = "cipherdex-onboarding-seen";
 
 type StepKey = "welcome" | "fhe" | "connect" | "faucet" | "path";
 
 const STEPS: StepKey[] = ["welcome", "fhe", "connect", "faucet", "path"];
 
-// Primary landing — Treasury is the v1 hub (live balance + deposit/withdraw + Proof of Reserves).
-// Secondary paths let power users jump straight into a feature if they know what they want.
 const PRIMARY_PATH = { label: "Continue to Treasury", href: "/treasury" };
 const FEATURE_PATHS = [
-  { icon: Send, label: "Encrypted Payroll", href: "/payments", color: "text-emerald-400" },
-  { icon: Gavel, label: "Sealed Auction", href: "/auctions", color: "text-blue-400" },
-  { icon: ArrowLeftRight, label: "OTC Desk", href: "/otc", color: "text-violet-400" },
+  { icon: Send, label: "Encrypted Payroll", href: "/payments" },
+  { icon: Gavel, label: "Sealed Auction", href: "/auctions" },
+  { icon: ArrowLeftRight, label: "OTC Desk", href: "/otc" },
 ];
 
 /**
- * Audit fix W4-D1: 5-screen interactive onboarding (60-second target).
- *
- * Replaces the copy-only modal with real txs during onboarding:
- *  - screen 3 triggers wallet connect via WalletProvider
- *  - screen 4 fires the faucet contract
+ * 5-screen interactive onboarding (~60s). Issues real txs:
+ *  - screen 3 wallet connect
+ *  - screen 4 fires the faucet contract (first hands-on FHE op)
  *  - screen 5 routes to the picked feature
- *
- * Storage key gates re-display. The first encrypted operation
- * (faucet tx) runs during onboarding so the user has hands-on FHE
- * exposure before landing on a feature page.
  */
 export function OnboardingModal() {
   const router = useRouter();
@@ -85,7 +77,6 @@ export function OnboardingModal() {
   const handleConnect = useCallback(async () => {
     try {
       await connect();
-      // advance once we see account on next render
     } catch {
       toast.error("Wallet connect failed", "Please try again or check your wallet");
     }
@@ -98,7 +89,7 @@ export function OnboardingModal() {
       const tx = await tokenContract.faucet();
       await tx.wait();
       setFaucetState("done");
-      toast.success("Test tokens received", "1,000 SIGIL minted to your wallet");
+      toast.success("Test tokens received", "1,000 CDEX minted to your wallet");
     } catch (err) {
       setFaucetState("error");
       const isRejection = err instanceof Error && err.message.includes("user rejected");
@@ -117,7 +108,6 @@ export function OnboardingModal() {
     [dismiss, router],
   );
 
-  // Auto-advance from connect screen once account appears
   useEffect(() => {
     if (step === "connect" && account) {
       const t = setTimeout(() => setStep("faucet"), 600);
@@ -133,56 +123,78 @@ export function OnboardingModal() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+        style={{ background: "rgba(17, 17, 17, 0.45)", backdropFilter: "blur(6px)" }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="onboarding-title"
       >
         <motion.div
-          initial={{ scale: 0.92, opacity: 0, y: 20 }}
+          initial={{ scale: 0.96, opacity: 0, y: 12 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.92, opacity: 0, y: 20 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="glass-elevated rounded-2xl w-full max-w-lg overflow-hidden"
+          exit={{ scale: 0.96, opacity: 0, y: 12 }}
+          transition={{ type: "spring", damping: 28, stiffness: 320 }}
+          className="w-full max-w-lg overflow-hidden"
+          style={{
+            background: "var(--bg-card)",
+            border: "1px dashed var(--border-dash)",
+            borderRadius: "var(--radius)",
+            boxShadow: "0 1px 0 var(--border), 0 24px 60px rgba(17, 17, 17, 0.08)",
+          }}
         >
           {/* Progress bar */}
-          <div className="h-1 bg-[var(--void-5)]">
+          <div style={{ height: 2, background: "var(--bg-alt)" }}>
             <div
-              className="h-full bg-gradient-to-r from-[var(--cipher-violet)] to-[var(--cipher-cyan)] transition-all duration-500"
-              style={{ width: `${((stepIndex + 1) / totalSteps) * 100}%` }}
+              style={{
+                height: "100%",
+                width: `${((stepIndex + 1) / totalSteps) * 100}%`,
+                background: "var(--text)",
+                transition: "width 0.5s var(--ease)",
+              }}
             />
           </div>
 
-          {/* Top bar with dismiss */}
-          <div className="flex items-center justify-between px-5 pt-4">
-            <span className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold">
-              {stepIndex + 1} of {totalSteps} · ~60s
+          {/* Top bar with step indicator + dismiss */}
+          <div
+            className="flex items-center justify-between px-6 pt-4"
+            style={{ borderBottom: "1px dashed var(--border-dash)", paddingBottom: 12 }}
+          >
+            <span
+              className="font-mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "var(--text-muted)",
+              }}
+            >
+              <span style={{ opacity: 0.5 }}>— </span>
+              Step {stepIndex + 1} of {totalSteps} · ~60s
             </span>
             <button
               onClick={dismiss}
               aria-label="Close onboarding"
-              className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5 transition-colors"
+              className="p-1 transition-colors"
+              style={{ color: "var(--text-muted)", borderRadius: 4 }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
 
           {/* Body */}
-          <div className="px-6 pb-6 pt-2">
+          <div className="px-6 pb-6 pt-5">
             <AnimatePresence mode="wait">
               <motion.div
                 key={step}
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                exit={{ opacity: 0, x: -12 }}
                 transition={{ duration: 0.22 }}
               >
-                {step === "welcome" && (
-                  <ScreenWelcome />
-                )}
-                {step === "fhe" && (
-                  <ScreenFHE />
-                )}
+                {step === "welcome" && <ScreenWelcome />}
+                {step === "fhe" && <ScreenFHE />}
                 {step === "connect" && (
                   <ScreenConnect
                     account={account}
@@ -191,22 +203,29 @@ export function OnboardingModal() {
                   />
                 )}
                 {step === "faucet" && (
-                  <ScreenFaucet
-                    state={faucetState}
-                    onClaim={handleFaucet}
-                  />
+                  <ScreenFaucet state={faucetState} onClaim={handleFaucet} />
                 )}
-                {step === "path" && (
-                  <ScreenPath onPick={pickPath} />
-                )}
+                {step === "path" && <ScreenPath onPick={pickPath} />}
               </motion.div>
             </AnimatePresence>
 
             {/* Footer */}
-            <div className="flex items-center justify-between pt-5 mt-1">
+            <div
+              className="flex items-center justify-between pt-5 mt-5"
+              style={{ borderTop: "1px dashed var(--border-dash)" }}
+            >
               <button
                 onClick={stepIndex === 0 ? dismiss : goBack}
-                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                className="font-mono transition-colors"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--text-muted)",
+                  padding: "8px 0",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
               >
                 {stepIndex === 0 ? "Skip" : "Back"}
               </button>
@@ -218,13 +237,10 @@ export function OnboardingModal() {
                     (step === "connect" && !account) ||
                     (step === "faucet" && faucetState === "pending")
                   }
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-                             bg-gradient-to-r from-[var(--cipher-violet)] to-[var(--cipher-blue)]
-                             text-white hover:shadow-lg hover:shadow-[var(--cipher-violet)]/25
-                             transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="btn btn-primary btn-sm disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {stepIndex === totalSteps - 1 ? "Get Started" : "Next"}
-                  <ArrowRight size={14} />
+                  <ArrowRight size={12} />
                 </button>
               )}
             </div>
@@ -235,31 +251,69 @@ export function OnboardingModal() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Screens                                                            */
-/* ------------------------------------------------------------------ */
+/* ─── Screens ────────────────────────────────────────────────── */
+
+function ScreenIcon({ Icon }: { Icon: React.ComponentType<{ size?: number }> }) {
+  // Editorial icon thumbnail — dashed square, neutral, no gradient.
+  return (
+    <div
+      className="flex items-center justify-center"
+      style={{
+        width: 44,
+        height: 44,
+        border: "1px dashed var(--border-dash)",
+        borderRadius: "var(--radius)",
+        background: "var(--bg-alt)",
+        color: "var(--text)",
+      }}
+    >
+      <Icon size={18} />
+    </div>
+  );
+}
 
 function ScreenWelcome() {
   return (
     <div className="space-y-4">
-      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--cipher-violet)] to-[var(--cipher-blue)]
-                      flex items-center justify-center shadow-lg">
-        <Shield size={22} className="text-white" />
-      </div>
+      <ScreenIcon Icon={Shield} />
       <div>
-        <h2 id="onboarding-title" className="text-xl font-bold text-[var(--text-primary)]">
-          Welcome to CipherDEX
+        <h2
+          id="onboarding-title"
+          className="font-display font-bold"
+          style={{
+            fontSize: 22,
+            letterSpacing: "-0.02em",
+            color: "var(--text)",
+            lineHeight: 1.2,
+          }}
+        >
+          Welcome to Cipher
+          <em className="font-serif italic font-normal">DEX</em>
         </h2>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
+        <p
+          className="mt-1.5"
+          style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}
+        >
           The private operating system for DAOs.
         </p>
       </div>
-      <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-        Every payment, bid, trade, and salary on CipherDEX is encrypted on-chain. Smart contracts compute
-        on the ciphertext directly — the plaintext never exists publicly.
+      <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.65 }}>
+        Every payment, bid, trade, and salary on CipherDEX is encrypted on-chain.
+        Smart contracts compute on the ciphertext directly — the plaintext never
+        exists publicly.
       </p>
-      <div className="rounded-lg bg-[var(--void-4)]/50 p-3 text-xs text-[var(--text-muted)]">
-        Takes 60 seconds. You will connect a wallet, claim test tokens, and pick your first feature.
+      <div
+        className="p-3 font-mono"
+        style={{
+          background: "var(--bg-alt)",
+          border: "1px dashed var(--border-dash)",
+          borderRadius: "var(--radius)",
+          fontSize: 11,
+          color: "var(--text-muted)",
+          letterSpacing: "0.02em",
+        }}
+      >
+        Takes 60 seconds — connect wallet, claim test tokens, pick your first feature.
       </div>
     </div>
   );
@@ -268,31 +322,49 @@ function ScreenWelcome() {
 function ScreenFHE() {
   return (
     <div className="space-y-4">
-      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--cipher-cyan)] to-[var(--cipher-green)]
-                      flex items-center justify-center shadow-lg">
-        <Eye size={22} className="text-white" />
-      </div>
+      <ScreenIcon Icon={Eye} />
       <div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">
-          How FHE works in 30 seconds
+        <h2
+          className="font-display font-bold"
+          style={{
+            fontSize: 22,
+            letterSpacing: "-0.02em",
+            color: "var(--text)",
+            lineHeight: 1.2,
+          }}
+        >
+          How <em className="font-serif italic font-normal">FHE</em> works
         </h2>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Math without identity.
+        <p
+          className="mt-1.5"
+          style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}
+        >
+          Math without identity. Thirty seconds.
         </p>
       </div>
-      <ol className="space-y-3 text-sm">
-        <li className="flex gap-3">
-          <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--cipher-violet)]/20 text-[var(--cipher-violet)] text-xs font-bold flex items-center justify-center">1</span>
-          <span className="text-[var(--text-secondary)]"><b className="text-[var(--text-primary)]">Encrypt locally.</b> Your value gets encrypted in your browser before it ever leaves.</span>
-        </li>
-        <li className="flex gap-3">
-          <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--cipher-violet)]/20 text-[var(--cipher-violet)] text-xs font-bold flex items-center justify-center">2</span>
-          <span className="text-[var(--text-secondary)]"><b className="text-[var(--text-primary)]">Compute on ciphertext.</b> Contracts run gt/lt/add/select on the encrypted data without decrypting.</span>
-        </li>
-        <li className="flex gap-3">
-          <span className="shrink-0 w-6 h-6 rounded-full bg-[var(--cipher-violet)]/20 text-[var(--cipher-violet)] text-xs font-bold flex items-center justify-center">3</span>
-          <span className="text-[var(--text-secondary)]"><b className="text-[var(--text-primary)]">Reveal only the result.</b> Threshold Network signs the answer. Inputs stay sealed forever.</span>
-        </li>
+      <ol className="space-y-3">
+        {[
+          { n: "01", title: "Encrypt locally.", body: "Your value gets encrypted in the browser before it leaves." },
+          { n: "02", title: "Compute on ciphertext.", body: "Contracts run gt / lt / add / select on the encrypted data — no decrypt." },
+          { n: "03", title: "Reveal only the result.", body: "Threshold Network signs the answer. Inputs stay sealed forever." },
+        ].map((s) => (
+          <li key={s.n} className="flex gap-4">
+            <span
+              className="font-mono shrink-0"
+              style={{
+                fontSize: 11,
+                letterSpacing: "0.1em",
+                color: "var(--text-muted)",
+                paddingTop: 2,
+              }}
+            >
+              {s.n}
+            </span>
+            <span style={{ fontSize: 13.5, color: "var(--text-secondary)", lineHeight: 1.55 }}>
+              <strong style={{ color: "var(--text)" }}>{s.title}</strong> {s.body}
+            </span>
+          </li>
+        ))}
       </ol>
     </div>
   );
@@ -309,41 +381,69 @@ function ScreenConnect({
 }) {
   return (
     <div className="space-y-4">
-      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--cipher-blue)] to-[var(--cipher-violet)]
-                      flex items-center justify-center shadow-lg">
-        <Wallet size={22} className="text-white" />
-      </div>
+      <ScreenIcon Icon={Wallet} />
       <div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">Connect your wallet</h2>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          MetaMask on Eth Sepolia. We do not custody anything.
+        <h2
+          className="font-display font-bold"
+          style={{
+            fontSize: 22,
+            letterSpacing: "-0.02em",
+            color: "var(--text)",
+            lineHeight: 1.2,
+          }}
+        >
+          Connect your wallet
+        </h2>
+        <p
+          className="mt-1.5"
+          style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}
+        >
+          MetaMask on Ethereum Sepolia. We never custody anything.
         </p>
       </div>
 
       {account ? (
-        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 flex items-center gap-3">
-          <CheckCircle2 size={18} className="text-emerald-400" />
-          <div className="text-sm">
-            <p className="text-emerald-300 font-medium">Connected</p>
-            <p className="text-[10px] text-[var(--text-muted)] font-mono">{account.slice(0, 6)}…{account.slice(-4)}</p>
+        <div
+          className="p-3 flex items-center gap-3"
+          style={{
+            background: "var(--success-bg)",
+            border: "1px dashed var(--border-dash)",
+            borderRadius: "var(--radius)",
+          }}
+        >
+          <CheckCircle2 size={16} style={{ color: "var(--success)" }} />
+          <div>
+            <p style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>Connected</p>
+            <p
+              className="font-mono"
+              style={{ fontSize: 10, color: "var(--text-muted)", letterSpacing: "0.05em" }}
+            >
+              {account.slice(0, 6)}…{account.slice(-4)}
+            </p>
           </div>
         </div>
       ) : (
         <button
           onClick={onConnect}
           disabled={isConnecting}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg
-                     bg-gradient-to-r from-[var(--cipher-violet)] to-[var(--cipher-blue)]
-                     text-white text-sm font-medium hover:shadow-lg hover:shadow-[var(--cipher-violet)]/25
-                     transition-all disabled:opacity-50"
+          className="btn btn-primary w-full justify-center disabled:opacity-50"
         >
-          {isConnecting ? <Loader2 size={16} className="animate-spin" /> : <Wallet size={16} />}
-          {isConnecting ? "Connecting…" : "Connect MetaMask"}
+          {isConnecting ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />}
+          <span>{isConnecting ? "Connecting…" : "Connect MetaMask"}</span>
         </button>
       )}
 
-      <p className="text-[11px] text-[var(--text-muted)]">
-        CipherDEX never holds your keys, never sees your private values, and never charges custodial fees.
+      <p
+        className="font-mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.05em",
+          color: "var(--text-muted)",
+          lineHeight: 1.5,
+        }}
+      >
+        CipherDEX never holds your keys, never sees your private values, and
+        never charges custodial fees.
       </p>
     </div>
   );
@@ -358,23 +458,44 @@ function ScreenFaucet({
 }) {
   return (
     <div className="space-y-4">
-      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--cipher-green)] to-[var(--cipher-cyan)]
-                      flex items-center justify-center shadow-lg">
-        <Coins size={22} className="text-white" />
-      </div>
+      <ScreenIcon Icon={Coins} />
       <div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">Claim 1,000 SIGIL</h2>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Test tokens for the testnet. One click — confirms in your wallet.
+        <h2
+          className="font-display font-bold"
+          style={{
+            fontSize: 22,
+            letterSpacing: "-0.02em",
+            color: "var(--text)",
+            lineHeight: 1.2,
+          }}
+        >
+          Claim 1,000 <em className="font-serif italic font-normal">CDEX</em>
+        </h2>
+        <p
+          className="mt-1.5"
+          style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}
+        >
+          Test tokens for testnet. One click — confirms in your wallet.
         </p>
       </div>
 
       {state === "done" ? (
-        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 flex items-center gap-3">
-          <CheckCircle2 size={18} className="text-emerald-400" />
-          <div className="text-sm">
-            <p className="text-emerald-300 font-medium">1,000 SIGIL minted</p>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+        <div
+          className="p-3 flex items-center gap-3"
+          style={{
+            background: "var(--success-bg)",
+            border: "1px dashed var(--border-dash)",
+            borderRadius: "var(--radius)",
+          }}
+        >
+          <CheckCircle2 size={16} style={{ color: "var(--success)" }} />
+          <div>
+            <p style={{ fontSize: 13, color: "var(--text)", fontWeight: 600 }}>
+              1,000 CDEX minted
+            </p>
+            <p
+              style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}
+            >
               Your first encrypted balance. Visible only to you.
             </p>
           </div>
@@ -383,19 +504,30 @@ function ScreenFaucet({
         <button
           onClick={onClaim}
           disabled={state === "pending"}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg
-                     bg-gradient-to-r from-[var(--cipher-green)] to-[var(--cipher-cyan)]
-                     text-white text-sm font-medium hover:shadow-lg
-                     transition-all disabled:opacity-50"
+          className="btn btn-primary w-full justify-center disabled:opacity-50"
         >
-          {state === "pending" ? <Loader2 size={16} className="animate-spin" /> : <Coins size={16} />}
-          {state === "pending" ? "Confirming…" : state === "error" ? "Try again" : "Claim test tokens"}
+          {state === "pending" ? <Loader2 size={14} className="animate-spin" /> : <Coins size={14} />}
+          <span>
+            {state === "pending"
+              ? "Confirming…"
+              : state === "error"
+                ? "Try again"
+                : "Claim test tokens"}
+          </span>
         </button>
       )}
 
-      <p className="text-[11px] text-[var(--text-muted)]">
-        These tokens balance is encrypted on-chain. You will see your own value via a one-time
-        permit signature — nobody else can read it.
+      <p
+        className="font-mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.05em",
+          color: "var(--text-muted)",
+          lineHeight: 1.5,
+        }}
+      >
+        The balance is encrypted on-chain. Only you can read it via a one-time
+        permit signature — nobody else.
       </p>
     </div>
   );
@@ -404,46 +536,74 @@ function ScreenFaucet({
 function ScreenPath({ onPick }: { onPick: (href: string) => void }) {
   return (
     <div className="space-y-4">
-      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--cipher-violet)] to-[var(--cipher-cyan)]
-                      flex items-center justify-center shadow-lg">
-        <Rocket size={22} className="text-white" />
-      </div>
+      <ScreenIcon Icon={Rocket} />
       <div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)]">You&apos;re ready</h2>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Drop into the Treasury hub — your encrypted balance, deposits/withdraws,
-          and Proof of Reserves all in one view.
+        <h2
+          className="font-display font-bold"
+          style={{
+            fontSize: 22,
+            letterSpacing: "-0.02em",
+            color: "var(--text)",
+            lineHeight: 1.2,
+          }}
+        >
+          You&apos;re <em className="font-serif italic font-normal">ready</em>
+        </h2>
+        <p
+          className="mt-1.5"
+          style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}
+        >
+          Drop into the Treasury hub — your encrypted balance, deposits &amp; withdraws,
+          and Proof of Reserves in one view.
         </p>
       </div>
 
-      {/* Primary CTA — Treasury hub */}
       <button
         onClick={() => onPick(PRIMARY_PATH.href)}
-        className="w-full flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-80"
-        style={{ background: "var(--text)", color: "var(--bg)", borderRadius: 8 }}
+        className="btn btn-primary w-full justify-center"
       >
-        <Rocket size={14} /> {PRIMARY_PATH.label}
+        <Rocket size={14} />
+        <span>{PRIMARY_PATH.label}</span>
       </button>
 
-      {/* Secondary — jump straight into a feature if you know what you want */}
       <div className="space-y-2">
         <div
-          className="font-mono text-[10px] uppercase tracking-[0.1em]"
-          style={{ color: "var(--text-muted)" }}
+          className="font-mono"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "var(--text-muted)",
+          }}
         >
-          — or jump into a feature
+          <span style={{ opacity: 0.5 }}>— </span>
+          Or jump into a feature
         </div>
         <div className="grid grid-cols-3 gap-2">
-          {FEATURE_PATHS.map(({ icon: Icon, label, href, color }) => (
+          {FEATURE_PATHS.map(({ icon: Icon, label, href }) => (
             <button
               key={href}
               onClick={() => onPick(href)}
-              className="rounded-lg bg-[var(--void-4)]/40 hover:bg-[var(--void-4)]/80 border border-[var(--border-subtle)]
-                         hover:border-[var(--cipher-violet)]/40 p-3 flex flex-col items-start gap-2
-                         transition-all text-left"
+              className="flex flex-col items-start gap-2 p-3 text-left transition-colors"
+              style={{
+                background: "var(--bg-card)",
+                border: "1px dashed var(--border-dash)",
+                borderRadius: "var(--radius)",
+                color: "var(--text)",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--text-muted)";
+                e.currentTarget.style.background = "var(--bg-card-hover)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--border-dash)";
+                e.currentTarget.style.background = "var(--bg-card)";
+              }}
             >
-              <Icon size={16} className={color} />
-              <span className="text-xs font-medium text-[var(--text-primary)] leading-tight">{label}</span>
+              <Icon size={14} style={{ color: "var(--text-muted)" }} />
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text)", lineHeight: 1.3 }}>
+                {label}
+              </span>
             </button>
           ))}
         </div>
@@ -451,16 +611,18 @@ function ScreenPath({ onPick }: { onPick: (href: string) => void }) {
 
       <button
         onClick={() => onPick("/")}
-        className="w-full text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] py-2 transition-colors"
+        className="w-full font-mono py-2 transition-colors"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          color: "var(--text-muted)",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
       >
         Just take me to the landing page
       </button>
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/*  Decorative — not used directly but referenced in dependency       */
-/* ------------------------------------------------------------------ */
-
-const _decor = { Lock };

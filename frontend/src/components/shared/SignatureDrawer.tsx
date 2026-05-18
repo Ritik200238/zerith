@@ -7,25 +7,18 @@ import { X, ShieldCheck, Copy, ExternalLink, Check } from "lucide-react";
 /**
  * Trust artifact: shows the Threshold Network signature proof for any reveal.
  *
- * What user sees: click any "Verified" chip → drawer slides in from right.
- * Shows: ctHash, decrypted value, TN signature, on-chain tx link, copy buttons.
- *
- * This is the visible expression of the verifiable-reveal narrative —
- * privacy isn't a marketing claim, it's a cryptographic proof anyone can check.
+ * Click any "Verified" chip → drawer slides in from right. Shows ctHash,
+ * decrypted value, TN signature, on-chain tx link, copy buttons. The visible
+ * expression of verifiable reveal — privacy isn't a claim, it's a proof
+ * anyone can check.
  */
 
 export interface SignatureProof {
-  /** Encrypted handle that was decrypted */
   ctHash: string;
-  /** Decrypted plaintext value (formatted for display) */
   decryptedValue: string;
-  /** Threshold Network signature (0x...) */
   signature: string;
-  /** Optional: on-chain tx hash where the reveal was published */
   txHash?: string;
-  /** Optional: chain ID for etherscan link */
   chainId?: number;
-  /** Optional: human label for the value (e.g. "Winning bid", "Bidder address") */
   label?: string;
 }
 
@@ -41,6 +34,13 @@ const EXPLORER_BY_CHAIN: Record<number, string> = {
   84532: "https://sepolia.basescan.org",
 };
 
+const MONO_LABEL: React.CSSProperties = {
+  fontSize: 10,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
+  color: "var(--text-muted)",
+};
+
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -50,10 +50,13 @@ function CopyButton({ value }: { value: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-200 transition"
+      className="flex items-center gap-1 font-mono transition-colors"
+      style={MONO_LABEL}
+      onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+      onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
       aria-label="Copy to clipboard"
     >
-      {copied ? <Check size={12} /> : <Copy size={12} />}
+      {copied ? <Check size={11} /> : <Copy size={11} />}
       {copied ? "Copied" : "Copy"}
     </button>
   );
@@ -63,6 +66,12 @@ function shorten(str: string, head = 10, tail = 8): string {
   if (str.length <= head + tail + 3) return str;
   return `${str.slice(0, head)}...${str.slice(-tail)}`;
 }
+
+const VALUE_BOX: React.CSSProperties = {
+  background: "var(--bg-alt)",
+  border: "1px dashed var(--border-dash)",
+  borderRadius: "var(--radius)",
+};
 
 export function SignatureDrawer({ open, onClose, proof }: Props) {
   const explorer = proof?.chainId ? EXPLORER_BY_CHAIN[proof.chainId] : undefined;
@@ -77,7 +86,8 @@ export function SignatureDrawer({ open, onClose, proof }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-40"
+            style={{ background: "rgba(17,17,17,0.40)", backdropFilter: "blur(6px)" }}
           />
           <motion.aside
             key="sig-drawer"
@@ -85,41 +95,65 @@ export function SignatureDrawer({ open, onClose, proof }: Props) {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 280 }}
-            className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[480px]
-                       bg-[var(--void-1,#0a0a0f)] border-l border-white/10
-                       flex flex-col"
+            className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[480px] flex flex-col"
+            style={{
+              background: "var(--bg-card)",
+              borderLeft: "1px dashed var(--border-dash)",
+            }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center">
-                  <ShieldCheck size={18} className="text-emerald-400" />
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ borderBottom: "1px dashed var(--border-dash)" }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 flex items-center justify-center"
+                  style={{
+                    background: "var(--success-bg)",
+                    border: "1px dashed var(--border-dash)",
+                    borderRadius: "var(--radius)",
+                  }}
+                >
+                  <ShieldCheck size={16} style={{ color: "var(--success)" }} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-100">Verified Reveal</h3>
-                  <p className="text-xs text-gray-500">
+                  <h3
+                    className="font-display font-semibold"
+                    style={{ fontSize: 14, color: "var(--text)" }}
+                  >
+                    Verified Reveal
+                  </h3>
+                  <p className="font-mono" style={MONO_LABEL}>
                     Signed by Fhenix Threshold Network
                   </p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] transition"
+                className="p-1.5 transition-colors"
+                style={{ color: "var(--text-muted)", borderRadius: 4 }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
                 aria-label="Close"
               >
-                <X size={18} className="text-gray-400" />
+                <X size={16} />
               </button>
             </div>
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-              {/* Plaintext value (hero) */}
+              {/* Plaintext value */}
               <section>
-                <p className="text-xs uppercase tracking-wide text-gray-500 mb-1.5">
+                <p className="font-mono mb-2" style={MONO_LABEL}>
+                  <span style={{ opacity: 0.5 }}>— </span>
                   {proof.label ?? "Decrypted value"}
                 </p>
-                <div className="rounded-lg bg-white/[0.02] border border-white/5 p-4">
-                  <p className="font-mono text-lg text-gray-100 break-all">
+                <div className="p-4" style={VALUE_BOX}>
+                  <p
+                    className="font-mono break-all"
+                    style={{ fontSize: 18, color: "var(--text)", fontWeight: 500 }}
+                  >
                     {proof.decryptedValue}
                   </p>
                 </div>
@@ -127,14 +161,18 @@ export function SignatureDrawer({ open, onClose, proof }: Props) {
 
               {/* Encrypted handle */}
               <section>
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-xs uppercase tracking-wide text-gray-500">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-mono" style={MONO_LABEL}>
+                    <span style={{ opacity: 0.5 }}>— </span>
                     Encrypted handle (ctHash)
                   </p>
                   <CopyButton value={proof.ctHash} />
                 </div>
-                <div className="rounded-lg bg-white/[0.02] border border-white/5 p-3">
-                  <p className="font-mono text-xs text-gray-300 break-all">
+                <div className="p-3" style={VALUE_BOX}>
+                  <p
+                    className="font-mono break-all"
+                    style={{ fontSize: 11, color: "var(--text-secondary)" }}
+                  >
                     {shorten(proof.ctHash, 14, 12)}
                   </p>
                 </div>
@@ -142,23 +180,38 @@ export function SignatureDrawer({ open, onClose, proof }: Props) {
 
               {/* TN signature */}
               <section>
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-xs uppercase tracking-wide text-gray-500">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-mono" style={MONO_LABEL}>
+                    <span style={{ opacity: 0.5 }}>— </span>
                     Threshold Network signature
                   </p>
                   <CopyButton value={proof.signature} />
                 </div>
-                <div className="rounded-lg bg-white/[0.02] border border-white/5 p-3">
-                  <p className="font-mono text-xs text-emerald-300 break-all">
+                <div className="p-3" style={VALUE_BOX}>
+                  <p
+                    className="font-mono break-all"
+                    style={{ fontSize: 11, color: "var(--success)" }}
+                  >
                     {shorten(proof.signature, 18, 16)}
                   </p>
                 </div>
-                <p className="text-[11px] text-gray-500 mt-2 leading-relaxed">
+                <p
+                  className="mt-2"
+                  style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.55 }}
+                >
                   This signature proves the threshold network honestly decrypted
-                  the handle. The smart contract verified it on-chain via
-                  <code className="mx-1 px-1.5 py-0.5 rounded bg-white/[0.04] text-gray-300">
+                  the handle. The smart contract verified it on-chain via{" "}
+                  <code
+                    className="mx-1 px-1.5 py-0.5 font-mono"
+                    style={{
+                      fontSize: 10,
+                      background: "var(--bg-alt)",
+                      borderRadius: 3,
+                      color: "var(--text)",
+                    }}
+                  >
                     FHE.publishDecryptResult
-                  </code>
+                  </code>{" "}
                   before accepting the value.
                 </p>
               </section>
@@ -166,46 +219,73 @@ export function SignatureDrawer({ open, onClose, proof }: Props) {
               {/* On-chain tx */}
               {proof.txHash && explorer && (
                 <section>
-                  <p className="text-xs uppercase tracking-wide text-gray-500 mb-1.5">
+                  <p className="font-mono mb-2" style={MONO_LABEL}>
+                    <span style={{ opacity: 0.5 }}>— </span>
                     Published on-chain
                   </p>
                   <a
                     href={`${explorer}/tx/${proof.txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between rounded-lg
-                               bg-white/[0.02] border border-white/5 p-3
-                               hover:bg-white/[0.04] hover:border-white/10 transition"
+                    className="flex items-center justify-between p-3 transition-colors"
+                    style={VALUE_BOX}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "var(--bg-card-hover)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "var(--bg-alt)")
+                    }
                   >
-                    <span className="font-mono text-xs text-gray-300">
+                    <span
+                      className="font-mono"
+                      style={{ fontSize: 11, color: "var(--text-secondary)" }}
+                    >
                       {shorten(proof.txHash, 14, 12)}
                     </span>
-                    <span className="flex items-center gap-1 text-xs text-blue-400">
+                    <span
+                      className="flex items-center gap-1 font-mono"
+                      style={MONO_LABEL}
+                    >
                       Explorer
-                      <ExternalLink size={11} />
+                      <ExternalLink size={10} />
                     </span>
                   </a>
                 </section>
               )}
 
-              {/* What this means */}
-              <section className="rounded-lg bg-emerald-500/[0.04] border border-emerald-500/10 p-4">
-                <h4 className="text-sm font-semibold text-emerald-300 mb-1.5">
+              {/* What this proves */}
+              <section
+                className="p-4"
+                style={{
+                  background: "var(--success-bg)",
+                  border: "1px dashed var(--border-dash)",
+                  borderRadius: "var(--radius)",
+                }}
+              >
+                <h4
+                  className="font-display font-semibold mb-2"
+                  style={{ fontSize: 13, color: "var(--text)" }}
+                >
                   What this proves
                 </h4>
-                <ul className="space-y-1.5 text-[12px] text-gray-300 leading-relaxed">
-                  <li className="flex gap-2">
-                    <Check size={13} className="text-emerald-400 mt-0.5 shrink-0" />
-                    The decrypted value matches the original encrypted input.
-                  </li>
-                  <li className="flex gap-2">
-                    <Check size={13} className="text-emerald-400 mt-0.5 shrink-0" />
-                    Multiple independent operators agreed on the result.
-                  </li>
-                  <li className="flex gap-2">
-                    <Check size={13} className="text-emerald-400 mt-0.5 shrink-0" />
-                    No single party (not us, not the operators) could have faked it.
-                  </li>
+                <ul
+                  className="space-y-2"
+                  style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.55 }}
+                >
+                  {[
+                    "The decrypted value matches the original encrypted input.",
+                    "Multiple independent operators agreed on the result.",
+                    "No single party (not us, not the operators) could have faked it.",
+                  ].map((line) => (
+                    <li key={line} className="flex gap-2">
+                      <Check
+                        size={12}
+                        className="mt-0.5 shrink-0"
+                        style={{ color: "var(--success)" }}
+                      />
+                      {line}
+                    </li>
+                  ))}
                 </ul>
               </section>
             </div>
