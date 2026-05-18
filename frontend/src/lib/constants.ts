@@ -55,6 +55,9 @@ export const CONTRACTS = {
   ConfidentialWrapper: "0x7Cb515093392Af34cF14c654dbA666422420Df42",
   EncryptedRaffle: "0xEADb49571BCA5188d9AEe0DB7b7154eD118Af1b1",
   ProofOfReserves: "0xFA609253c0CA0297e8c272543EE806CAC203bd70",
+  // MockToken — used as the alternate side for auction/OTC pairs where the
+  // contract enforces token != paymentToken. Whitelisted on SettlementVault.
+  MockToken: "0x949caC2113c0AF90b309Ec1A9136f7B159d1A672",
 } satisfies Record<string, string>;
 
 export type ContractName = keyof typeof CONTRACTS;

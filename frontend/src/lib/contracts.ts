@@ -67,6 +67,9 @@ export const ABIS: Record<ContractName, ethers.InterfaceAbi> = {
   ConfidentialWrapper: ConfidentialWrapperAbi as unknown as ethers.InterfaceAbi,
   EncryptedRaffle: EncryptedRaffleAbi as unknown as ethers.InterfaceAbi,
   ProofOfReserves: ProofOfReservesAbi as unknown as ethers.InterfaceAbi,
+  // MockToken: a simple ERC-20 used as the alternate token for auction pairs.
+  // We don't need a custom ABI — the standard ERC-20 interface is enough.
+  MockToken: ConfidentialTokenAbi as ethers.InterfaceAbi,
 };
 
 /**
