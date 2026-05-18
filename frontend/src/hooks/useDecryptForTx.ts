@@ -65,6 +65,9 @@ export function useDecryptForTx() {
         return result;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "decryptForTx failed";
+        // P0 instrumentation: surface the actual error to console so UI bugs
+        // don't hide behind a silent null return + generic toast.error.
+        console.error("[useDecryptForTx] failed for ctHash", ctHash, ":", err);
         setState({ decrypting: false, error: message, result: null });
         return null;
       }
