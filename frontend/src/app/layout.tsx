@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: "Zerith — Private Finance Infrastructure",
   description:
     "Launch tokens, pay contributors, trade privately, hire talent. Every bid, payment, and trade encrypted on-chain with fully homomorphic encryption on Fhenix.",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+  },
 };
 
 export default function RootLayout({
