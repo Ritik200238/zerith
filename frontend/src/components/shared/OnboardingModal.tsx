@@ -11,7 +11,7 @@ import { useWallet } from "@/providers/WalletProvider";
 import { useContract } from "@/hooks/useContract";
 import { useToast } from "@/components/shared/Toast";
 
-const STORAGE_KEY = "zerith-onboarding-seen";
+const STORAGE_KEY = "zerith-onboarding-seen-v2";
 
 type StepKey = "welcome" | "fhe" | "connect" | "faucet" | "path";
 
@@ -299,8 +299,8 @@ function ScreenWelcome() {
             lineHeight: 1.2,
           }}
         >
-          Welcome to Cipher
-          <em className="font-serif italic font-normal">DEX</em>
+          Welcome to Zer
+          <em className="font-serif italic font-normal">ith</em>
         </h2>
         <p
           className="mt-1.5"
