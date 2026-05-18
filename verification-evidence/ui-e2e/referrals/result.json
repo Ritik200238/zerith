@@ -1,4 +1,5 @@
 {
   "feature": "/referrals",
-  "skipped": "no enabled submit button (/^Create code$|Encrypt & create/i)"
+  "submitted": true,
+  "toastText": "Transaction confirmed"
 }

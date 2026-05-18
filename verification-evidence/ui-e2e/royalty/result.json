@@ -1,4 +1,5 @@
 {
   "feature": "/royalty",
-  "skipped": "no enabled submit button (/Encrypt & register|Register split|Encrypt & create/i)"
+  "submitted": true,
+  "toastText": "Transaction confirmed"
 }

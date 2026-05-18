@@ -1,4 +1,5 @@
 {
   "feature": "/batch",
-  "skipped": "open button not found (/Submit buy|Submit order|^Submit/i)"
+  "submitted": true,
+  "toastText": "Transaction confirmed"
 }

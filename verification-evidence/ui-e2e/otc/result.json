@@ -1,4 +1,5 @@
 {
   "feature": "otc",
-  "note": "OTC post flow exercised"
+  "submitted": true,
+  "toastText": "Transaction confirmed"
 }

@@ -342,6 +342,48 @@ async function drivePayments(page, outDir) {
   return { feature: "payments", note: "create split flow exercised; verify via screenshots" };
 }
 
+async function driveOtcDeep(page, outDir) {
+  await page.goto(`${BASE}/otc?_cb=${Date.now()}`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(2000);
+  await shotsAndToast(page, outDir, "01-loaded");
+  await clickConnectAndWait(page, outDir);
+
+  const newReq = page.getByRole("button", { name: /New request|^\+ New$|\+ New/i }).first();
+  if (!(await newReq.isVisible({ timeout: 5000 }).catch(() => false))) {
+    return { feature: "otc", skipped: "no New request button" };
+  }
+  await newReq.click({ force: true });
+  await page.waitForTimeout(2000);
+  await shotsAndToast(page, outDir, "03-otc-modal");
+
+  // Fill all 6 fields: tokenWant, tokenOffer, reqAmount, minPrice, maxPrice, deadline
+  // Both tokenWant and tokenOffer default to CDEX. Need to change tokenOffer to MOCK.
+  const tokenInputs = page.locator('input[placeholder="0x..."]');
+  if ((await tokenInputs.count()) >= 2) {
+    // tokenWant stays CDEX, set tokenOffer = MOCK
+    await tokenInputs.nth(1).fill("0x949caC2113c0AF90b309Ec1A9136f7B159d1A672");
+  }
+  await page.getByPlaceholder("500").fill("100");
+  await page.getByPlaceholder("100").last().fill("90");
+  await page.getByPlaceholder("200").fill("110");
+  // Deadline already has default value (3600s) — leave as-is
+  await shotsAndToast(page, outDir, "04-otc-filled");
+
+  const submit = page.locator("button").filter({ hasText: /Encrypt & post/i }).last();
+  if (!(await submit.isVisible({ timeout: 3000 }).catch(() => false))) {
+    return { feature: "otc", skipped: "no Encrypt & post button" };
+  }
+  await submit.click({ force: true });
+  await page.waitForTimeout(8000);
+  await shotsAndToast(page, outDir, "05-otc-submitting");
+  await waitForEncryptionDone(page);
+  await page.waitForTimeout(8000);
+  await shotsAndToast(page, outDir, "06-otc-done");
+  const toast = await page.waitForSelector('text=/Transaction confirmed|posted|sealed/i', { timeout: 60000 }).catch(() => null);
+  await shotsAndToast(page, outDir, "07-otc-toast");
+  return { feature: "otc", submitted: true, toastText: toast ? await toast.textContent() : null };
+}
+
 async function driveOtc(page, outDir) {
   await page.goto(`${BASE}/otc`, { waitUntil: "networkidle" });
   await page.waitForTimeout(2000);
@@ -514,7 +556,7 @@ const DRIVERS = {
   treasury: driveTreasury,
   auctions: driveAuctions,
   payments: drivePayments,
-  otc: driveOtc,
+  otc: driveOtcDeep,
 
   // ── Deep drivers for the remaining hero features ─────────────────────────
   // Each opens the create modal, fills required fields, clicks submit,
@@ -589,13 +631,14 @@ const DRIVERS = {
 
   batch: deepDriver(
     "/batch",
-    /Submit buy|Submit order|^Submit/i,
+    /^Submit buy$/i,
     [
-      // Batch is admin-only for round creation; burner can submit a buy order on
-      // the existing COLLECTING round. The Submit Buy Order form opens inline.
-      { selector: 'input[type="number"]', value: "100" },
+      // Batch is admin-only for round creation; burner submits buy order on
+      // the existing COLLECTING round. Form has: maxPrice (text) + amount (number).
+      { selector: (p) => p.getByPlaceholder("100"), value: "100" },
+      { selector: (p) => p.locator('input[type="number"]').first(), value: "10" },
     ],
-    /Encrypt & Submit|Submit buy order|Submit order/i,
+    /^Submit$/i,
   ),
 
   overflow: deepDriver(
@@ -662,39 +705,50 @@ const DRIVERS = {
     "/referrals",
     /^Create code$|\+ Create code/i,
     [
-      { selector: 'input[type="text"]', value: "zerith-launch-ui" },
+      // Use a timestamp-unique code so re-runs don't collide on the dedup constraint
+      { selector: (p) => p.getByPlaceholder("alice2026"), value: `zui-${Date.now().toString().slice(-6)}` },
+      { selector: (p) => p.locator('input[type="number"]').first(), value: "500" },
     ],
     /^Create code$|Encrypt & create/i,
   ),
 
   royalty: deepDriver(
     "/royalty",
-    /New split|Create split|Register split|\+ New/i,
+    /^New split$/i,
     [
-      { selector: (p) => p.locator('input[type="text"]').first(), value: "Zerith Launch Royalty Split" },
-      { selector: (p) => p.locator('input[placeholder*="0x" i]').first(), value: "0x2DD7E1e7F572a6B7D5e9e65910997cA141BbFb9d" },
-      { selector: (p) => p.locator('input[type="number"]').first(), value: "5000" },
+      // Single recipient at 10000 bps = 100%
+      { selector: (p) => p.locator('input[placeholder="0x..."]').first(), value: "0x2DD7E1e7F572a6B7D5e9e65910997cA141BbFb9d" },
+      { selector: (p) => p.getByPlaceholder("bps").first(), value: "10000" },
     ],
-    /Encrypt & register|Register split|Encrypt & create/i,
+    /Encrypt & register|Register split/i,
   ),
 
   escrow: deepDriver(
     "/escrow",
-    /New deal|Create deal|\+ New/i,
+    /New deal|^\+ New|\+ New deal/i,
     [
-      { selector: (p) => p.locator('input[placeholder*="0x" i]').first(), value: "0x2DD7E1e7F572a6B7D5e9e65910997cA141BbFb9d" },
-      { selector: (p) => p.locator('input[type="number"]').first(), value: "10" },
+      // partyB, tokenA, tokenB, termsA, termsB, dealLabel
+      { selector: (p) => p.locator('input[placeholder="0x..."]').nth(0), value: "0x2DD7E1e7F572a6B7D5e9e65910997cA141BbFb9d" },
+      { selector: (p) => p.locator('input[placeholder="0x..."]').nth(1), value: "0x56047782ABFE56d88f1f29b12b3c0C22ee12a3d2" },
+      { selector: (p) => p.locator('input[placeholder="0x..."]').nth(2), value: "0x949caC2113c0AF90b309Ec1A9136f7B159d1A672" },
+      { selector: (p) => p.getByPlaceholder("100"), value: "100" },
+      { selector: (p) => p.getByPlaceholder("200"), value: "200" },
+      { selector: (p) => p.getByPlaceholder("my-trade-spec"), value: "zui-test-deal" },
     ],
-    /Encrypt & create|Create deal/i,
+    /Encrypt & create/i,
   ),
 
   limits: deepDriver(
     "/limits",
-    /New limit|Create limit|\+ New/i,
+    /New limit|\+ New limit|\+ New/i,
     [
-      { selector: (p) => p.locator('input[type="number"]').first(), value: "50" },
+      // BUY_BELOW is default. Need: tokenBuy, tokenSell, amount, triggerPrice
+      { selector: (p) => p.locator('input[placeholder="0x..."]').first(), value: "0x56047782ABFE56d88f1f29b12b3c0C22ee12a3d2" },
+      { selector: (p) => p.locator('input[placeholder="0x..."]').nth(1), value: "0x949caC2113c0AF90b309Ec1A9136f7B159d1A672" },
+      { selector: (p) => p.locator('input[type="number"]').first(), value: "100" },
+      { selector: (p) => p.getByPlaceholder("100").last(), value: "50" },
     ],
-    /Encrypt & create|Create limit/i,
+    /Encrypt & create/i,
   ),
 
   agent: deepDriver(

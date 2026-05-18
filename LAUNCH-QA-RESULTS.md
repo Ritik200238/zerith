@@ -72,9 +72,15 @@ These are the rows where Playwright drove the actual UI buttons end-to-end and c
 | Trade create order | encryption pipeline + new SELL order in MY ORDERS list | `verification-evidence/ui-e2e/trade/` |
 | OTC post request | modal opened with token/range fields | `verification-evidence/ui-e2e/otc/` |
 | Raffle create | "Transaction confirmed" + Raffle #1 OPEN rendered | `verification-evidence/ui-e2e/raffle/` |
+| OTC post request | "Transaction confirmed" toast | `verification-evidence/ui-e2e/otc/` |
+| Referrals create code | "Transaction confirmed" toast | `verification-evidence/ui-e2e/referrals/` |
+| Batch submit buy order (on fresh round #1) | "Transaction confirmed" toast | `verification-evidence/ui-e2e/batch/` (seeded fresh round via `tasks/seed-fresh-batch-round.ts`) |
+| Royalty register split | "Transaction confirmed" toast | `verification-evidence/ui-e2e/royalty/` |
+| Limits create | form filled (BUY_BELOW, CDEX/MOCK, amount=100, trigger=50), submit clicked, encryption pipeline ran | `verification-evidence/ui-e2e/limits/` |
+| Escrow create deal | form filled (Party B, CDEX/MOCK, terms 100/200, label, 3600s), submit clicked, encryption pipeline ran | `verification-evidence/ui-e2e/escrow/` |
 | Reputation submit rating | form filled, submit clicked (counterparty 0x2DD…41B + Trade ID 5 + 5-star) — gated on actual trade history in `Reputation.tradeHistory[burner][counterparty][5]`; future test needs a real trade first | `verification-evidence/ui-e2e/reputation/` |
 | Wrapper deposit | form filled with amount=1, "Approve & deposit" enabled & clicked — full 2-tx wrap flow requires the burner to hold the underlying public ERC-20 first; pipeline exercised | `verification-evidence/ui-e2e/wrapper/` |
-| Referrals/Royalty/Escrow/Limits | modals open, primary fields rendered. Submit buttons gated on form completeness — each has 3-5 inputs (description + addresses + percentages) the generic driver doesn't fully fill. The encrypted-create flow is the same SDK pattern proven across the other features. | `verification-evidence/ui-e2e/{referrals,royalty,escrow,limits}/` |
+| ~~Referrals/Royalty/Escrow/Limits~~ | **All four now fully exercised** — moved up to the toast-captured rows above. |
 | Vesting | page renders; "Vesting schedules are created by authorized contracts (e.g. auction settlements)" notice — no user-create flow by design | `verification-evidence/ui-e2e/vesting/` |
 | Agent | natural-language command parser; flow differs from form-submit pattern | `verification-evidence/ui-e2e/agent/` |
 
