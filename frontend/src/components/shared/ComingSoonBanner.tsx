@@ -32,17 +32,17 @@ export function ComingSoonBanner({
 }: Props) {
   return (
     <section
-      className="rounded-xl border-2 border-dashed border-amber-500/30
-                 bg-amber-500/[0.04] p-6 md:p-8 space-y-4"
+      className="rounded-xl border-2 border-dashed border-borderDash
+                 bg-bgAlt/[0.04] p-6 md:p-8 space-y-4"
       role="status"
       aria-label={`${feature} not yet end-to-end`}
     >
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
-          <Construction size={18} className="text-amber-400" />
+        <div className="w-10 h-10 rounded-lg bg-bgAlt border border-borderDash flex items-center justify-center shrink-0">
+          <Construction size={18} className="text-warning" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-base font-semibold text-amber-200">
+          <h2 className="text-base font-semibold text-warning">
             {feature} — Coming in {shipDate}
           </h2>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
@@ -58,7 +58,7 @@ export function ComingSoonBanner({
                 href={`https://sepolia.etherscan.io/address/${contractAddress}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-amber-300/80 hover:text-amber-300 underline-offset-2 hover:underline"
+                className="text-warning/80 hover:text-warning underline-offset-2 hover:underline"
               >
                 {contractAddress.slice(0, 6)}...{contractAddress.slice(-4)} ↗
               </a>
@@ -67,16 +67,16 @@ export function ComingSoonBanner({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-amber-500/15">
+      <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-borderDash">
         <p className="text-xs text-[var(--text-muted)]">
           Want to try CipherDEX now?
         </p>
         <Link
           href={redirectHref}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-md
-                     bg-emerald-500/15 border border-emerald-500/25
-                     text-emerald-300 text-xs font-medium
-                     hover:bg-emerald-500/25 transition-all"
+                     bg-bgAlt border border-borderDash
+                     text-success text-xs font-medium
+                     hover:bg-bgAlt transition-all"
         >
           {redirectLabel}
           <ArrowRight size={11} />

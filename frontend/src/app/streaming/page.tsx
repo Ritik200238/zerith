@@ -47,7 +47,7 @@ const STATUS_LABEL: Record<number, string> = { 0: "ACTIVE", 1: "CANCELLED", 2: "
 const STATUS_STYLE: Record<number, { bg: string; text: string }> = {
   0: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]" },
   1: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]" },
-  2: { bg: "bg-gray-500/15", text: "text-[var(--text-muted)]" },
+  2: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]" },
 };
 
 export default function StreamingPage() {
@@ -268,7 +268,7 @@ export default function StreamingPage() {
           <button
             onClick={() => setRefreshKey((k) => k + 1)}
             aria-label="Refresh streams"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/5 transition-colors"
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors"
           >
             <RefreshCw size={16} />
           </button>
@@ -276,7 +276,7 @@ export default function StreamingPage() {
             onClick={() => setModalOpen(true)}
             disabled={!account}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-                       bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                       bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all"
           >
             <Plus size={14} /> Start stream
@@ -378,7 +378,7 @@ export default function StreamingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             onClick={() => setModalOpen(false)}
             {...modalProps}
           >
@@ -396,7 +396,7 @@ export default function StreamingPage() {
                 <button
                   onClick={() => setModalOpen(false)}
                   aria-label="Close modal"
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard"
                 >
                   <X size={18} />
                 </button>
@@ -460,7 +460,7 @@ export default function StreamingPage() {
                 onClick={handleCreate}
                 disabled={!initialized || !recipient || !rate || txState === "signing" || txState === "confirming"}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
-                           bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                           bg-text from-[var(--text)] to-[var(--text)]
                            text-[var(--bg)] hover:shadow-lg hover:shadow-[var(--text)]/25
                            transition-all disabled:opacity-50"
               >

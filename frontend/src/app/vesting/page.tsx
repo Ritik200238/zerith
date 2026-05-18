@@ -199,7 +199,7 @@ export default function VestingPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/5 transition-colors">
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
         </div>
@@ -278,7 +278,7 @@ export default function VestingPage() {
 
                 {/* Vesting bar */}
                 <div className="mt-3 h-1.5 rounded-full bg-[var(--bg-alt)] overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[var(--text)] to-[var(--text)] transition-all"
+                  <div className="h-full bg-text from-[var(--text)] to-[var(--text)] transition-all"
                     style={{ width: `${s.vestedPct}%` }} />
                 </div>
 

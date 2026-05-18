@@ -278,7 +278,7 @@ export default function AgentPage() {
               onClick={runIntent}
               disabled={!canRun || !account || txState === "signing" || txState === "confirming"}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium
-                         bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                         bg-text from-[var(--text)] to-[var(--text)]
                          text-[var(--bg)] hover:shadow-lg hover:shadow-[var(--text)]/25
                          transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >

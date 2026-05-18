@@ -43,7 +43,7 @@ import { formatAmount, parseAmount, isValidAddress, shortAddress as shortAddrUti
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 
 /* ------------------------------------------------------------------ */
-/*  Types                                                              */
+/*  Types */
 /* ------------------------------------------------------------------ */
 
 interface AuctionData {
@@ -66,7 +66,7 @@ interface AuctionData {
 type ModalView = "none" | "create" | "bid" | "detail";
 
 /* ------------------------------------------------------------------ */
-/*  Constants                                                          */
+/*  Constants */
 /* ------------------------------------------------------------------ */
 
 const STATUS_LABEL: Record<number, string> = {
@@ -80,11 +80,11 @@ const STATUS_LABEL: Record<number, string> = {
 
 const STATUS_STYLE: Record<number, { bg: string; text: string; border: string }> = {
   0: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
-  1: { bg: "bg-[var(--bg-alt)]",   text: "text-[var(--text-muted)]",   border: "border-[var(--border-dash)]" },
-  2: { bg: "bg-[var(--bg-alt)]",    text: "text-[var(--text)]",    border: "border-[var(--border-dash)]" },
-  3: { bg: "bg-gray-500/15",    text: "text-[var(--text-muted)]",    border: "border-gray-500/20" },
-  4: { bg: "bg-[var(--bg-alt)]",     text: "text-[var(--text-muted)]",     border: "border-[var(--border-dash)]" },
-  5: { bg: "bg-[var(--bg-alt)]",     text: "text-[var(--text-muted)]",     border: "border-[var(--border-dash)]" },
+  1: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
+  2: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
+  3: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]", border: "border-borderDash" },
+  4: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
+  5: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
 };
 
 const DURATION_OPTS = [
@@ -105,7 +105,7 @@ const TOKEN_OPTIONS = [
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
+/*  Helpers */
 /* ------------------------------------------------------------------ */
 
 function tokenSymbol(addr: string): string {
@@ -118,7 +118,7 @@ function shortAddr(addr: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Countdown hook (ticks every second)                                */
+/*  Countdown hook (ticks every second) */
 /* ------------------------------------------------------------------ */
 
 function useCountdown(deadline: number): string {
@@ -158,7 +158,7 @@ function CountdownBadge({ deadline }: { deadline: number }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Token dropdown (reusable)                                          */
+/*  Token dropdown (reusable) */
 /* ------------------------------------------------------------------ */
 
 function TokenDropdown({
@@ -223,7 +223,7 @@ function TokenDropdown({
 }
 
 /* ================================================================== */
-/*  AuctionsPage                                                       */
+/*  AuctionsPage */
 /* ================================================================== */
 
 export default function AuctionsPage() {
@@ -234,36 +234,36 @@ export default function AuctionsPage() {
   const { decrypt: decryptForTx } = useDecryptForTx();
   const toast = useToast();
   const auctionContract = useContract("SealedAuction");
-  const auctionRead     = useReadContract("SealedAuction");
+  const auctionRead = useReadContract("SealedAuction");
 
   /* ---- core state ---- */
-  const [auctions, setAuctions]     = useState<AuctionData[]>([]);
-  const [loading, setLoading]       = useState(false);
+  const [auctions, setAuctions] = useState<AuctionData[]>([]);
+  const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   /* ---- modals ---- */
-  const [modalView, setModalView]             = useState<ModalView>("none");
+  const [modalView, setModalView] = useState<ModalView>("none");
   const [selectedAuction, setSelectedAuction] = useState<AuctionData | null>(null);
 
   // Audit fix F4: Escape key + body scroll lock + ARIA dialog role for all modals
   const modalProps = useModalEscape(modalView !== "none", () => setModalView("none"));
 
   /* ---- create-auction form ---- */
-  const [cToken, setCToken]       = useState<string>(CONTRACTS.ConfidentialToken);
+  const [cToken, setCToken] = useState<string>(CONTRACTS.ConfidentialToken);
   const [cPayToken, setCPayToken] = useState<string>("");
-  const [cAmount, setCAmount]     = useState("");
+  const [cAmount, setCAmount] = useState("");
   const [cDuration, setCDuration] = useState(3600);
-  const [cSnipe, setCSnipe]       = useState(120);
+  const [cSnipe, setCSnipe] = useState(120);
   /* Blind Floor: when on, seller's reserve price is encrypted and NEVER decrypted */
   const [cBlindFloor, setCBlindFloor] = useState(false);
-  const [cReserve, setCReserve]       = useState("");
+  const [cReserve, setCReserve] = useState("");
 
   /* ---- bid form ---- */
   const [bidAmount, setBidAmount] = useState("");
 
   /* ---- tx feedback ---- */
   const [txState, setTxState] = useState<TxState>("idle");
-  const [txHash, setTxHash]   = useState<string | undefined>();
+  const [txHash, setTxHash] = useState<string | undefined>();
   const [txError, setTxError] = useState<string | undefined>();
   useTxFeedback(txState, { label: "Sealed Auction", type: "auction", href: "/auctions", txHash });
 
@@ -282,7 +282,7 @@ export default function AuctionsPage() {
     account !== null && a.seller.toLowerCase() === account.toLowerCase();
 
   /* ---------------------------------------------------------------- */
-  /*  Fetch all auctions from chain                                    */
+  /*  Fetch all auctions from chain */
   /* ---------------------------------------------------------------- */
 
   const fetchAuctions = useCallback(async () => {
@@ -306,14 +306,14 @@ export default function AuctionsPage() {
         }
         list.push({
           id: i,
-          seller:         a[0],
-          token:          a[1],
-          paymentToken:   a[2],
-          amount:         a[3].toString(),
-          deadline:       Number(a[4]),
-          bidCount:       Number(a[5]),
-          status:         Number(a[6]),
-          revealedBid:    a[7].toString(),
+          seller: a[0],
+          token: a[1],
+          paymentToken: a[2],
+          amount: a[3].toString(),
+          deadline: Number(a[4]),
+          bidCount: Number(a[5]),
+          status: Number(a[6]),
+          revealedBid: a[7].toString(),
           revealedBidder: a[8],
           myBidUnsealed:  null,
           hasReserve,
@@ -321,7 +321,7 @@ export default function AuctionsPage() {
         });
       }
 
-      list.reverse();          // newest first
+      list.reverse(); // newest first
       setAuctions(list);
     } catch {
       setAuctions([]);
@@ -341,7 +341,7 @@ export default function AuctionsPage() {
   }, []));
 
   /* ---------------------------------------------------------------- */
-  /*  Tx helper (reduces boilerplate)                                  */
+  /*  Tx helper (reduces boilerplate) */
   /* ---------------------------------------------------------------- */
 
   function handleTxError(err: unknown) {
@@ -359,7 +359,7 @@ export default function AuctionsPage() {
   }
 
   /* ---------------------------------------------------------------- */
-  /*  Unseal own bid                                                   */
+  /*  Unseal own bid */
   /* ---------------------------------------------------------------- */
 
   const unsealMyBid = useCallback(
@@ -367,7 +367,7 @@ export default function AuctionsPage() {
       if (!auctionContract || !account) return;
       try {
         const hash = await auctionContract.getMyBid(auction.id);
-        const val  = await unseal(BigInt(hash), 5);      // Uint128
+        const val  = await unseal(BigInt(hash), 5); // Uint128
         if (val !== null) {
           setAuctions((prev) =>
             prev.map((a) =>
@@ -389,7 +389,7 @@ export default function AuctionsPage() {
   );
 
   /* ---------------------------------------------------------------- */
-  /*  Create auction                                                   */
+  /*  Create auction */
   /* ---------------------------------------------------------------- */
 
   const handleCreate = useCallback(async () => {
@@ -447,7 +447,7 @@ export default function AuctionsPage() {
   }, [auctionContract, cToken, cPayToken, cAmount, cDuration, cSnipe, cBlindFloor, cReserve, encrypt, toast]);
 
   /* ---------------------------------------------------------------- */
-  /*  Place bid                                                        */
+  /*  Place bid */
   /* ---------------------------------------------------------------- */
 
   const handleBid = useCallback(async () => {
@@ -627,7 +627,7 @@ export default function AuctionsPage() {
   );
 
   /* ================================================================ */
-  /*  Render                                                           */
+  /*  Render */
   /* ================================================================ */
 
   return (
@@ -1000,7 +1000,7 @@ export default function AuctionsPage() {
                           }}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
                                      bg-[var(--text)] text-[var(--bg)]
-                                     hover:from-purple-500 hover:to-blue-500 transition-all"
+                                       transition-all"
                         >
                           <Lock size={12} />
                           Place Bid
@@ -1070,8 +1070,8 @@ export default function AuctionsPage() {
                           setTxState("idle");
                         }}
                         className="rounded-lg px-3 py-2 text-xs font-medium
-                                   bg-white/[0.03] border border-[var(--border-dash)] text-[var(--text-muted)]
-                                   hover:text-[var(--text)] hover:bg-white/[0.06] transition-all"
+                                   bg-bgCard border border-[var(--border-dash)] text-[var(--text-muted)]
+                                   hover:text-[var(--text)] hover:bg-bgCard transition-all"
                       >
                         Details
                       </button>
@@ -1092,7 +1092,7 @@ export default function AuctionsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             onClick={() => setModalView("none")}
             {...modalProps}
           >
@@ -1115,7 +1115,7 @@ export default function AuctionsPage() {
                 <button
                   onClick={() => setModalView("none")}
                   aria-label="Close modal"
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5 transition-colors"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -1243,7 +1243,7 @@ export default function AuctionsPage() {
                 }
                 className="w-full rounded-lg py-3 text-sm font-semibold text-[var(--bg)]
                            bg-[var(--text)]
-                           hover:from-purple-500 hover:to-blue-500
+                            
                            disabled:opacity-40 disabled:cursor-not-allowed
                            transition-all flex items-center justify-center gap-2"
               >
@@ -1277,7 +1277,7 @@ export default function AuctionsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             onClick={() => {
               setModalView("none");
               setSelectedAuction(null);
@@ -1303,7 +1303,7 @@ export default function AuctionsPage() {
                     setModalView("none");
                     setSelectedAuction(null);
                   }}
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5 transition-colors"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -1377,7 +1377,7 @@ export default function AuctionsPage() {
                 }
                 className="w-full rounded-lg py-3 text-sm font-semibold text-[var(--bg)]
                            bg-[var(--text)]
-                           hover:from-purple-500 hover:to-blue-500
+                            
                            disabled:opacity-40 disabled:cursor-not-allowed
                            transition-all flex items-center justify-center gap-2"
               >
@@ -1416,7 +1416,7 @@ export default function AuctionsPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             onClick={() => {
               setModalView("none");
               setSelectedAuction(null);
@@ -1442,7 +1442,7 @@ export default function AuctionsPage() {
                     setModalView("none");
                     setSelectedAuction(null);
                   }}
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5 transition-colors"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -1556,17 +1556,17 @@ export default function AuctionsPage() {
                 </p>
                 <div className="space-y-2">
                   {[
-                    { n: 1, label: "Bidding",  desc: "Bidders submit encrypted bids",                      done: selectedAuction.status >= 1 },
-                    { n: 2, label: "Close",    desc: "Seller closes after deadline, triggers FHE decrypt",  done: selectedAuction.status >= 1 },
-                    { n: 3, label: "Reveal",   desc: "Retrieve decrypted winner from co-processor",        done: selectedAuction.status >= 2 },
-                    { n: 4, label: "Settle",   desc: "Tokens transfer to winner, payment to seller",       done: selectedAuction.status >= 3 },
+                    { n: 1, label: "Bidding",  desc: "Bidders submit encrypted bids", done: selectedAuction.status >= 1 },
+                    { n: 2, label: "Close", desc: "Seller closes after deadline, triggers FHE decrypt",  done: selectedAuction.status >= 1 },
+                    { n: 3, label: "Reveal", desc: "Retrieve decrypted winner from co-processor", done: selectedAuction.status >= 2 },
+                    { n: 4, label: "Settle", desc: "Tokens transfer to winner, payment to seller", done: selectedAuction.status >= 3 },
                   ].map((s) => (
                     <div key={s.n} className="flex items-center gap-3">
                       <div
                         className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
                           s.done
                             ? "bg-[var(--bg-alt)] text-[var(--text)] border border-[var(--border-dash)]"
-                            : "bg-gray-700/30 text-[var(--text-muted)] border border-gray-600/20"
+                            : "bg-bgAlt text-[var(--text-muted)] border border-borderDash"
                         }`}
                       >
                         {s.done ? <CheckCircle2 size={12} /> : s.n}
@@ -1594,7 +1594,7 @@ export default function AuctionsPage() {
                       }}
                       className="flex-1 rounded-lg py-2.5 text-sm font-semibold text-[var(--bg)]
                                  bg-[var(--text)]
-                                 hover:from-purple-500 hover:to-blue-500 transition-all
+                                   transition-all
                                  flex items-center justify-center gap-2"
                     >
                       <Lock size={14} />

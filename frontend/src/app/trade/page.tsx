@@ -30,7 +30,7 @@ import { parseAmount } from "@/lib/format";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 
 /* ------------------------------------------------------------------ */
-/* Types                                                               */
+/* Types */
 /* ------------------------------------------------------------------ */
 
 interface OrderData {
@@ -48,7 +48,7 @@ interface OrderData {
 type ModalView = "none" | "fill";
 
 /* ------------------------------------------------------------------ */
-/* Token helpers                                                       */
+/* Token helpers */
 /* ------------------------------------------------------------------ */
 
 const TOKEN_OPTIONS = [
@@ -67,7 +67,7 @@ function shortAddr(addr: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* Token dropdown                                                      */
+/* Token dropdown */
 /* ------------------------------------------------------------------ */
 
 function TokenDropdown({
@@ -128,7 +128,7 @@ function TokenDropdown({
 }
 
 /* ================================================================== */
-/* TradePage                                                           */
+/* TradePage */
 /* ================================================================== */
 
 export default function TradePage() {
@@ -170,7 +170,7 @@ export default function TradePage() {
     CONTRACTS.OrderBook !== "0x0000000000000000000000000000000000000000";
 
   /* ---------------------------------------------------------------- */
-  /* Fetch active orders from chain                                    */
+  /* Fetch active orders from chain */
   /* ---------------------------------------------------------------- */
 
   const fetchOrders = useCallback(async () => {
@@ -230,7 +230,7 @@ export default function TradePage() {
   }, []));
 
   /* ---------------------------------------------------------------- */
-  /* Unseal own order price                                            */
+  /* Unseal own order price */
   /* ---------------------------------------------------------------- */
 
   const unsealPrice = useCallback(
@@ -252,7 +252,7 @@ export default function TradePage() {
   );
 
   /* ---------------------------------------------------------------- */
-  /* Create order                                                      */
+  /* Create order */
   /* ---------------------------------------------------------------- */
 
   const handleCreateOrder = useCallback(async () => {
@@ -297,7 +297,7 @@ export default function TradePage() {
   }, [orderBookContract, initialized, amount, price, sellToken, buyToken, side, encrypt]);
 
   /* ---------------------------------------------------------------- */
-  /* Fill order                                                        */
+  /* Fill order */
   /* ---------------------------------------------------------------- */
 
   const handleFillOrder = useCallback(async () => {
@@ -335,7 +335,7 @@ export default function TradePage() {
   }, [orderBookContract, initialized, selectedOrder, takerPrice, encrypt]);
 
   /* ---------------------------------------------------------------- */
-  /* Cancel order                                                      */
+  /* Cancel order */
   /* ---------------------------------------------------------------- */
 
   const handleCancelOrder = useCallback(
@@ -367,7 +367,7 @@ export default function TradePage() {
   );
 
   /* ---------------------------------------------------------------- */
-  /* Helpers                                                           */
+  /* Helpers */
   /* ---------------------------------------------------------------- */
 
   const isOwner = (order: OrderData) =>
@@ -376,7 +376,7 @@ export default function TradePage() {
   const myOrders = orders.filter((o) => isOwner(o));
 
   /* ================================================================ */
-  /* Render                                                            */
+  /* Render */
   /* ================================================================ */
 
   return (
@@ -408,7 +408,7 @@ export default function TradePage() {
       {/* ---- Wallet not connected ---- */}
       {!account && (
         <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-10 text-center space-y-3">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-purple-600/30 to-cyan-600/30 flex items-center justify-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-text flex items-center justify-center">
             <Lock size={24} className="text-[var(--text)]" />
           </div>
           <h2 className="text-lg font-semibold text-[var(--text)]">
@@ -500,7 +500,7 @@ export default function TradePage() {
                           key={order.id}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          className="border-b border-[var(--border-dash)] hover:bg-white/[0.02] transition-colors"
+                          className="border-b border-[var(--border-dash)] hover:bg-bgCard transition-colors"
                         >
                           <td className="px-5 py-3.5 font-mono text-[var(--text-muted)] text-xs">
                             #{order.id}
@@ -575,7 +575,7 @@ export default function TradePage() {
                 className={`flex-1 py-2.5 text-sm font-bold tracking-wide transition-all ${
                   side === 0
                     ? "bg-[var(--bg-alt)] text-[var(--text)] border-r border-[var(--border-dash)]"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/[0.03] border-r border-[var(--border-dash)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard border-r border-[var(--border-dash)]"
                 }`}
               >
                 BUY
@@ -586,7 +586,7 @@ export default function TradePage() {
                 className={`flex-1 py-2.5 text-sm font-bold tracking-wide transition-all ${
                   side === 1
                     ? "bg-[var(--bg-alt)] text-[var(--text-muted)]"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/[0.03]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard"
                 }`}
               >
                 SELL
@@ -656,7 +656,7 @@ export default function TradePage() {
               }
               className="w-full rounded-lg py-3 text-sm font-semibold text-[var(--bg)]
                          bg-[var(--text)]
-                         hover:from-purple-500 hover:to-blue-500
+                          
                          disabled:opacity-40 disabled:cursor-not-allowed
                          transition-all duration-200 flex items-center justify-center gap-2"
             >
@@ -723,7 +723,7 @@ export default function TradePage() {
                   return (
                     <tr
                       key={order.id}
-                      className="border-b border-[var(--border-dash)] hover:bg-white/[0.02] transition-colors"
+                      className="border-b border-[var(--border-dash)] hover:bg-bgCard transition-colors"
                     >
                       <td className="px-5 py-3.5 font-mono text-[var(--text-muted)] text-xs">
                         #{order.id}
@@ -790,7 +790,7 @@ export default function TradePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             {...modalProps}
             onClick={() => {
               setModalView("none");
@@ -818,7 +818,7 @@ export default function TradePage() {
                     setSelectedOrder(null);
                   }}
                   aria-label="Close modal"
-                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors p-1 rounded-lg hover:bg-white/5"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors p-1 rounded-lg hover:bg-bgCard"
                 >
                   <X size={18} />
                 </button>
@@ -896,7 +896,7 @@ export default function TradePage() {
                 }
                 className="w-full rounded-lg py-3 text-sm font-semibold text-[var(--bg)]
                            bg-[var(--text)]
-                           hover:from-purple-500 hover:to-blue-500
+                            
                            disabled:opacity-40 disabled:cursor-not-allowed
                            transition-all duration-200 flex items-center justify-center gap-2"
               >

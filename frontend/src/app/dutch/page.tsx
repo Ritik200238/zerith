@@ -37,7 +37,7 @@ import { parseAmount } from "@/lib/format";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 
 /* ------------------------------------------------------------------ */
-/*  Types                                                              */
+/*  Types */
 /* ------------------------------------------------------------------ */
 
 interface DutchAuctionData {
@@ -58,14 +58,14 @@ interface DutchAuctionData {
 type ModalView = "none" | "create" | "buy";
 
 /* ------------------------------------------------------------------ */
-/*  Constants                                                          */
+/*  Constants */
 /* ------------------------------------------------------------------ */
 
 const STATUS_LABEL: Record<number, string> = { 0: "ACTIVE", 1: "SETTLED", 2: "CANCELLED" };
 const STATUS_STYLE: Record<number, { bg: string; text: string; border: string }> = {
   0: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
-  1: { bg: "bg-gray-500/15",    text: "text-[var(--text-muted)]",    border: "border-gray-500/20" },
-  2: { bg: "bg-[var(--bg-alt)]",     text: "text-[var(--text-muted)]",     border: "border-[var(--border-dash)]" },
+  1: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]", border: "border-borderDash" },
+  2: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
 };
 
 const DURATION_OPTS = [
@@ -85,7 +85,7 @@ function tokenSymbol(addr: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Live price hook                                                    */
+/*  Live price hook */
 /* ------------------------------------------------------------------ */
 
 function useLivePrice(startPrice: number, endPrice: number, startTime: number, endTime: number): number {
@@ -115,7 +115,7 @@ function LivePriceDisplay({ startPrice, endPrice, startTime, endTime }: {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs text-[var(--text-muted)]">Current Price</span>
-        <span className="text-lg font-bold text-[var(--text-muted)] font-mono-cipher">
+        <span className="text-lg font-bold text-[var(--text-muted)] font-mono">
           {price.toLocaleString()}
         </span>
       </div>
@@ -135,7 +135,7 @@ function LivePriceDisplay({ startPrice, endPrice, startTime, endTime }: {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Countdown                                                          */
+/*  Countdown */
 /* ------------------------------------------------------------------ */
 
 function useCountdown(deadline: number): string {
@@ -164,7 +164,7 @@ function CountdownBadge({ deadline }: { deadline: number }) {
 }
 
 /* ================================================================== */
-/*  DutchAuctionPage                                                   */
+/*  DutchAuctionPage */
 /* ================================================================== */
 
 export default function DutchAuctionPage() {
@@ -210,7 +210,7 @@ export default function DutchAuctionPage() {
     account !== null && a.seller.toLowerCase() === account.toLowerCase();
 
   /* ---------------------------------------------------------------- */
-  /*  Fetch                                                            */
+  /*  Fetch */
   /* ---------------------------------------------------------------- */
 
   const fetchAuctions = useCallback(async () => {
@@ -373,11 +373,11 @@ export default function DutchAuctionPage() {
    *
    * After auction settles, each buyer must claim their tokens individually.
    * Two-step on-chain pattern with one off-chain TN signature in between:
-   *   1. claimPurchase(auctionId, purchaseIndex) — marks the buyer's encrypted
-   *      amount publicly decryptable via FHE.allowGlobal.
-   *   2. client.decryptForTx() fetches the (amount, signature) tuple.
-   *   3. finalizeClaim(auctionId, purchaseIndex, amount, signature) verifies
-   *      via FHE.publishDecryptResult, settles tokens via vault.
+   * 1. claimPurchase(auctionId, purchaseIndex) — marks the buyer's encrypted
+   * amount publicly decryptable via FHE.allowGlobal.
+   * 2. client.decryptForTx() fetches the (amount, signature) tuple.
+   * 3. finalizeClaim(auctionId, purchaseIndex, amount, signature) verifies
+   * via FHE.publishDecryptResult, settles tokens via vault.
    */
   const handleClaim = useCallback(
     (auctionId: number, purchaseIndex: number) =>
@@ -428,7 +428,7 @@ export default function DutchAuctionPage() {
   );
 
   /* ================================================================ */
-  /*  Render                                                           */
+  /*  Render */
   /* ================================================================ */
 
   return (
@@ -460,7 +460,7 @@ export default function DutchAuctionPage() {
               onClick={() => { setModalView("create"); setTxState("idle"); }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg
                          bg-[var(--text)] text-[var(--bg)] text-sm font-medium
-                         hover:from-amber-500 hover:to-orange-500 transition-all"
+                           transition-all"
             >
               <Plus size={16} />
               Create Dutch
@@ -471,7 +471,7 @@ export default function DutchAuctionPage() {
 
       {!account && (
         <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-10 text-center space-y-3">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-amber-600/30 to-orange-600/30 flex items-center justify-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-text flex items-center justify-center">
             <TrendingDown size={24} className="text-[var(--text-muted)]" />
           </div>
           <h2 className="text-lg font-semibold text-[var(--text)]">Connect your wallet</h2>
@@ -585,7 +585,7 @@ export default function DutchAuctionPage() {
                       {auction.status === 0 && ended && (
                         <div className="text-center py-2">
                           <p className="text-xs text-[var(--text-muted)]">Final Price</p>
-                          <p className="text-lg font-bold text-[var(--text-muted)] font-mono-cipher">{auction.endPrice}</p>
+                          <p className="text-lg font-bold text-[var(--text-muted)] font-mono">{auction.endPrice}</p>
                         </div>
                       )}
 
@@ -600,7 +600,7 @@ export default function DutchAuctionPage() {
                         <button
                           onClick={() => { setSelectedAuction(auction); setBuyAmount(""); setModalView("buy"); setTxState("idle"); }}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
-                                     bg-[var(--text)] text-[var(--bg)] hover:from-amber-500 hover:to-orange-500 transition-all"
+                                     bg-[var(--text)] text-[var(--bg)] transition-all"
                         >
                           <DollarSign size={12} /> Buy Now
                         </button>
@@ -632,7 +632,7 @@ export default function DutchAuctionPage() {
       <AnimatePresence>
         {modalView === "create" && (
           <motion.div key="create-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             onClick={() => setModalView("none")}
             {...modalProps}>
             <motion.div key="create-card"
@@ -645,7 +645,7 @@ export default function DutchAuctionPage() {
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                   <TrendingDown size={18} className="text-[var(--text-muted)]" /> Create Dutch Auction
                 </h3>
-                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5 transition-colors">
+                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors">
                   <X size={18} />
                 </button>
               </div>
@@ -710,8 +710,8 @@ export default function DutchAuctionPage() {
                     <span className="text-xs text-[var(--text-muted)]/80 font-semibold">Price Decay Preview</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-[var(--text-muted)]">Start: <span className="text-[var(--text-muted)] font-mono-cipher">{Number(cStartPrice).toLocaleString()}</span></span>
-                    <span className="text-[var(--text-muted)]">Floor: <span className="text-[var(--text-muted)] font-mono-cipher">{Number(cEndPrice).toLocaleString()}</span></span>
+                    <span className="text-[var(--text-muted)]">Start: <span className="text-[var(--text-muted)] font-mono">{Number(cStartPrice).toLocaleString()}</span></span>
+                    <span className="text-[var(--text-muted)]">Floor: <span className="text-[var(--text-muted)] font-mono">{Number(cEndPrice).toLocaleString()}</span></span>
                   </div>
                 </div>
               )}
@@ -719,7 +719,7 @@ export default function DutchAuctionPage() {
               <button onClick={handleCreate}
                 disabled={txState === "signing" || txState === "confirming" || !cAmount || !cPayToken || !cStartPrice || !cEndPrice}
                 className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
-                           bg-[var(--text)] text-[var(--bg)] hover:from-amber-500 hover:to-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                           bg-[var(--text)] text-[var(--bg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {txState === "signing" || txState === "confirming" ? (
                   <><Loader2 size={16} className="animate-spin" /> Processing...</>
                 ) : (
@@ -735,7 +735,7 @@ export default function DutchAuctionPage() {
       <AnimatePresence>
         {modalView === "buy" && selectedAuction && (
           <motion.div key="buy-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             onClick={() => setModalView("none")}
             {...modalProps}>
             <motion.div key="buy-card"
@@ -748,7 +748,7 @@ export default function DutchAuctionPage() {
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                   <DollarSign size={18} className="text-[var(--text-muted)]" /> Buy at Current Price
                 </h3>
-                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5 transition-colors">
+                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors">
                   <X size={18} />
                 </button>
               </div>
@@ -776,7 +776,7 @@ export default function DutchAuctionPage() {
               <button onClick={handleBuy}
                 disabled={txState === "signing" || txState === "confirming" || encrypting || !buyAmount}
                 className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
-                           bg-[var(--text)] text-[var(--bg)] hover:from-amber-500 hover:to-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                           bg-[var(--text)] text-[var(--bg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {encrypting ? (
                   <><Loader2 size={16} className="animate-spin" /> Encrypting amount...</>
                 ) : txState === "signing" || txState === "confirming" ? (

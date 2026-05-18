@@ -220,12 +220,12 @@ export default function LimitsPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/5 transition-colors">
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
           <button onClick={() => setModalOpen(true)} disabled={!account}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-                       bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                       bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all">
             <Plus size={14} /> New limit
           </button>
@@ -298,7 +298,7 @@ export default function LimitsPage() {
       <AnimatePresence>
         {modalOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             onClick={() => setModalOpen(false)} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -308,20 +308,20 @@ export default function LimitsPage() {
                 <h3 id="limits-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                   <Target size={18} className="text-[var(--text)]" /> New limit order
                 </h3>
-                <button onClick={() => setModalOpen(false)} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                <button onClick={() => setModalOpen(false)} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
                   <X size={18} />
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => setDirection(0)}
                   className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                    direction === 0 ? "bg-[var(--bg-alt)] text-[var(--text)]" : "bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-white/5"
+                    direction === 0 ? "bg-[var(--bg-alt)] text-[var(--text)]" : "bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-bgCard"
                   }`}>
                   BUY_BELOW
                 </button>
                 <button onClick={() => setDirection(1)}
                   className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-                    direction === 1 ? "bg-[var(--bg-alt)] text-[var(--text-muted)]" : "bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-white/5"
+                    direction === 1 ? "bg-[var(--bg-alt)] text-[var(--text-muted)]" : "bg-[var(--bg-alt)] text-[var(--text-muted)] hover:bg-bgCard"
                   }`}>
                   SELL_ABOVE
                 </button>
@@ -356,7 +356,7 @@ export default function LimitsPage() {
               )}
               <button onClick={handleCreate} disabled={!initialized || !amount || !triggerPrice || txState === "signing" || txState === "confirming"}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
-                           bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                           bg-text from-[var(--text)] to-[var(--text)]
                            text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                 {txState === "signing" || txState === "confirming"
                   ? <Loader2 size={14} className="animate-spin" />

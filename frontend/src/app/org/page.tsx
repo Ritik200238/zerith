@@ -64,7 +64,7 @@ const STATUS_STYLE: Record<number, { bg: string; text: string }> = {
   1: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]" },
   2: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]" },
   3: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]" },
-  4: { bg: "bg-gray-500/15", text: "text-[var(--text-muted)]" },
+  4: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]" },
 };
 
 const ROLE_LABEL: Record<number, string> = { 0: "—", 1: "MEMBER", 2: "ADMIN" };
@@ -432,12 +432,12 @@ export default function OrgPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/5 transition-colors">
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
           <button onClick={() => setModalView("create")} disabled={!account}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-                       bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                       bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all">
             <Plus size={14} /> New org
           </button>
@@ -461,7 +461,7 @@ export default function OrgPage() {
           ) : (
             orgs.map((o) => (
               <button key={o.id} onClick={() => setSelectedOrg(o)}
-                className={`w-full text-left bg-white border border-dashed border-[var(--border-dash)] rounded-xl p-3 transition-colors hover:bg-white/[0.02] ${
+                className={`w-full text-left bg-white border border-dashed border-[var(--border-dash)] rounded-xl p-3 transition-colors hover:bg-bgCard ${
                   selectedOrg?.id === o.id ? "ring-1 ring-[var(--text)]" : ""
                 }`}>
                 <div className="flex items-center justify-between">
@@ -609,7 +609,7 @@ export default function OrgPage() {
       <AnimatePresence>
         {modalView !== "none" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             onClick={() => setModalView("none")} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -621,7 +621,7 @@ export default function OrgPage() {
                     <h3 id="org-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Building2 size={18} className="text-[var(--text)]" /> New organization
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -632,7 +632,7 @@ export default function OrgPage() {
                   </div>
                   <button onClick={handleCreate} disabled={!name || txState === "signing" || txState === "confirming"}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
-                               bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                               bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
                       ? <Loader2 size={14} className="animate-spin" />
@@ -648,7 +648,7 @@ export default function OrgPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Users size={18} className="text-[var(--text)]" /> Add member
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -686,7 +686,7 @@ export default function OrgPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Send size={18} className="text-[var(--text)]" /> New proposal
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -708,7 +708,7 @@ export default function OrgPage() {
                   </div>
                   <button onClick={handlePropose} disabled={!propDescription || !propActionLabel || !propDuration || txState === "signing" || txState === "confirming"}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
-                               bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                               bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
                       ? <Loader2 size={14} className="animate-spin" />

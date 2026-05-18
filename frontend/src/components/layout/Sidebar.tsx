@@ -146,7 +146,7 @@ export function Sidebar() {
               className="relative w-8 h-8 rounded shrink-0 flex items-center justify-center"
               style={{ background: "var(--gradient)" }}
             >
-              <Shield size={14} className="text-white drop-shadow-sm" />
+              <Shield size={14} className="text-text drop-shadow-sm" />
             </div>
             {expanded && (
               <div className="overflow-hidden">

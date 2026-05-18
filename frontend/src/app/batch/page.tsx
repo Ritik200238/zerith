@@ -45,7 +45,7 @@ const STATUS_STYLE: Record<number, { bg: string; text: string }> = {
   0: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]" },
   1: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]" },
   2: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]" },
-  3: { bg: "bg-gray-500/15", text: "text-[var(--text-muted)]" },
+  3: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]" },
 };
 
 type ModalView = "none" | "create" | "buy" | "sell";
@@ -297,13 +297,13 @@ export default function BatchPage() {
         <div className="flex items-center gap-2">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/5 transition-colors">
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">
             <RefreshCw size={16} />
           </button>
           {isAdmin && (
             <button onClick={() => setModalView("create")}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-                         bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                         bg-text from-[var(--text)] to-[var(--text)]
                          text-[var(--bg)] hover:shadow-lg transition-all">
               <Plus size={14} /> New round
             </button>
@@ -411,7 +411,7 @@ export default function BatchPage() {
       <AnimatePresence>
         {modalView !== "none" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             onClick={() => setModalView("none")} {...modalProps}>
             <motion.div onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
@@ -423,7 +423,7 @@ export default function BatchPage() {
                     <h3 id="batch-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Layers size={18} className="text-[var(--text)]" /> New round
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -444,7 +444,7 @@ export default function BatchPage() {
                   </div>
                   <button onClick={handleCreate} disabled={!duration || txState === "signing" || txState === "confirming"}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
-                               bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                               bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
                       ? <Loader2 size={14} className="animate-spin" />
@@ -462,7 +462,7 @@ export default function BatchPage() {
                         ? <><ShoppingCart size={18} className="text-[var(--text)]" /> Submit buy order</>
                         : <><ShoppingBag size={18} className="text-[var(--text-muted)]" /> Submit sell order</>}
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -487,7 +487,7 @@ export default function BatchPage() {
                   )}
                   <button onClick={() => handleSubmitOrder(modalView)} disabled={!initialized || !orderPrice || !orderAmount || txState === "signing" || txState === "confirming"}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
-                               bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                               bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
                       ? <Loader2 size={14} className="animate-spin" />

@@ -270,60 +270,8 @@ body {
 .stagger-7 { animation-delay: 0.35s; }
 .stagger-8 { animation-delay: 0.4s; }
 
-/* ─── Legacy aliases so we don't break unsweptpages ─────────── */
-/* Old gradient-text-warm still callable */
-.gradient-text-warm {
-  background: linear-gradient(135deg, #B47A1B 0%, #B53A2B 50%, #7B61FF 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.font-mono-cipher { font-family: var(--font-mono); }
-
-/* Legacy "glass" classes → flat editorial cards */
-.glass {
-  background: var(--bg-card);
-  border: 1px dashed var(--border-dash);
-  border-radius: var(--radius);
-}
-.glass-elevated {
-  background: var(--bg-card);
-  border: 1px dashed var(--border-dash);
-  border-radius: var(--radius);
-  box-shadow: 0 1px 0 var(--border), 0 12px 32px rgba(17, 17, 17, 0.04);
-}
-
-/* Old void/cipher CSS vars → mapped to editorial palette so existing
-   inline styles that reference them still render acceptably until
-   the page-sweep agent replaces them. */
-:root {
-  --void-0: var(--bg);
-  --void-1: var(--bg);
-  --void-2: var(--bg-alt);
-  --void-3: var(--bg-card);
-  --void-4: var(--bg-card-hover);
-  --void-5: var(--bg-alt);
-  --cipher-violet: var(--accent-2);
-  --cipher-blue:   #4F4ACD;
-  --cipher-cyan:   var(--accent-1);
-  --cipher-green:  var(--success);
-  --cipher-red:    var(--danger);
-  --cipher-amber:  var(--warning);
-  --text-primary:   var(--text);
-  --text-secondary: var(--text-secondary);
-  --text-muted:     var(--text-muted);
-  --border-subtle:  var(--border);
-  --border-default: var(--border-dash);
-  --border-active:  var(--text-muted);
-}
-
-/* Kill legacy ambient-glow / grain / cipher-shimmer (dark-only effects) */
+/* ─── Kill legacy ambient-glow / grain (dark-only effects) ──── */
 .ambient-glow, .grain::before { display: none !important; }
-.cipher-shimmer {
-  color: var(--text-muted);
-  background: none;
-  -webkit-text-fill-color: currentColor;
-}
 
 /* Container helper */
 .container-zerith {

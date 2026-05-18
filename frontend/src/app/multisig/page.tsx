@@ -51,7 +51,7 @@ const STATUS_LABEL: Record<number, string> = { 0: "PENDING", 1: "EXECUTED", 2: "
 const STATUS_STYLE: Record<number, { bg: string; text: string }> = {
   0: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]" },
   1: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]" },
-  2: { bg: "bg-gray-500/15", text: "text-[var(--text-muted)]" },
+  2: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]" },
 };
 
 type ModalView = "none" | "create" | "addMember" | "propose";
@@ -367,7 +367,7 @@ export default function MultisigPage() {
           <button
             onClick={() => setRefreshKey((k) => k + 1)}
             aria-label="Refresh multisigs"
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-white/5 transition-colors"
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors"
           >
             <RefreshCw size={16} />
           </button>
@@ -375,7 +375,7 @@ export default function MultisigPage() {
             onClick={() => setModalView("create")}
             disabled={!account}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-                       bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                       bg-text from-[var(--text)] to-[var(--text)]
                        text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all"
           >
             <Plus size={14} /> New multisig
@@ -406,7 +406,7 @@ export default function MultisigPage() {
               <button
                 key={m.id}
                 onClick={() => setSelectedMultisig(m)}
-                className={`w-full text-left bg-white border border-dashed border-[var(--border-dash)] rounded-xl p-3 transition-colors hover:bg-white/[0.02] ${
+                className={`w-full text-left bg-white border border-dashed border-[var(--border-dash)] rounded-xl p-3 transition-colors hover:bg-bgCard ${
                   selectedMultisig?.id === m.id ? "ring-1 ring-[var(--text)]" : ""
                 }`}
               >
@@ -472,7 +472,7 @@ export default function MultisigPage() {
                 <button
                   onClick={() => setModalView("propose")}
                   className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium
-                             bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                             bg-text from-[var(--text)] to-[var(--text)]
                              text-[var(--bg)] hover:shadow-lg disabled:opacity-40 transition-all"
                 >
                   <Send size={14} /> New proposal
@@ -543,7 +543,7 @@ export default function MultisigPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             onClick={() => setModalView("none")}
             {...modalProps}
           >
@@ -560,7 +560,7 @@ export default function MultisigPage() {
                     <h3 id="multisig-modal-title" className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Sparkles size={18} className="text-[var(--text)]" /> New multisig
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -595,7 +595,7 @@ export default function MultisigPage() {
                     onClick={handleCreate}
                     disabled={!initialized || !token || !threshold || txState === "signing" || txState === "confirming"}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
-                               bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                               bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50"
                   >
                     {txState === "signing" || txState === "confirming"
@@ -612,7 +612,7 @@ export default function MultisigPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Users size={18} className="text-[var(--text)]" /> Add member
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -656,7 +656,7 @@ export default function MultisigPage() {
                     <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text)]">
                       <Send size={18} className="text-[var(--text)]" /> New proposal
                     </h3>
-                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5">
+                    <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard">
                       <X size={18} />
                     </button>
                   </div>
@@ -694,7 +694,7 @@ export default function MultisigPage() {
                     onClick={handlePropose}
                     disabled={!initialized || !proposalRecipient || !proposalAmount || txState === "signing" || txState === "confirming"}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium
-                               bg-gradient-to-r from-[var(--text)] to-[var(--text)]
+                               bg-text from-[var(--text)] to-[var(--text)]
                                text-[var(--bg)] hover:shadow-lg transition-all disabled:opacity-50"
                   >
                     {txState === "signing" || txState === "confirming"

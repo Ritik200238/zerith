@@ -41,7 +41,7 @@ import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { ethers } from "ethers";
 
 /* ------------------------------------------------------------------ */
-/*  Types                                                              */
+/*  Types */
 /* ------------------------------------------------------------------ */
 
 interface VickreyAuctionData {
@@ -62,7 +62,7 @@ interface VickreyAuctionData {
 type ModalView = "none" | "create" | "bid" | "detail";
 
 /* ------------------------------------------------------------------ */
-/*  Constants                                                          */
+/*  Constants */
 /* ------------------------------------------------------------------ */
 
 const STATUS_LABEL: Record<number, string> = {
@@ -70,10 +70,10 @@ const STATUS_LABEL: Record<number, string> = {
 };
 const STATUS_STYLE: Record<number, { bg: string; text: string; border: string }> = {
   0: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
-  1: { bg: "bg-[var(--bg-alt)]",   text: "text-[var(--text-muted)]",   border: "border-[var(--border-dash)]" },
-  2: { bg: "bg-[var(--bg-alt)]",    text: "text-[var(--text)]",    border: "border-[var(--border-dash)]" },
-  3: { bg: "bg-gray-500/15",    text: "text-[var(--text-muted)]",    border: "border-gray-500/20" },
-  4: { bg: "bg-[var(--bg-alt)]",     text: "text-[var(--text-muted)]",     border: "border-[var(--border-dash)]" },
+  1: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
+  2: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
+  3: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]", border: "border-borderDash" },
+  4: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
 };
 
 const DURATION_OPTS = [
@@ -97,7 +97,7 @@ function shortAddr(addr: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Countdown                                                          */
+/*  Countdown */
 /* ------------------------------------------------------------------ */
 
 function useCountdown(deadline: number): string {
@@ -129,7 +129,7 @@ function CountdownBadge({ deadline }: { deadline: number }) {
 }
 
 /* ================================================================== */
-/*  VickreyAuctionsPage                                                */
+/*  VickreyAuctionsPage */
 /* ================================================================== */
 
 export default function VickreyAuctionsPage() {
@@ -175,7 +175,7 @@ export default function VickreyAuctionsPage() {
     account !== null && a.seller.toLowerCase() === account.toLowerCase();
 
   /* ---------------------------------------------------------------- */
-  /*  Fetch                                                            */
+  /*  Fetch */
   /* ---------------------------------------------------------------- */
 
   const fetchAuctions = useCallback(async () => {
@@ -219,7 +219,7 @@ export default function VickreyAuctionsPage() {
   }, []));
 
   /* ---------------------------------------------------------------- */
-  /*  Tx helpers                                                       */
+  /*  Tx helpers */
   /* ---------------------------------------------------------------- */
 
   const toast = useToast();
@@ -399,7 +399,7 @@ export default function VickreyAuctionsPage() {
   );
 
   /* ================================================================ */
-  /*  Render                                                           */
+  /*  Render */
   /* ================================================================ */
 
   return (
@@ -431,7 +431,7 @@ export default function VickreyAuctionsPage() {
               onClick={() => { setModalView("create"); setTxState("idle"); }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg
                          bg-[var(--text)] text-[var(--bg)] text-sm font-medium
-                         hover:from-violet-500 hover:to-indigo-500 transition-all"
+                           transition-all"
             >
               <Plus size={16} />
               Create Vickrey
@@ -444,7 +444,7 @@ export default function VickreyAuctionsPage() {
       {/* Not connected */}
       {!account && (
         <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-10 text-center space-y-3">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-violet-600/30 to-indigo-600/30 flex items-center justify-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-text flex items-center justify-center">
             <Eye size={24} className="text-[var(--text)]" />
           </div>
           <h2 className="text-lg font-semibold text-[var(--text)]">Connect your wallet</h2>
@@ -590,7 +590,7 @@ export default function VickreyAuctionsPage() {
                         <button
                           onClick={() => { setSelectedAuction(auction); setBidAmount(""); setModalView("bid"); setTxState("idle"); }}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold
-                                     bg-[var(--text)] text-[var(--bg)] hover:from-violet-500 hover:to-indigo-500 transition-all"
+                                     bg-[var(--text)] text-[var(--bg)] transition-all"
                         >
                           <Lock size={12} /> Place Bid
                         </button>
@@ -625,8 +625,8 @@ export default function VickreyAuctionsPage() {
                       )}
                       <button
                         onClick={() => { setSelectedAuction(auction); setModalView("detail"); setTxState("idle"); }}
-                        className="rounded-lg px-3 py-2 text-xs font-medium bg-white/[0.03] border border-[var(--border-dash)] text-[var(--text-muted)]
-                                   hover:text-[var(--text)] hover:bg-white/[0.06] transition-all">
+                        className="rounded-lg px-3 py-2 text-xs font-medium bg-bgCard border border-[var(--border-dash)] text-[var(--text-muted)]
+                                   hover:text-[var(--text)] hover:bg-bgCard transition-all">
                         Details
                       </button>
                     </div>
@@ -642,7 +642,7 @@ export default function VickreyAuctionsPage() {
       <AnimatePresence>
         {modalView === "create" && (
           <motion.div key="create-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             {...modalProps}
             onClick={() => setModalView("none")}>
             <motion.div key="create-card"
@@ -655,7 +655,7 @@ export default function VickreyAuctionsPage() {
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                   <Eye size={18} className="text-[var(--text)]" /> Create Vickrey Auction
                 </h3>
-                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5 transition-colors">
+                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors">
                   <X size={18} />
                 </button>
               </div>
@@ -703,7 +703,7 @@ export default function VickreyAuctionsPage() {
               <button onClick={handleCreate}
                 disabled={txState === "signing" || txState === "confirming" || !cAmount || !cPayToken}
                 className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
-                           bg-[var(--text)] text-[var(--bg)] hover:from-violet-500 hover:to-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                           bg-[var(--text)] text-[var(--bg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {txState === "signing" || txState === "confirming" ? (
                   <><Loader2 size={16} className="animate-spin" /> Processing...</>
                 ) : (
@@ -719,7 +719,7 @@ export default function VickreyAuctionsPage() {
       <AnimatePresence>
         {modalView === "bid" && selectedAuction && (
           <motion.div key="bid-bg" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-bgAlt backdrop-blur-sm p-4"
             {...modalProps}
             onClick={() => setModalView("none")}>
             <motion.div key="bid-card"
@@ -732,7 +732,7 @@ export default function VickreyAuctionsPage() {
                 <h3 className="text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                   <Lock size={18} className="text-[var(--text)]" /> Place Sealed Bid
                 </h3>
-                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-white/5 transition-colors">
+                <button onClick={() => setModalView("none")} aria-label="Close modal" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] p-1 rounded-lg hover:bg-bgCard transition-colors">
                   <X size={18} />
                 </button>
               </div>
@@ -760,7 +760,7 @@ export default function VickreyAuctionsPage() {
               <button onClick={handleBid}
                 disabled={txState === "signing" || txState === "confirming" || encrypting || !bidAmount}
                 className="w-full flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold
-                           bg-[var(--text)] text-[var(--bg)] hover:from-violet-500 hover:to-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                           bg-[var(--text)] text-[var(--bg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 {encrypting ? (
                   <><Loader2 size={16} className="animate-spin" /> Encrypting bid...</>
                 ) : txState === "signing" || txState === "confirming" ? (
