@@ -419,7 +419,7 @@ export default function DutchAuctionPage() {
         // Show drawer
         setDrawerProof({
           ctHash: amountHandle,
-          decryptedValue: `${proof.decryptedValue.toString()} (tokens claimed)`,
+          decryptedValue: `${formatAmount(proof.decryptedValue.toString())} (tokens claimed)`,
           signature: proof.signature,
           txHash: finTx.hash,
           chainId: FHENIX_TESTNET.chainId,

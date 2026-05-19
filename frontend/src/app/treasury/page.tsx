@@ -791,8 +791,8 @@ function ClaimRow({
             {StatusBadge}
             <span className="mono text-textMuted">#{claim.id}</span>
           </div>
-          <div className="font-display text-2xl">
-            ≥ {claim.threshold.toString()} <span className="text-textMuted text-base">{tokenSymbol}</span>
+          <div className="font-display text-2xl break-words">
+            ≥ {formatAmount(claim.threshold.toString())} <span className="text-textMuted text-base">{tokenSymbol}</span>
           </div>
           <div className="text-textMuted text-sm">
             Requested {formatTs(claim.requestedAt)}

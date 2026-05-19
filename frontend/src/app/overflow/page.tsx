@@ -38,7 +38,7 @@ import {
   type SignatureProof,
 } from "@/components/shared/SignatureDrawer";
 import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
-import { parseAmount } from "@/lib/format";
+import { formatAmount, parseAmount } from "@/lib/format";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 
 /* ------------------------------------------------------------------ */
@@ -336,7 +336,7 @@ export default function OverflowSalePage() {
 
       setDrawerProof({
         ctHash: totalHandle,
-        decryptedValue: `${proof.decryptedValue.toString()} (total demand)`,
+        decryptedValue: `${formatAmount(proof.decryptedValue.toString())} (total demand)`,
         signature: proof.signature,
         txHash: finTx.hash,
         chainId: FHENIX_TESTNET.chainId,
@@ -403,7 +403,7 @@ export default function OverflowSalePage() {
 
         setDrawerProof({
           ctHash: amountHandle,
-          decryptedValue: `${proof.decryptedValue.toString()} (your deposit)`,
+          decryptedValue: `${formatAmount(proof.decryptedValue.toString())} (your deposit)`,
           signature: proof.signature,
           txHash: finTx.hash,
           chainId: FHENIX_TESTNET.chainId,
@@ -569,15 +569,15 @@ export default function OverflowSalePage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs text-[var(--text-muted)]">Supply</p>
-                          <p className="text-lg font-bold text-[var(--text)]">
-                            {sale.totalSupply}{" "}
+                          <p className="text-lg font-bold text-[var(--text)] break-words">
+                            {formatAmount(sale.totalSupply)}{" "}
                             <span className="text-sm font-medium text-text">{tokenSymbol(sale.token)}</span>
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-[var(--text-muted)]">Price</p>
-                          <p className="text-sm font-bold text-[var(--text)] font-mono">
-                            {sale.pricePerToken}
+                          <p className="text-sm font-bold text-[var(--text)] font-mono break-words">
+                            {formatAmount(sale.pricePerToken)}
                           </p>
                         </div>
                       </div>
