@@ -583,8 +583,8 @@ export default function VickreyAuctionsPage() {
                             Winner pays 2nd price
                           </p>
                           <p className="text-xs text-[var(--text-secondary)] font-mono">{shortAddr(auction.winner)}</p>
-                          <p className="text-sm text-[var(--text)] font-semibold">
-                            Pays: {auction.secondPrice} (2nd highest)
+                          <p className="text-sm text-[var(--text)] font-semibold break-words">
+                            Pays: {formatAmount(auction.secondPrice)} (2nd highest)
                           </p>
                         </div>
                       )}

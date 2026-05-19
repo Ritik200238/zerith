@@ -27,7 +27,7 @@ import { TransactionStatus, type TxState } from "@/components/shared/Transaction
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
 import { CONTRACTS } from "@/lib/constants";
-import { parseAmount } from "@/lib/format";
+import { formatAmount, parseAmount } from "@/lib/format";
 
 interface OrderData {
   id: number;
@@ -264,7 +264,7 @@ export default function LimitsPage() {
                 <div className="mt-2 grid md:grid-cols-3 gap-2 text-xs">
                   <div>
                     <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Amount</div>
-                    <div className="font-mono text-[var(--text)]">{o.amount}</div>
+                    <div className="font-mono text-[var(--text)] break-words">{formatAmount(o.amount)}</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Trigger price</div>

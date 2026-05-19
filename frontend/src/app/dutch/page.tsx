@@ -588,7 +588,7 @@ export default function DutchAuctionPage() {
                       {auction.status === 0 && ended && (
                         <div className="text-center py-2">
                           <p className="text-xs text-[var(--text-muted)]">Final Price</p>
-                          <p className="text-lg font-bold text-[var(--text-muted)] font-mono">{auction.endPrice}</p>
+                          <p className="text-lg font-bold text-[var(--text-muted)] font-mono break-words">{formatAmount(auction.endPrice)}</p>
                         </div>
                       )}
 

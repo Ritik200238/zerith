@@ -729,9 +729,9 @@ export default function AuctionsPage() {
               rows={[
                 {
                   label: "Auctioned token + amount",
-                  meValue: sample ? `${sample.amount} ${tokenSymbol(sample.token)}` : "1000 CDEX",
-                  counterpartyValue: sample ? `${sample.amount} ${tokenSymbol(sample.token)}` : "1000 CDEX",
-                  observerValue: sample ? `${sample.amount} ${tokenSymbol(sample.token)}` : "1000 CDEX",
+                  meValue: sample ? `${formatAmount(sample.amount)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
+                  counterpartyValue: sample ? `${formatAmount(sample.amount)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
+                  observerValue: sample ? `${formatAmount(sample.amount)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
                   encrypted: false,
                 },
                 {
@@ -983,8 +983,8 @@ export default function AuctionsPage() {
                             <p className="text-xs text-[var(--text-secondary)] font-mono">
                               {shortAddr(auction.revealedBidder)}
                             </p>
-                            <p className="text-sm text-[var(--text)] font-semibold">
-                              Bid: {auction.revealedBid}
+                            <p className="text-sm text-[var(--text)] font-semibold break-words">
+                              Bid: {formatAmount(auction.revealedBid)}
                             </p>
                           </div>
                         )}
