@@ -376,7 +376,7 @@ export default function VickreyAuctionsPage() {
       // 4. Show signature drawer (use second-price proof — that's what winner pays)
       setDrawerProof({
         ctHash: secondBidHandle,
-        decryptedValue: `${secondProof.decryptedValue.toString()} (price paid by winner)`,
+        decryptedValue: `${formatAmount(secondProof.decryptedValue.toString())} (price paid by winner)`,
         signature: secondProof.signature,
         txHash: tx.hash,
         chainId: FHENIX_TESTNET.chainId,

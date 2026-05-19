@@ -403,7 +403,7 @@ export default function FreelancePage() {
 
         setDrawerProof({
           ctHash: bidHandle,
-          decryptedValue: `${bidProof.decryptedValue.toString()} (winning bid)`,
+          decryptedValue: `${formatAmount(bidProof.decryptedValue.toString())} (winning bid)`,
           signature: bidProof.signature,
           txHash: finTx.hash,
           chainId: FHENIX_TESTNET.chainId,

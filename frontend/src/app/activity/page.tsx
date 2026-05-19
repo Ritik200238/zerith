@@ -42,6 +42,7 @@ import { Button } from "@/components/shared/Button";
 import { SectionLabel } from "@/components/shared/SectionLabel";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { CONTRACTS, FHENIX_TESTNET, TOKEN_CONFIG } from "@/lib/constants";
+import { formatAmount } from "@/lib/format";
 
 type EventType = "payment-sent" | "payment-received" | "auction-bid" | "por-request";
 
@@ -97,7 +98,7 @@ export default function ActivityPage() {
           timestamp: Number(s[6]),
           href: "/payments",
           primary: `Sent to ${Number(s[3])} recipient${Number(s[3]) === 1 ? "" : "s"}`,
-          secondary: `Total: ${BigInt(s[2]).toString()} ${TOKEN_CONFIG.symbol} · Split #${id.toString()}`,
+          secondary: `Total: ${formatAmount(BigInt(s[2]))} ${TOKEN_CONFIG.symbol} · Split #${id.toString()}`,
           status: Number(s[5]) === 0 ? "FUNDED" : Number(s[5]) === 1 ? "COMPLETED" : "CANCELLED",
           statusKind: Number(s[5]) === 1 ? "ok" : Number(s[5]) === 0 ? "pending" : "bad",
           encrypted: true,
@@ -148,7 +149,7 @@ export default function ActivityPage() {
           timestamp: Number(a[4]),
           href: "/auctions",
           primary: `Bid on auction #${i}`,
-          secondary: `Seller ${shortAddr(a[0])} · amount ${a[3].toString()} ${shortAddr(a[1]).slice(-4)}`,
+          secondary: `Seller ${shortAddr(a[0])} · amount ${formatAmount(a[3].toString())} ${shortAddr(a[1]).slice(-4)}`,
           status:
             Number(a[6]) === 0 ? "OPEN" :
             Number(a[6]) === 1 ? "AWAITING REVEAL" :
@@ -180,7 +181,7 @@ export default function ActivityPage() {
           type: "por-request",
           timestamp: Number(c[3]),
           href: "/treasury",
-          primary: `Proof of reserves: ≥ ${BigInt(c[2]).toString()} ${TOKEN_CONFIG.symbol}`,
+          primary: `Proof of reserves: ≥ ${formatAmount(BigInt(c[2]))} ${TOKEN_CONFIG.symbol}`,
           secondary: `Claim #${id.toString()}${Number(c[4]) > 0 ? ` · revealed ${new Date(Number(c[4]) * 1000).toLocaleDateString()}` : ""}`,
           status:
             Number(c[5]) === 0 ? "PENDING" :

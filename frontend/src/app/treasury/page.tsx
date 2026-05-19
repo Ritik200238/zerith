@@ -560,15 +560,18 @@ export default function TreasuryPage() {
             },
             {
               label: "Highest verified threshold",
-              meValue:
-                claims.find((c) => c.status === 1)?.threshold.toString() ??
-                "No verified-true claim yet",
-              counterpartyValue:
-                claims.find((c) => c.status === 1)?.threshold.toString() ??
-                "No verified-true claim yet",
-              observerValue:
-                claims.find((c) => c.status === 1)?.threshold.toString() ??
-                "—",
+              meValue: (() => {
+                const c = claims.find((c) => c.status === 1);
+                return c ? formatAmount(c.threshold.toString()) : "No verified-true claim yet";
+              })(),
+              counterpartyValue: (() => {
+                const c = claims.find((c) => c.status === 1);
+                return c ? formatAmount(c.threshold.toString()) : "No verified-true claim yet";
+              })(),
+              observerValue: (() => {
+                const c = claims.find((c) => c.status === 1);
+                return c ? formatAmount(c.threshold.toString()) : "—";
+              })(),
               encrypted: false,
             },
           ]}
