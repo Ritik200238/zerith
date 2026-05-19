@@ -35,7 +35,7 @@ import {
   type SignatureProof,
 } from "@/components/shared/SignatureDrawer";
 import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
-import { parseAmount } from "@/lib/format";
+import { formatAmount, parseAmount } from "@/lib/format";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 
 /* ------------------------------------------------------------------ */
@@ -564,8 +564,8 @@ export default function DutchAuctionPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs text-[var(--text-muted)]">Selling</p>
-                          <p className="text-lg font-bold text-[var(--text)]">
-                            {auction.amount}{" "}
+                          <p className="text-lg font-bold text-[var(--text)] break-words">
+                            {formatAmount(auction.amount)}{" "}
                             <span className="text-sm font-medium text-[var(--text-muted)]">{tokenSymbol(auction.token)}</span>
                           </p>
                         </div>

@@ -378,7 +378,7 @@ export default function AllowlistPage() {
               Gate access via Merkle root. Per-address allocation amounts encrypted — gate-keeper sees who joined, never how much.
             </p>
           </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <FaucetButton />
           <button onClick={() => setRefreshKey((k) => k + 1)} aria-label="Refresh"
             className="p-2 rounded text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-bgCard transition-colors">

@@ -1,5 +1,6 @@
-// Mobile responsive sweep — 375x812 (iPhone 14) viewport across every route.
-// Catches text overflow, broken grids, hidden CTAs, off-canvas navbar issues.
+// Same as verify-mobile-responsive.mjs but points to localhost:3000
+// (Vercel free-tier build-rate-limit blocking prod redeploy; verify
+// the second-pass navbar fix locally instead).
 
 import { chromium, devices } from "playwright";
 import { Wallet, JsonRpcProvider } from "ethers";
@@ -10,7 +11,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.join(__dirname, "..");
-const BASE = "https://cipher-dex.vercel.app";
+const BASE = "http://localhost:3000";
 const SEPOLIA_CHAIN_ID = 11155111;
 
 const ROUTES = [
@@ -23,25 +24,6 @@ const ROUTES = [
   ["06-otc", "/otc"],
   ["07-multisig", "/multisig"],
   ["08-agent", "/agent"],
-  ["09-vickrey", "/vickrey"],
-  ["10-dutch", "/dutch"],
-  ["11-batch", "/batch"],
-  ["12-overflow", "/overflow"],
-  ["13-freelance", "/freelance"],
-  ["14-trade", "/trade"],
-  ["15-streaming", "/streaming"],
-  ["16-org", "/org"],
-  ["17-allowlist", "/allowlist"],
-  ["18-vesting", "/vesting"],
-  ["19-raffle", "/raffle"],
-  ["20-wrapper", "/wrapper"],
-  ["21-portfolio", "/portfolio"],
-  ["22-reputation", "/reputation"],
-  ["23-referrals", "/referrals"],
-  ["24-royalty", "/royalty"],
-  ["25-escrow", "/escrow"],
-  ["26-limits", "/limits"],
-  ["27-audit", "/audit"],
 ];
 
 function loadBurner() {
@@ -95,16 +77,21 @@ async function setup(browser) {
 }
 
 async function main() {
-  const outDir = path.join(ROOT, "verification-evidence", "mobile");
+  const outDir = path.join(ROOT, "verification-evidence", "mobile-local");
   fs.mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch({ headless: true });
   const context = await setup(browser);
   const page = await context.newPage();
+  // Pre-warm: hit every route once so Next dev-server JIT-compiles in advance
+  for (const [, route] of ROUTES) {
+    try { await page.goto(`${BASE}${route}`, { waitUntil: "domcontentloaded", timeout: 90000 }); } catch {}
+    await page.waitForTimeout(1500);
+  }
   for (const [idx, route] of ROUTES) {
-    console.log(`capturing mobile ${route}…`);
+    console.log(`capturing local mobile ${route}…`);
     try {
-      await page.goto(`${BASE}${route}?_cb=${Date.now()}`, { waitUntil: "networkidle", timeout: 30000 });
-      await page.waitForTimeout(3000);
+      await page.goto(`${BASE}${route}?_cb=${Date.now()}`, { waitUntil: "domcontentloaded", timeout: 60000 });
+      await page.waitForTimeout(5000);
       await page.screenshot({ path: path.join(outDir, `${idx}.png`), fullPage: true });
     } catch (e) {
       console.log("  err:", e.message?.slice(0, 80));

@@ -38,7 +38,7 @@ import {
   type SignatureProof,
 } from "@/components/shared/SignatureDrawer";
 import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
-import { parseAmount } from "@/lib/format";
+import { formatAmount, parseAmount } from "@/lib/format";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { ethers } from "ethers";
 
@@ -554,8 +554,8 @@ export default function VickreyAuctionsPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs text-[var(--text-muted)]">Selling</p>
-                          <p className="text-lg font-bold text-[var(--text)]">
-                            {auction.amount}{" "}
+                          <p className="text-lg font-bold text-[var(--text)] break-words">
+                            {formatAmount(auction.amount)}{" "}
                             <span className="text-sm font-medium text-[var(--text)]">{tokenSymbol(auction.token)}</span>
                           </p>
                         </div>
@@ -744,8 +744,8 @@ export default function VickreyAuctionsPage() {
 
               <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3 space-y-1">
                 <p className="text-xs text-[var(--text-muted)]">Auction #{selectedAuction.id}</p>
-                <p className="text-sm font-semibold text-[var(--text)]">
-                  {selectedAuction.amount} {tokenSymbol(selectedAuction.token)}
+                <p className="text-sm font-semibold text-[var(--text)] break-words">
+                  {formatAmount(selectedAuction.amount)} {tokenSymbol(selectedAuction.token)}
                 </p>
               </div>
 

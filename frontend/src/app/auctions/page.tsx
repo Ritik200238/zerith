@@ -939,8 +939,8 @@ export default function AuctionsPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs text-[var(--text-muted)]">Selling</p>
-                          <p className="text-lg font-bold text-[var(--text)]">
-                            {auction.amount}{" "}
+                          <p className="text-lg font-bold text-[var(--text)] break-words">
+                            {formatAmount(auction.amount)}{" "}
                             <span className="text-sm font-medium text-[var(--text)]">
                               {tokenSymbol(auction.token)}
                             </span>
@@ -1321,7 +1321,7 @@ export default function AuctionsPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-muted)]">Selling</span>
                   <span className="text-[var(--text)] font-medium">
-                    {selectedAuction.amount} {tokenSymbol(selectedAuction.token)}
+                    {formatAmount(selectedAuction.amount)} {tokenSymbol(selectedAuction.token)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -1494,7 +1494,7 @@ export default function AuctionsPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-muted)]">Selling</span>
                   <span className="text-[var(--text)] font-medium">
-                    {selectedAuction.amount} {tokenSymbol(selectedAuction.token)}
+                    {formatAmount(selectedAuction.amount)} {tokenSymbol(selectedAuction.token)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
