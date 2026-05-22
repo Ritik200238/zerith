@@ -12,9 +12,31 @@ import { Wallet, LogOut, AlertTriangle, Loader2 } from "lucide-react";
  * - Connected: short address chip + FHE pulse dot + disconnect
  */
 export function WalletConnect() {
-  const { account, connecting, isCorrectChain, error, connect, disconnect, switchToFhenix } =
+  const { account, connecting, isCorrectChain, error, connect, disconnect, switchToFhenix, mode } =
     useWallet();
   const { initialized, initializing } = useCofhe();
+
+  // Burner mode → BurnerControls owns the address/disconnect UI. We only
+  // surface the FHE-status pip here (so the user still sees "FHE Ready").
+  if (mode === "burner" && account) {
+    const fheLabel = initialized ? "FHE Ready" : initializing ? "Initializing" : "FHE Offline";
+    const fheColor = initialized
+      ? "bg-success"
+      : initializing
+        ? "bg-warning animate-pulse"
+        : "bg-textMuted";
+    return (
+      <div
+        className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded border border-dashed border-borderDash bg-bgCard"
+        title={fheLabel}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${fheColor}`} />
+        <span className="font-mono text-[10px] uppercase tracking-wider text-textMuted">
+          {fheLabel}
+        </span>
+      </div>
+    );
+  }
 
   // Not connected
   if (!account) {

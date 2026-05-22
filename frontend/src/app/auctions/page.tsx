@@ -31,6 +31,7 @@ import { useDecryptForTx } from "@/hooks/useDecryptForTx";
 import { useBlockPoll, useAccountChangeReset } from "@/hooks/useBlockPoll";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { TxFlowDrawer, type TxFlowStep } from "@/components/shared/TxFlowDrawer";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import {
   SignatureDrawer,
@@ -267,6 +268,12 @@ export default function AuctionsPage() {
   /* ---- tx feedback ---- */
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash] = useState<string | undefined>();
+  // Parallel state for the 4-step TxFlowDrawer shown during sealed-bid submission.
+  // Kept separate from `txState` so the existing TransactionStatus / useTxFeedback
+  // wiring keeps working unchanged; both are driven from handleBid.
+  const [bidFlowStep, setBidFlowStep] = useState<TxFlowStep>("idle");
+  const [bidFlowError, setBidFlowError] = useState<string | undefined>();
+  const [bidFlowTxHash, setBidFlowTxHash] = useState<string | undefined>();
   const [txError, setTxError] = useState<string | undefined>();
   useTxFeedback(txState, { label: "Sealed Auction", type: "auction", href: "/auctions", txHash });
 
@@ -458,25 +465,46 @@ export default function AuctionsPage() {
     setTxState("signing");
     setTxError(undefined);
     setTxHash(undefined);
+    setBidFlowStep("encrypt");
+    setBidFlowError(undefined);
+    setBidFlowTxHash(undefined);
 
     try {
       const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint128(BigInt(bidAmount))]);
       if (!enc) throw new Error("Encryption failed");
 
+      setBidFlowStep("submit");
       const tx = await auctionContract.bid(selectedAuction.id, enc[0]);
       setTxState("confirming");
       setTxHash(tx.hash);
+      setBidFlowStep("confirm");
+      setBidFlowTxHash(tx.hash);
       await tx.wait();
       setTxState("success");
+      setBidFlowStep("sealed");
       setBidAmount("");
       setModalView("none");
       setSelectedAuction(null);
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
+      const message =
+        err instanceof Error && err.message.includes("user rejected")
+          ? "You rejected the transaction in your wallet"
+          : err instanceof Error
+            ? err.message.slice(0, 240)
+            : "Transaction failed";
+      setBidFlowStep("error");
+      setBidFlowError(message);
       handleTxError(err);
     }
   }, [auctionContract, initialized, selectedAuction, bidAmount, encrypt]);
+
+  const closeBidFlow = useCallback(() => {
+    setBidFlowStep("idle");
+    setBidFlowError(undefined);
+    setBidFlowTxHash(undefined);
+  }, []);
 
   /* ---- single-use action helpers (close / reveal / settle / cancel) */
 
@@ -1660,6 +1688,26 @@ export default function AuctionsPage() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         proof={drawerProof}
+      />
+
+      {/* 4-step encrypted-bid progress drawer */}
+      <TxFlowDrawer
+        open={bidFlowStep !== "idle"}
+        step={bidFlowStep}
+        subjectNoun="bid"
+        title={
+          bidFlowStep === "sealed"
+            ? "Your bid is sealed"
+            : "Submitting your encrypted bid"
+        }
+        txHash={bidFlowTxHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={bidFlowError}
+        onClose={closeBidFlow}
+        onRetry={() => {
+          closeBidFlow();
+          void handleBid();
+        }}
       />
     </div>
   );

@@ -29,9 +29,10 @@ import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useContract, useReadContract } from "@/hooks/useContract";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { TxFlowDrawer, type TxFlowStep } from "@/components/shared/TxFlowDrawer";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { PrivacyLens } from "@/components/shared/PrivacyLens";
-import { CONTRACTS, TOKEN_CONFIG } from "@/lib/constants";
+import { CONTRACTS, TOKEN_CONFIG, FHENIX_TESTNET } from "@/lib/constants";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 
 /* ------------------------------------------------------------------ */
@@ -115,6 +116,10 @@ export default function PaymentsPage() {
   /* ---- tx feedback ---- */
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash] = useState<string | undefined>();
+  // Parallel 4-step drawer state for the encrypted-split-creation flow.
+  const [splitFlowStep, setSplitFlowStep] = useState<TxFlowStep>("idle");
+  const [splitFlowError, setSplitFlowError] = useState<string | undefined>();
+  const [splitFlowTxHash, setSplitFlowTxHash] = useState<string | undefined>();
   const [txError, setTxError] = useState<string | undefined>();
   useTxFeedback(txState, { label: "Payments", type: "payment", href: "/payments", txHash });
 
@@ -211,6 +216,9 @@ export default function PaymentsPage() {
     setTxState("signing");
     setTxError(undefined);
     setTxHash(undefined);
+    setSplitFlowStep("encrypt");
+    setSplitFlowError(undefined);
+    setSplitFlowTxHash(undefined);
 
     try {
       const { Encryptable } = await import("@cofhe/sdk");
@@ -225,6 +233,7 @@ export default function PaymentsPage() {
       // Contract requires plaintext totalDeposit (4th arg) — sum of per-recipient amounts
       // for escrow funding. Note: total is publicly visible; per-recipient split stays encrypted.
       const totalDeposit = valid.reduce((sum, r) => sum + BigInt(r.amount), BigInt(0));
+      setSplitFlowStep("submit");
       const tx = await paymentsContract.createSplit(
         CONTRACTS.ConfidentialToken,
         addresses,
@@ -233,16 +242,33 @@ export default function PaymentsPage() {
       );
       setTxState("confirming");
       setTxHash(tx.hash);
+      setSplitFlowStep("confirm");
+      setSplitFlowTxHash(tx.hash);
       await tx.wait();
       setTxState("success");
+      setSplitFlowStep("sealed");
       toast.success("Split created", `Sent encrypted amounts to ${valid.length} recipient${valid.length === 1 ? "" : "s"}.`);
       setNewRecipients([{ address: "", amount: "" }]);
       setModalView("none");
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
+      const message =
+        err instanceof Error && err.message.includes("user rejected")
+          ? "You rejected the transaction in your wallet"
+          : err instanceof Error
+            ? err.message.slice(0, 240)
+            : "Transaction failed";
+      setSplitFlowStep("error");
+      setSplitFlowError(message);
       handleTxError(err);
     }
   }, [paymentsContract, initialized, newRecipients, encrypt, toast]);
+
+  const closeSplitFlow = useCallback(() => {
+    setSplitFlowStep("idle");
+    setSplitFlowError(undefined);
+    setSplitFlowTxHash(undefined);
+  }, []);
 
   /* ---------------------------------------------------------------- */
   /*  Create template                                                  */
@@ -950,6 +976,26 @@ export default function PaymentsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 4-step encrypted-split progress drawer */}
+      <TxFlowDrawer
+        open={splitFlowStep !== "idle"}
+        step={splitFlowStep}
+        subjectNoun="salary"
+        title={
+          splitFlowStep === "sealed"
+            ? "Encrypted salaries posted"
+            : "Sealing each recipient's amount"
+        }
+        txHash={splitFlowTxHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={splitFlowError}
+        onClose={closeSplitFlow}
+        onRetry={() => {
+          closeSplitFlow();
+          void handleCreateSplit();
+        }}
+      />
     </div>
   );
 }

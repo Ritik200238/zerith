@@ -19,7 +19,12 @@ import {
   EyeOff,
   AlertTriangle,
   Workflow,
+  Zap,
+  Loader2,
+  Wallet,
 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 /* ─── Capability cards ─────────────────────────────────────── */
 
@@ -84,7 +89,26 @@ const INNOVATIONS = [
 /* ─── Page ──────────────────────────────────────────────────── */
 
 export default function DashboardPage() {
-  const { account } = useWallet();
+  const { account, createAndConnectBurner, connect, connecting } = useWallet();
+  const router = useRouter();
+  const [creatingBurner, setCreatingBurner] = useState(false);
+  const [burnerError, setBurnerError] = useState<string | null>(null);
+
+  const handleTryInstantly = useCallback(async () => {
+    setCreatingBurner(true);
+    setBurnerError(null);
+    try {
+      await createAndConnectBurner();
+      // Drop the new user into the canonical first flow: claim faucet on /treasury,
+      // or open the sealed auction. Treasury keeps the funnel clean.
+      router.push("/treasury");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not start demo";
+      setBurnerError(msg);
+    } finally {
+      setCreatingBurner(false);
+    }
+  }, [createAndConnectBurner, router]);
   useCofhe();
 
   return (
@@ -135,17 +159,59 @@ export default function DashboardPage() {
 
           <div className="flex flex-wrap items-center gap-3">
             {!account ? (
-              <div
-                className="inline-flex items-center gap-2 px-5 py-3 font-mono text-[11px] uppercase tracking-[0.1em]"
-                style={{
-                  border: "1px dashed var(--border-dash)",
-                  borderRadius: 4,
-                  color: "var(--text-muted)",
-                  background: "var(--bg-card)",
-                }}
-              >
-                <Lock size={12} /> Connect wallet to enter the protocol
-              </div>
+              <>
+                <button
+                  type="button"
+                  onClick={handleTryInstantly}
+                  disabled={creatingBurner || connecting}
+                  className="inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-60"
+                  style={{
+                    background: "var(--text)",
+                    color: "var(--bg)",
+                    borderRadius: 8,
+                  }}
+                  title="Generate a one-click test wallet on Sepolia — no MetaMask required"
+                >
+                  {creatingBurner ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Zap size={14} />
+                  )}
+                  {creatingBurner
+                    ? "Spinning up your burner…"
+                    : "Try it instantly — no wallet needed"}
+                </button>
+                <button
+                  type="button"
+                  onClick={connect}
+                  disabled={creatingBurner || connecting}
+                  className="inline-flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors disabled:opacity-60"
+                  style={{ color: "var(--text-muted)" }}
+                  title="Connect MetaMask instead"
+                >
+                  <Wallet size={14} />
+                  {connecting ? "Connecting…" : "or connect MetaMask"}
+                </button>
+                <div
+                  className="inline-flex items-center gap-2 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.1em]"
+                  style={{
+                    border: "1px dashed var(--border-dash)",
+                    borderRadius: 4,
+                    color: "var(--text-muted)",
+                    background: "var(--bg-card)",
+                  }}
+                >
+                  <Lock size={11} /> Sepolia testnet · 5-second setup
+                </div>
+                {burnerError && (
+                  <p
+                    className="w-full text-xs mt-1"
+                    style={{ color: "var(--danger, #d77757)" }}
+                  >
+                    {burnerError}
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 <Link
@@ -453,7 +519,7 @@ export default function DashboardPage() {
           }}
         >
           <span>Zerith · Built on Fhenix CoFHE</span>
-          <span>Arbitrum Sepolia · 421614</span>
+          <span>Ethereum Sepolia · 11155111</span>
         </div>
       </div>
     </div>

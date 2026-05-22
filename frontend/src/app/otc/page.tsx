@@ -29,10 +29,11 @@ import { useBlockPoll, useAccountChangeReset } from "@/hooks/useBlockPoll";
 import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { TxFlowDrawer, type TxFlowStep } from "@/components/shared/TxFlowDrawer";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
 import { PrivacyLens } from "@/components/shared/PrivacyLens";
-import { CONTRACTS } from "@/lib/constants";
+import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
 import { parseAmount, isValidAddress, shortAddress, formatRemaining } from "@/lib/format";
 
 interface RequestData {
@@ -96,6 +97,10 @@ export default function OTCPage() {
   const [txHash, setTxHash] = useState<string | undefined>();
   const [txError, setTxError] = useState<string | undefined>();
   useTxFeedback(txState, { label: "OTC Desk", type: "trade", href: "/otc", txHash });
+  // 4-step encrypted-quote progress drawer state
+  const [quoteFlowStep, setQuoteFlowStep] = useState<TxFlowStep>("idle");
+  const [quoteFlowError, setQuoteFlowError] = useState<string | undefined>();
+  const [quoteFlowTxHash, setQuoteFlowTxHash] = useState<string | undefined>();
 
   const modalProps = useModalEscape(modalView !== "none", () => setModalView("none"), "otc-modal-title");
 
@@ -200,15 +205,22 @@ export default function OTCPage() {
       return;
     }
     setTxState("signing");
+    setQuoteFlowStep("encrypt");
+    setQuoteFlowError(undefined);
+    setQuoteFlowTxHash(undefined);
     try {
       const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint128(priceBn), Encryptable.uint128(amtBn)]);
       if (!enc) throw new Error("Encryption failed");
+      setQuoteFlowStep("submit");
       const tx = await otcContract.submitQuote(selectedRequest.id, enc[0], enc[1]);
       setTxState("confirming");
       setTxHash(tx.hash);
+      setQuoteFlowStep("confirm");
+      setQuoteFlowTxHash(tx.hash);
       await tx.wait();
       setTxState("success");
+      setQuoteFlowStep("sealed");
       setQuotePrice("");
       setQuoteAmount("");
       setModalView("none");
@@ -217,9 +229,17 @@ export default function OTCPage() {
       setTxState("error");
       const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
       setTxError(msg);
+      setQuoteFlowStep("error");
+      setQuoteFlowError(msg);
       toast.error("Quote failed", msg);
     }
   }, [otcContract, initialized, selectedRequest, quotePrice, quoteAmount, encrypt, toast]);
+
+  const closeQuoteFlow = useCallback(() => {
+    setQuoteFlowStep("idle");
+    setQuoteFlowError(undefined);
+    setQuoteFlowTxHash(undefined);
+  }, []);
 
   const handleAccept = useCallback(
     async (req: RequestData, quoteIndex: number) => {
@@ -882,6 +902,26 @@ export default function OTCPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 4-step encrypted-quote progress drawer */}
+      <TxFlowDrawer
+        open={quoteFlowStep !== "idle"}
+        step={quoteFlowStep}
+        subjectNoun="quote"
+        title={
+          quoteFlowStep === "sealed"
+            ? "Quote submitted privately"
+            : "Sealing your price + amount"
+        }
+        txHash={quoteFlowTxHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={quoteFlowError}
+        onClose={closeQuoteFlow}
+        onRetry={() => {
+          closeQuoteFlow();
+          void handleQuote();
+        }}
+      />
     </main>
   );
 }

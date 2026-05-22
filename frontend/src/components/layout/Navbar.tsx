@@ -6,6 +6,7 @@ import { FaucetButton } from "@/components/shared/FaucetButton";
 import { PermitManager } from "@/components/shared/PermitManager";
 import { NotificationBell } from "@/components/shared/NotificationBell";
 import { PrivacyLensToggle } from "@/components/shared/PrivacyLensToggle";
+import { BurnerControls } from "@/components/shared/BurnerControls";
 
 /**
  * Zerith editorial top bar.
@@ -64,6 +65,7 @@ export function Navbar() {
             <PermitManager />
             <NotificationBell />
           </div>
+          <BurnerControls />
           <WalletConnect />
         </div>
       </div>

@@ -59,7 +59,7 @@ const STAGE_BADGE: Record<PrivacyStage, { label: string; bg: string; text: strin
 async function fetchLiveCount(
   name: ContractName,
   desc: PrivacyDescriptor,
-  provider: ethers.JsonRpcProvider | ethers.BrowserProvider | null,
+  provider: ethers.Provider | null,
 ): Promise<number | null> {
   if (!provider || !desc.countGetter) return null;
   try {
