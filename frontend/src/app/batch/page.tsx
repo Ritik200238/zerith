@@ -25,9 +25,12 @@ import { useBlockPoll, useAccountChangeReset } from "@/hooks/useBlockPoll";
 import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { TxFlowDrawer } from "@/components/shared/TxFlowDrawer";
+import { useTxFlow } from "@/hooks/useTxFlow";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
-import { CONTRACTS } from "@/lib/constants";
+import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
 import { parseAmount, formatAmount, formatRemaining } from "@/lib/format";
 
 interface RoundData {
@@ -78,6 +81,7 @@ export default function BatchPage() {
   const [priceLadder, setPriceLadder] = useState("100,200,500");
 
   const [txState, setTxState] = useState<TxState>("idle");
+  const orderFlow = useTxFlow();
   const [txHash, setTxHash] = useState<string | undefined>();
   const [txError, setTxError] = useState<string | undefined>();
   useTxFeedback(txState, { label: "Batch Auction", type: "auction", href: "/batch", txHash });
@@ -165,16 +169,20 @@ export default function BatchPage() {
         return;
       }
       setTxState("signing");
+      orderFlow.begin();
       try {
         const { Encryptable } = await import("@cofhe/sdk");
         const enc = await encrypt([Encryptable.uint128(priceBn)]);
         if (!enc) throw new Error("Encryption failed");
+        orderFlow.submitted();
         const fn = side === "buy" ? "submitBuyOrder" : "submitSellOrder";
         const tx = await batchContract[fn](selectedRound.id, enc[0], BigInt(amount));
         setTxState("confirming");
         setTxHash(tx.hash);
+        orderFlow.confirmed(tx.hash);
         await tx.wait();
         setTxState("success");
+        orderFlow.sealed();
         setOrderPrice("");
         setOrderAmount("");
         setModalView("none");
@@ -183,10 +191,11 @@ export default function BatchPage() {
         setTxState("error");
         const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
         setTxError(msg);
+        orderFlow.failed(err);
         toast.error(`${side} order failed`, msg);
       }
     },
-    [batchContract, initialized, selectedRound, orderPrice, orderAmount, encrypt, toast],
+    [batchContract, initialized, selectedRound, orderPrice, orderAmount, encrypt, toast, orderFlow],
   );
 
   const handleCloseAndCompute = useCallback(
@@ -327,10 +336,13 @@ export default function BatchPage() {
 
       <section className="mt-6 grid gap-3">
         {rounds.length === 0 ? (
-          <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-8 text-center">
-            <Layers size={28} className="text-[var(--text-muted)] mx-auto mb-2" />
-            <p className="text-sm text-[var(--text-secondary)]">No rounds yet</p>
-          </div>
+          <EmptyState
+            icon={Layers}
+            eyebrow="No batch rounds yet"
+            title="Open the first batch round."
+            body="Bidders place encrypted buy/sell orders during the window. At close, a single clearing price settles every order at once — no MEV, no front-running."
+            primary={{ label: "Create round", onClick: handleCreate }}
+          />
         ) : (
           rounds.map((r) => {
             const style = STATUS_STYLE[r.status];
@@ -502,6 +514,17 @@ export default function BatchPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <TxFlowDrawer
+        open={orderFlow.step !== "idle"}
+        step={orderFlow.step}
+        subjectNoun="order"
+        title={orderFlow.step === "sealed" ? "Order sealed" : "Sealing your order"}
+        txHash={orderFlow.txHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={orderFlow.errorMessage}
+        onClose={orderFlow.close}
+      />
     </main>
   );
 }

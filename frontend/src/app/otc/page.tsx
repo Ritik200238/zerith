@@ -30,6 +30,8 @@ import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { TxFlowDrawer, type TxFlowStep } from "@/components/shared/TxFlowDrawer";
+import { useTxFlow } from "@/hooks/useTxFlow";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
 import { PrivacyLens } from "@/components/shared/PrivacyLens";
@@ -101,6 +103,7 @@ export default function OTCPage() {
   const [quoteFlowStep, setQuoteFlowStep] = useState<TxFlowStep>("idle");
   const [quoteFlowError, setQuoteFlowError] = useState<string | undefined>();
   const [quoteFlowTxHash, setQuoteFlowTxHash] = useState<string | undefined>();
+  const postFlow = useTxFlow();
 
   const modalProps = useModalEscape(modalView !== "none", () => setModalView("none"), "otc-modal-title");
 
@@ -168,6 +171,7 @@ export default function OTCPage() {
       return;
     }
     setTxState("signing");
+    postFlow.begin();
     try {
       const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([
@@ -177,12 +181,15 @@ export default function OTCPage() {
       ]);
       if (!enc) throw new Error("Encryption failed");
 
+      postFlow.submitted();
       const deadlineTs = Math.floor(Date.now() / 1000) + dur;
       const tx = await otcContract.postRequest(tokenWant, tokenOffer, enc[0], enc[1], enc[2], BigInt(deadlineTs));
       setTxState("confirming");
       setTxHash(tx.hash);
+      postFlow.confirmed(tx.hash);
       await tx.wait();
       setTxState("success");
+      postFlow.sealed();
       setReqAmount("");
       setMinPrice("");
       setMaxPrice("");
@@ -192,9 +199,10 @@ export default function OTCPage() {
       setTxState("error");
       const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
       setTxError(msg);
+      postFlow.failed(err);
       toast.error("Post request failed", msg);
     }
-  }, [otcContract, initialized, tokenWant, tokenOffer, reqAmount, minPrice, maxPrice, reqDeadline, encrypt, toast]);
+  }, [otcContract, initialized, tokenWant, tokenOffer, reqAmount, minPrice, maxPrice, reqDeadline, encrypt, toast, postFlow]);
 
   const handleQuote = useCallback(async () => {
     if (!otcContract || !initialized || !selectedRequest) return;
@@ -468,22 +476,13 @@ export default function OTCPage() {
 
       <section className="grid gap-4">
         {requests.length === 0 ? (
-          <div
-            className="p-12 text-center"
-            style={{
-              background: "var(--bg-card)",
-              border: "1px dashed var(--border-dash)",
-              borderRadius: 4,
-            }}
-          >
-            <ArrowLeftRight size={24} className="mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
-            <p
-              className="font-mono text-[11px] uppercase tracking-[0.1em]"
-              style={{ color: "var(--text-muted)" }}
-            >
-              No OTC requests yet
-            </p>
-          </div>
+          <EmptyState
+            icon={ArrowLeftRight}
+            eyebrow="No OTC requests yet"
+            title="Post a private request for quote."
+            body="Define the pair and an encrypted price band. Market makers submit sealed quotes; only the matched one ever reveals. Counterparties never see your range."
+            primary={{ label: "New request", onClick: () => setModalView("post") }}
+          />
         ) : (
           requests.map((r) => {
             const style = STATUS_STYLE[r.status];
@@ -902,6 +901,19 @@ export default function OTCPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 4-step encrypted-request progress drawer */}
+      <TxFlowDrawer
+        open={postFlow.step !== "idle"}
+        step={postFlow.step}
+        subjectNoun="request"
+        title={postFlow.step === "sealed" ? "Request posted" : "Sealing your OTC request"}
+        txHash={postFlow.txHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={postFlow.errorMessage}
+        onClose={postFlow.close}
+        onRetry={() => { postFlow.close(); void handlePost(); }}
+      />
 
       {/* 4-step encrypted-quote progress drawer */}
       <TxFlowDrawer

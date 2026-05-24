@@ -39,6 +39,8 @@ import { Button } from "@/components/shared/Button";
 import { Card } from "@/components/shared/Card";
 import { SectionLabel } from "@/components/shared/SectionLabel";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { TxFlowDrawer } from "@/components/shared/TxFlowDrawer";
+import { useTxFlow } from "@/hooks/useTxFlow";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
@@ -89,6 +91,8 @@ export default function TreasuryPage() {
   const [thresholdInput, setThresholdInput] = useState("");
 
   const [txState, setTxState] = useState<TxState>("idle");
+  const depositFlow = useTxFlow();
+  const withdrawFlow = useTxFlow();
   const [txHash, setTxHash] = useState<string | undefined>();
   const [txError, setTxError] = useState<string | undefined>();
   useTxFeedback(txState, { label: "Treasury", type: "system", href: "/treasury", txHash });
@@ -188,6 +192,7 @@ export default function TreasuryPage() {
     setTxState("signing");
     setTxError(undefined);
     setTxHash(undefined);
+    depositFlow.begin();
 
     try {
       // FHERC20 operator authorization: vault must be allowed to call
@@ -208,20 +213,24 @@ export default function TreasuryPage() {
       const encrypted = await encrypt([Encryptable.uint64(BigInt(amount))]);
       if (!encrypted) throw new Error("Encryption failed");
 
+      depositFlow.submitted();
       const tx = await vault.deposit(CONTRACTS.ConfidentialToken, encrypted[0]);
       setTxState("confirming");
       setTxHash(tx.hash);
+      depositFlow.confirmed(tx.hash);
       await tx.wait();
       setTxState("success");
+      depositFlow.sealed();
       toast.success("Deposited", `Your ${amount} ${TOKEN_CONFIG.symbol} is now in the vault (encrypted).`);
       setDepositAmount("");
       setDepositOpen(false);
       setBalancePlaintext(null);
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
+      depositFlow.failed(err);
       handleTxError(err);
     }
-  }, [vault, token, account, depositAmount, encrypt, toast]);
+  }, [vault, token, account, depositAmount, encrypt, toast, depositFlow]);
 
   const handleWithdraw = useCallback(async () => {
     if (!vault || !account) return;
@@ -233,17 +242,21 @@ export default function TreasuryPage() {
     setTxState("signing");
     setTxError(undefined);
     setTxHash(undefined);
+    withdrawFlow.begin();
 
     try {
       const { Encryptable } = await import("@cofhe/sdk");
       const encrypted = await encrypt([Encryptable.uint64(BigInt(amount))]);
       if (!encrypted) throw new Error("Encryption failed");
 
+      withdrawFlow.submitted();
       const tx = await vault.withdraw(CONTRACTS.ConfidentialToken, encrypted[0]);
       setTxState("confirming");
       setTxHash(tx.hash);
+      withdrawFlow.confirmed(tx.hash);
       await tx.wait();
       setTxState("success");
+      withdrawFlow.sealed();
       toast.success(
         "Withdrawal submitted",
         `Up to ${amount} ${TOKEN_CONFIG.symbol} will leave the vault (zero-replaced if balance insufficient — no leak).`,
@@ -253,9 +266,10 @@ export default function TreasuryPage() {
       setBalancePlaintext(null);
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
+      withdrawFlow.failed(err);
       handleTxError(err);
     }
-  }, [vault, account, withdrawAmount, encrypt, toast]);
+  }, [vault, account, withdrawAmount, encrypt, toast, withdrawFlow]);
 
   const handleRequestProof = useCallback(async () => {
     if (!por || !vault || !account) return;
@@ -698,6 +712,29 @@ export default function TreasuryPage() {
           </div>
         </Modal>
       )}
+
+      <TxFlowDrawer
+        open={depositFlow.step !== "idle"}
+        step={depositFlow.step}
+        subjectNoun="deposit"
+        title={depositFlow.step === "sealed" ? "Deposit sealed in vault" : "Sealing your deposit"}
+        txHash={depositFlow.txHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={depositFlow.errorMessage}
+        onClose={depositFlow.close}
+        onRetry={() => { depositFlow.close(); void handleDeposit(); }}
+      />
+      <TxFlowDrawer
+        open={withdrawFlow.step !== "idle"}
+        step={withdrawFlow.step}
+        subjectNoun="withdrawal"
+        title={withdrawFlow.step === "sealed" ? "Withdrawal sealed" : "Sealing your withdrawal"}
+        txHash={withdrawFlow.txHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={withdrawFlow.errorMessage}
+        onClose={withdrawFlow.close}
+        onRetry={() => { withdrawFlow.close(); void handleWithdraw(); }}
+      />
     </main>
   );
 }

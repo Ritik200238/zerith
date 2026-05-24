@@ -26,8 +26,11 @@ import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useContract, useReadContract } from "@/hooks/useContract";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { TxFlowDrawer } from "@/components/shared/TxFlowDrawer";
+import { useTxFlow } from "@/hooks/useTxFlow";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
-import { CONTRACTS } from "@/lib/constants";
+import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
 import { parseAmount } from "@/lib/format";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 
@@ -165,6 +168,8 @@ export default function TradePage() {
 
   // Transaction
   const [txState, setTxState] = useState<TxState>("idle");
+  const createFlow = useTxFlow();
+  const fillFlow = useTxFlow();
   const [txHash, setTxHash] = useState<string | undefined>();
   useTxFeedback(txState, { label: "Trade", type: "trade", href: "/trade", txHash });
   const [txError, setTxError] = useState<string | undefined>();
@@ -264,6 +269,7 @@ export default function TradePage() {
     setTxState("signing");
     setTxError(undefined);
     setTxHash(undefined);
+    createFlow.begin();
 
     try {
       // Audit fix G1: validate decimal-friendly amount/price
@@ -272,12 +278,14 @@ export default function TradePage() {
       if (amountBn === null || priceBn === null) {
         toast.error("Invalid input", "Amount and price must be positive numbers");
         setTxState("idle");
+        createFlow.close();
         return;
       }
       const { Encryptable } = await import("@cofhe/sdk");
       const encrypted = await encrypt([Encryptable.uint128(priceBn)]);
       if (!encrypted) throw new Error("Encryption failed");
 
+      createFlow.submitted();
       const tx = await orderBookContract.createOrder(
         sellToken,
         buyToken,
@@ -287,17 +295,20 @@ export default function TradePage() {
       );
       setTxState("confirming");
       setTxHash(tx.hash);
+      createFlow.confirmed(tx.hash);
       await tx.wait();
       setTxState("success");
+      createFlow.sealed();
 
       setAmount("");
       setPrice("");
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       setTxState("error");
+      createFlow.failed(err);
       handleTxErrorFn(err);
     }
-  }, [orderBookContract, initialized, amount, price, sellToken, buyToken, side, encrypt]);
+  }, [orderBookContract, initialized, amount, price, sellToken, buyToken, side, encrypt, createFlow]);
 
   /* ---------------------------------------------------------------- */
   /* Fill order */
@@ -309,23 +320,28 @@ export default function TradePage() {
     setTxState("signing");
     setTxError(undefined);
     setTxHash(undefined);
+    fillFlow.begin();
 
     try {
       const takerPriceBn = parseAmount(takerPrice);
       if (takerPriceBn === null) {
         toast.error("Invalid price", "Price must be a positive number");
         setTxState("idle");
+        fillFlow.close();
         return;
       }
       const { Encryptable } = await import("@cofhe/sdk");
       const encrypted = await encrypt([Encryptable.uint128(takerPriceBn)]);
       if (!encrypted) throw new Error("Encryption failed");
 
+      fillFlow.submitted();
       const tx = await orderBookContract.fillOrder(selectedOrder.id, encrypted[0]);
       setTxState("confirming");
       setTxHash(tx.hash);
+      fillFlow.confirmed(tx.hash);
       await tx.wait();
       setTxState("success");
+      fillFlow.sealed();
 
       setModalView("none");
       setSelectedOrder(null);
@@ -333,9 +349,10 @@ export default function TradePage() {
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       setTxState("error");
+      fillFlow.failed(err);
       handleTxErrorFn(err);
     }
-  }, [orderBookContract, initialized, selectedOrder, takerPrice, encrypt]);
+  }, [orderBookContract, initialized, selectedOrder, takerPrice, encrypt, fillFlow]);
 
   /* ---------------------------------------------------------------- */
   /* Cancel order */
@@ -473,13 +490,12 @@ export default function TradePage() {
                 <Loader2 size={22} className="text-[var(--text)] animate-spin" />
               </div>
             ) : orders.length === 0 ? (
-              <div className="py-20 text-center space-y-2">
-                <ArrowLeftRight size={32} className="mx-auto text-[var(--text-muted)]" />
-                <p className="text-sm text-[var(--text-muted)]">No active orders</p>
-                <p className="text-xs text-[var(--text-muted)]">
-                  Create the first encrypted order to get started
-                </p>
-              </div>
+              <EmptyState
+                icon={ArrowLeftRight}
+                eyebrow="No active orders"
+                title="Be the first to post a sealed limit order."
+                body="Encrypt your price and submit it on-chain. Counterparties see only the pair and side — your price stays hidden until a fill matches."
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -924,6 +940,29 @@ export default function TradePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <TxFlowDrawer
+        open={createFlow.step !== "idle"}
+        step={createFlow.step}
+        subjectNoun="order price"
+        title={createFlow.step === "sealed" ? "Order posted" : "Sealing your order price"}
+        txHash={createFlow.txHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={createFlow.errorMessage}
+        onClose={createFlow.close}
+        onRetry={() => { createFlow.close(); void handleCreateOrder(); }}
+      />
+      <TxFlowDrawer
+        open={fillFlow.step !== "idle"}
+        step={fillFlow.step}
+        subjectNoun="counter-price"
+        title={fillFlow.step === "sealed" ? "Order filled" : "Sealing your counter-price"}
+        txHash={fillFlow.txHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={fillFlow.errorMessage}
+        onClose={fillFlow.close}
+        onRetry={() => { fillFlow.close(); void handleFillOrder(); }}
+      />
     </div>
   );
 }

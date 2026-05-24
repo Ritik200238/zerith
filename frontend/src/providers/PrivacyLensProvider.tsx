@@ -35,7 +35,11 @@ const STORAGE_KEY = "zerith-privacy-lens-mode";
 const MODES: PrivacyMode[] = ["me", "counterparty", "observer"];
 
 export function PrivacyLensProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<PrivacyMode>("me");
+  // Default-on: a first-time visitor opens the site in "observer" mode so the
+  // privacy claim is in their face from the first paint (sealed handles + 🔒
+  // markers everywhere). Returning users get whatever they explicitly set last
+  // — localStorage hydrate below overrides this when present.
+  const [mode, setModeState] = useState<PrivacyMode>("observer");
 
   // Hydrate from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {

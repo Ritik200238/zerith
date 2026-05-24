@@ -30,6 +30,7 @@ import { useContract, useReadContract } from "@/hooks/useContract";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { TxFlowDrawer, type TxFlowStep } from "@/components/shared/TxFlowDrawer";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { PrivacyLens } from "@/components/shared/PrivacyLens";
 import { CONTRACTS, TOKEN_CONFIG, FHENIX_TESTNET } from "@/lib/constants";
@@ -536,25 +537,13 @@ export default function PaymentsPage() {
               <Loader2 size={20} className="animate-spin" style={{ color: "var(--text-muted)" }} />
             </div>
           ) : splits.length === 0 ? (
-            <div
-              className="py-20 text-center space-y-3"
-              style={{
-                background: "var(--bg-card)",
-                border: "1px dashed var(--border-dash)",
-                borderRadius: 4,
-              }}
-            >
-              <CreditCard size={28} className="mx-auto" style={{ color: "var(--text-muted)" }} />
-              <p
-                className="font-mono text-[11px] uppercase tracking-[0.1em]"
-                style={{ color: "var(--text-muted)" }}
-              >
-                No payment splits yet
-              </p>
-              <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                Create the first encrypted payment split
-              </p>
-            </div>
+            <EmptyState
+              icon={CreditCard}
+              eyebrow="No payment splits yet"
+              title="Pay your team without leaking salaries."
+              body="Send encrypted amounts to up to 10 recipients in a single tx. Each recipient unseals only their own amount — colleagues see nothing."
+              primary={{ label: "Create Split", onClick: () => setModalView("create") }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
               {splits.map((split) => {

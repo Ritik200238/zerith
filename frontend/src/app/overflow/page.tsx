@@ -31,6 +31,9 @@ import { useAccountChangeReset } from "@/hooks/useBlockPoll";
 import { useContract, useReadContract } from "@/hooks/useContract";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { TxFlowDrawer } from "@/components/shared/TxFlowDrawer";
+import { useTxFlow } from "@/hooks/useTxFlow";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { RevealAnimation } from "@/components/shared/RevealAnimation";
 import {
@@ -152,6 +155,7 @@ export default function OverflowSalePage() {
 
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash] = useState<string | undefined>();
+  const depositFlow = useTxFlow();
   useTxFeedback(txState, { label: "Overflow Sale", type: "auction", href: "/overflow", txHash });
   const [txError, setTxError] = useState<string | undefined>();
 
@@ -275,30 +279,36 @@ export default function OverflowSalePage() {
     setTxState("signing");
     setTxError(undefined);
     setTxHash(undefined);
+    depositFlow.begin();
     try {
       const depositBn = parseAmount(depositAmount);
       if (depositBn === null) {
         toast.error("Invalid amount", "Deposit must be a positive number");
         setTxState("idle");
+        depositFlow.close();
         return;
       }
       const { Encryptable } = await import("@cofhe/sdk");
       // Audit fix B3: OverflowSale.deposit expects InEuint64
       const enc = await encrypt([Encryptable.uint64(depositBn)]);
       if (!enc) throw new Error("Encryption failed");
+      depositFlow.submitted();
       const tx = await saleContract.deposit(selectedSale.id, enc[0]);
       setTxState("confirming");
       setTxHash(tx.hash);
+      depositFlow.confirmed(tx.hash);
       await tx.wait();
       setTxState("success");
+      depositFlow.sealed();
       setDepositAmount("");
       setModalView("none");
       setSelectedSale(null);
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
+      depositFlow.failed(err);
       handleTxError(err);
     }
-  }, [saleContract, initialized, selectedSale, depositAmount, encrypt]);
+  }, [saleContract, initialized, selectedSale, depositAmount, encrypt, depositFlow]);
 
   /**
    * Two-stage settle (audit fix D-OS1):
@@ -529,10 +539,13 @@ export default function OverflowSalePage() {
               <Loader2 size={24} className="text-text animate-spin" />
             </div>
           ) : sales.length === 0 ? (
-            <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="py-20 text-center space-y-3">
-              <Droplets size={36} className="mx-auto text-[var(--text-muted)]" />
-              <p className="text-sm text-[var(--text-muted)]">No overflow sales yet</p>
-            </div>
+            <EmptyState
+              icon={Droplets}
+              eyebrow="No overflow sales yet"
+              title="Open the first overflow sale."
+              body="Buyers commit encrypted deposits during the window. If the round is oversubscribed, everyone gets a pro-rata allocation — no whales front-running the cap."
+              primary={{ label: "Create Sale", onClick: () => { setModalView("create"); setTxState("idle"); } }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {sales.map((sale) => {
@@ -796,6 +809,18 @@ export default function OverflowSalePage() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         proof={drawerProof}
+      />
+
+      <TxFlowDrawer
+        open={depositFlow.step !== "idle"}
+        step={depositFlow.step}
+        subjectNoun="deposit"
+        title={depositFlow.step === "sealed" ? "Deposit sealed" : "Sealing your deposit"}
+        txHash={depositFlow.txHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={depositFlow.errorMessage}
+        onClose={depositFlow.close}
+        onRetry={() => { depositFlow.close(); void handleDeposit(); }}
       />
     </div>
   );

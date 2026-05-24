@@ -32,6 +32,7 @@ import { useBlockPoll, useAccountChangeReset } from "@/hooks/useBlockPoll";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { TxFlowDrawer, type TxFlowStep } from "@/components/shared/TxFlowDrawer";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import {
   SignatureDrawer,
@@ -914,13 +915,13 @@ export default function AuctionsPage() {
               <Loader2 size={24} className="text-[var(--text)] animate-spin" />
             </div>
           ) : auctions.length === 0 ? (
-            <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="py-20 text-center space-y-3">
-              <Gavel size={36} className="mx-auto text-[var(--text-muted)]" />
-              <p className="text-sm text-[var(--text-muted)]">No auctions yet</p>
-              <p className="text-xs text-[var(--text-muted)]">
-                Create the first sealed-bid auction to get started
-              </p>
-            </div>
+            <EmptyState
+              icon={Gavel}
+              eyebrow="No sealed auctions yet"
+              title="Be the first to seal a bid."
+              body="Sealed auctions let bidders compete without revealing their numbers. Create one in 30 seconds — bids stay encrypted forever for everyone except the winner."
+              primary={{ label: "Create Auction", onClick: () => setModalView("create") }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {auctions.map((auction) => {

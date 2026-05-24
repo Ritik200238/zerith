@@ -29,6 +29,9 @@ import { useAccountChangeReset } from "@/hooks/useBlockPoll";
 import { useContract, useReadContract } from "@/hooks/useContract";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { TxFlowDrawer } from "@/components/shared/TxFlowDrawer";
+import { useTxFlow } from "@/hooks/useTxFlow";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import {
   SignatureDrawer,
@@ -200,6 +203,7 @@ export default function DutchAuctionPage() {
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash] = useState<string | undefined>();
   useTxFeedback(txState, { label: "Dutch Auction", type: "auction", href: "/dutch", txHash });
+  const buyFlow = useTxFlow();
   const [txError, setTxError] = useState<string | undefined>();
 
   /* ---- signature drawer (verifiable claim proof) ---- */
@@ -330,30 +334,36 @@ export default function DutchAuctionPage() {
     setTxState("signing");
     setTxError(undefined);
     setTxHash(undefined);
+    buyFlow.begin();
     try {
       const buyBn = parseAmount(buyAmount);
       if (buyBn === null) {
         toast.error("Invalid amount", "Amount must be a positive number");
         setTxState("idle");
+        buyFlow.close();
         return;
       }
       const { Encryptable } = await import("@cofhe/sdk");
       // Audit fix B1: DutchAuction.buy expects InEuint64, not InEuint128
       const enc = await encrypt([Encryptable.uint64(buyBn)]);
       if (!enc) throw new Error("Encryption failed");
+      buyFlow.submitted();
       const tx = await auctionContract.buy(selectedAuction.id, enc[0]);
       setTxState("confirming");
       setTxHash(tx.hash);
+      buyFlow.confirmed(tx.hash);
       await tx.wait();
       setTxState("success");
+      buyFlow.sealed();
       setBuyAmount("");
       setModalView("none");
       setSelectedAuction(null);
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
+      buyFlow.failed(err);
       handleTxError(err);
     }
-  }, [auctionContract, initialized, selectedAuction, buyAmount, encrypt]);
+  }, [auctionContract, initialized, selectedAuction, buyAmount, encrypt, buyFlow]);
 
   const handleSettle = useCallback(
     (id: number) => guardedAction(`settle-${id}`, async () => {
@@ -529,10 +539,13 @@ export default function DutchAuctionPage() {
               <Loader2 size={24} className="text-[var(--text-muted)] animate-spin" />
             </div>
           ) : auctions.length === 0 ? (
-            <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="py-20 text-center space-y-3">
-              <TrendingDown size={36} className="mx-auto text-[var(--text-muted)]" />
-              <p className="text-sm text-[var(--text-muted)]">No Dutch auctions yet</p>
-            </div>
+            <EmptyState
+              icon={TrendingDown}
+              eyebrow="No Dutch auctions yet"
+              title="Launch a descending-price sale."
+              body="Set a high opening price that ticks down over time. Bidders buy encrypted amounts when the price reaches their target. The seal hides who's buying what."
+              primary={{ label: "Create Dutch", onClick: () => { setModalView("create"); setTxState("idle"); } }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {auctions.map((auction) => {
@@ -797,6 +810,18 @@ export default function DutchAuctionPage() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         proof={drawerProof}
+      />
+
+      <TxFlowDrawer
+        open={buyFlow.step !== "idle"}
+        step={buyFlow.step}
+        subjectNoun="purchase"
+        title={buyFlow.step === "sealed" ? "Purchase sealed" : "Sealing your purchase amount"}
+        txHash={buyFlow.txHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={buyFlow.errorMessage}
+        onClose={buyFlow.close}
+        onRetry={() => { buyFlow.close(); void handleBuy(); }}
       />
     </div>
   );

@@ -31,6 +31,9 @@ import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useContract, useReadContract } from "@/hooks/useContract";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { TxFlowDrawer } from "@/components/shared/TxFlowDrawer";
+import { useTxFlow } from "@/hooks/useTxFlow";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { RevealAnimation } from "@/components/shared/RevealAnimation";
 import {
@@ -165,6 +168,7 @@ export default function VickreyAuctionsPage() {
   const [txHash, setTxHash] = useState<string | undefined>();
   useTxFeedback(txState, { label: "Vickrey Auction", type: "auction", href: "/vickrey", txHash });
   const [txError, setTxError] = useState<string | undefined>();
+  const bidFlow = useTxFlow();
 
   /* ---- signature drawer (verifiable reveal proof) ---- */
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -293,29 +297,35 @@ export default function VickreyAuctionsPage() {
     setTxState("signing");
     setTxError(undefined);
     setTxHash(undefined);
+    bidFlow.begin();
     try {
       const bidBn = parseAmount(bidAmount);
       if (bidBn === null) {
         toast.error("Invalid bid", "Bid must be a positive number");
         setTxState("idle");
+        bidFlow.close();
         return;
       }
       const { Encryptable } = await import("@cofhe/sdk");
       const enc = await encrypt([Encryptable.uint128(bidBn)]);
       if (!enc) throw new Error("Encryption failed");
+      bidFlow.submitted();
       const tx = await auctionContract.bid(selectedAuction.id, enc[0]);
       setTxState("confirming");
       setTxHash(tx.hash);
+      bidFlow.confirmed(tx.hash);
       await tx.wait();
       setTxState("success");
+      bidFlow.sealed();
       setBidAmount("");
       setModalView("none");
       setSelectedAuction(null);
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
+      bidFlow.failed(err);
       handleTxError(err);
     }
-  }, [auctionContract, initialized, selectedAuction, bidAmount, encrypt]);
+  }, [auctionContract, initialized, selectedAuction, bidAmount, encrypt, bidFlow]);
 
   const handleClose = useCallback(
     (id: number) => guardedAction(`close-${id}`, async () => {
@@ -519,11 +529,13 @@ export default function VickreyAuctionsPage() {
               <Loader2 size={24} className="text-[var(--text)] animate-spin" />
             </div>
           ) : auctions.length === 0 ? (
-            <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="py-20 text-center space-y-3">
-              <Eye size={36} className="mx-auto text-[var(--text-muted)]" />
-              <p className="text-sm text-[var(--text-muted)]">No Vickrey auctions yet</p>
-              <p className="text-xs text-[var(--text-muted)]">Create the first second-price auction</p>
-            </div>
+            <EmptyState
+              icon={Eye}
+              eyebrow="No Vickrey auctions yet"
+              title="Run the first second-price auction."
+              body="Bidders bid in private, the highest wins, but everyone pays the second-highest price. Incentive-compatible, encrypted, on-chain."
+              primary={{ label: "Create Vickrey", onClick: () => { setModalView("create"); setTxState("idle"); } }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {auctions.map((auction) => {
@@ -784,6 +796,18 @@ export default function VickreyAuctionsPage() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         proof={drawerProof}
+      />
+
+      <TxFlowDrawer
+        open={bidFlow.step !== "idle"}
+        step={bidFlow.step}
+        subjectNoun="bid"
+        title={bidFlow.step === "sealed" ? "Your bid is sealed" : "Submitting your encrypted bid"}
+        txHash={bidFlow.txHash}
+        chainId={FHENIX_TESTNET.chainId}
+        errorMessage={bidFlow.errorMessage}
+        onClose={bidFlow.close}
+        onRetry={() => { bidFlow.close(); void handleBid(); }}
       />
     </div>
   );
