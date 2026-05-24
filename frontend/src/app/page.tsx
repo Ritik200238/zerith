@@ -124,7 +124,7 @@ export default function DashboardPage() {
             className="font-mono text-[11px] uppercase tracking-[0.1em] mb-7"
             style={{ color: "var(--text-muted)" }}
           >
-            — Private finance infrastructure
+            — Encrypted block sales for token foundations
           </div>
 
           <h1
@@ -134,10 +134,9 @@ export default function DashboardPage() {
               letterSpacing: "-0.04em",
             }}
           >
-            Every number,{" "}
-            <em className="font-serif italic font-normal">encrypted</em>.<br />
-            Every operation,{" "}
-            <em className="font-serif italic font-normal">composable</em>.
+            Sell your{" "}
+            <em className="font-serif italic font-normal">treasury</em>{" "}
+            without leaking it.
           </h1>
 
           <p
@@ -148,13 +147,14 @@ export default function DashboardPage() {
               color: "var(--text-secondary)",
             }}
           >
-            Zerith is the encrypted operating system for DAOs. Launch tokens
-            via sealed auctions. Pay contributors with encrypted splits. Trade
-            without MEV. Hire without revealing budgets. All powered by{" "}
+            Zerith is the private auction protocol for token foundations and
+            market makers. Bidders compete with sealed prices, the chain clears
+            a fair settlement, losing bids stay encrypted forever. No leaked
+            order flow, no front-running, no slippage to MEV. Built on{" "}
             <span className="gradient-text font-semibold">
-              fully homomorphic encryption
-            </span>{" "}
-            on Fhenix.
+              Fhenix fully homomorphic encryption
+            </span>
+            .
           </p>
 
           <div className="flex flex-wrap items-center gap-3">

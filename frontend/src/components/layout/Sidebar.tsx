@@ -32,6 +32,7 @@ import {
   Building2,
   Share2,
   Vault,
+  Grid,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -60,9 +61,10 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: 
   Building2,
   Share2,
   Vault,
+  Grid,
 };
 
-const GROUP_ORDER = ["Overview", "Token Launch", "Finance", "Trading", "Treasury", "Analytics", "AI"];
+const GROUP_ORDER = ["Overview", "Product", "Trust"];
 
 /**
  * Zerith editorial sidebar.

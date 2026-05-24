@@ -78,47 +78,36 @@ export const TOKEN_CONFIG = {
   faucetAmount: "1000", // 1000 CDEX human-readable
 } as const;
 
-/** V1 navigation — Phase 2 routes hidden but their pages still exist at their URLs. */
+/** Wedge-focused primary navigation — the only items a foundation finance lead
+ *  should see on first paint. Every other feature (Vickrey, Dutch, Batch, OTC,
+ *  Payments, Trade, etc.) still lives at its URL and is reachable from /more.
+ *  We do not delete features; we stop putting them in front of buyers who came
+ *  here for one specific thing (encrypted block sales for token foundations). */
 export const NAV_ITEMS = [
-  // Overview — entry surfaces every user sees on connect.
   { label: "Dashboard", href: "/", icon: "LayoutDashboard", group: "Overview" },
-  { label: "Treasury", href: "/treasury", icon: "Vault", group: "Overview" },
-  { label: "Activity", href: "/activity", icon: "Activity", group: "Overview" },
+  { label: "Block Sales", href: "/auctions", icon: "Gavel", group: "Product" },
+  { label: "Treasury", href: "/treasury", icon: "Vault", group: "Product" },
+  { label: "Audit", href: "/audit", icon: "Shield", group: "Trust" },
+  { label: "More", href: "/more", icon: "Grid", group: "Trust" },
+] as const;
 
-  // Token Launch — the auction family. Suite picker first; individual mechanisms below.
-  { label: "Auction Suite", href: "/auctions-suite", icon: "Layers", group: "Token Launch" },
-  { label: "Sealed", href: "/auctions", icon: "Gavel", group: "Token Launch" },
-  { label: "Vickrey", href: "/vickrey", icon: "Eye", group: "Token Launch" },
-  { label: "Dutch", href: "/dutch", icon: "TrendingDown", group: "Token Launch" },
-  { label: "Batch", href: "/batch", icon: "Layers", group: "Token Launch" },
-  { label: "Overflow", href: "/overflow", icon: "Droplets", group: "Token Launch" },
-
-  // Finance — the wedge (Payments). Streaming/Vesting/Royalty/Freelance hidden for v1.
-  { label: "Payments", href: "/payments", icon: "CreditCard", group: "Finance" },
-
-  // Trading — OTC hero. Trade kept as P2P entry. Escrow + Limits hidden for v1.
-  { label: "OTC", href: "/otc", icon: "Users", group: "Trading" },
-  { label: "Trade", href: "/trade", icon: "ArrowLeftRight", group: "Trading" },
-
-  // Analytics — judge-facing privacy dashboard, agent demo, reputation peek.
-  { label: "Audit", href: "/audit", icon: "Shield", group: "Analytics" },
-  { label: "Agent", href: "/agent", icon: "Sparkles", group: "Analytics" },
-  { label: "Reputation", href: "/reputation", icon: "Star", group: "Analytics" },
-
-  // ── HIDDEN FROM V1 NAV (pages still live at their URLs; surface in Phase 2) ──
-  // /portfolio    — superseded by /treasury for v1
-  // /streaming    — Phase 2 (recurring payroll upsell)
-  // /vesting      — Phase 2 (encrypted vesting schedules)
-  // /royalty      — Phase 2 (creator royalties)
-  // /freelance    — Phase 2 (encrypted bidding + disputes)
-  // /escrow       — Phase 2 (generic escrow)
-  // /limits       — Phase 2 (limit-order engine)
-  // /raffle       — Phase 2 (encrypted raffles)
-  // /allowlist    — Phase 2 (Merkle whitelist)
-  // /wrapper      — Phase 2 (confidential token wrapper)
-  // /multisig     — Phase 2 (confidential multisig)
-  // /org          — Phase 2 (encrypted DAO governance)
-  // /referrals    — Phase 2 (encrypted referral rewards)
+/** Secondary surface — everything reachable from /more. Order matters: most
+ *  foundation-relevant variants of the wedge come first; tooling that's useful
+ *  for DAOs/payroll comes second; experimental / phase-2 surfaces last. */
+export const SECONDARY_NAV = [
+  // Auction variants (same wedge, different mechanics)
+  { label: "Vickrey", href: "/vickrey", icon: "Eye", description: "Sealed bids, highest wins, second-highest pays. Incentive-compatible." },
+  { label: "Dutch", href: "/dutch", icon: "TrendingDown", description: "Price ticks down, first buyer at their target wins. Encrypted purchase amounts." },
+  { label: "Batch", href: "/batch", icon: "Layers", description: "Many bidders, one clearing price, no front-running on order arrival." },
+  { label: "Overflow", href: "/overflow", icon: "Droplets", description: "Oversubscribed token sales pro-rata, no whale sniping on cap." },
+  // DAO finance primitives
+  { label: "Payments", href: "/payments", icon: "CreditCard", description: "Encrypted payroll splits — each recipient only sees their own amount." },
+  { label: "OTC", href: "/otc", icon: "Users", description: "Sealed request-for-quote. Counterparties never see your price band." },
+  { label: "Trade", href: "/trade", icon: "ArrowLeftRight", description: "Limit orders with encrypted prices. No MEV on order arrival." },
+  // Trust / observability surfaces
+  { label: "Activity", href: "/activity", icon: "Activity", description: "Cross-feature activity feed with privacy indicators." },
+  { label: "Reputation", href: "/reputation", icon: "Star", description: "Reputation scores on encrypted history." },
+  { label: "Agent", href: "/agent", icon: "Sparkles", description: "Programmatic agent that runs encrypted workflows on your behalf." },
 ] as const;
 
 /** Encryption stage labels for progress display.
