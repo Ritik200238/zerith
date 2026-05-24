@@ -306,13 +306,13 @@ function ScreenWelcome() {
           className="mt-1.5"
           style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}
         >
-          The private operating system for DAOs.
+          Encrypted block sales for token foundations.
         </p>
       </div>
       <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.65 }}>
-        Every payment, bid, trade, and salary on Zerith is encrypted on-chain.
-        Smart contracts compute on the ciphertext directly — the plaintext never
-        exists publicly.
+        Sealed bids, fair clearing, losing prices encrypted forever. Same
+        FHE stack powers encrypted payroll, OTC, and treasury — listed
+        under More once you&apos;re in.
       </p>
       <div
         className="p-3 font-mono"

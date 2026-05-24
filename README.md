@@ -1,8 +1,8 @@
 # Zerith
 
-**The private operating system for DAOs — launch tokens, pay teams, trade treasury, hire talent. All encrypted.**
+**Sell your treasury without leaking it. Encrypted block sales for token foundations, built on Fhenix FHE.**
 
-Zerith is a private finance protocol built on Fhenix FHE (Fully Homomorphic Encryption). Every bid, payment amount, trade price, and reputation score is encrypted on-chain. The blockchain processes your finances without ever seeing the numbers.
+Zerith is the private auction protocol for token foundations and market makers. Bidders compete with sealed prices, the chain clears a fair settlement, losing bids stay encrypted forever. No leaked order flow, no front-running, no slippage to MEV. The same FHE primitives also power encrypted payroll, OTC, treasury, and observability — listed under [/more](./frontend/src/app/more/page.tsx).
 
 [Launch App](https://cipher-dex.vercel.app) · [ConfidentialToken on Etherscan](https://sepolia.etherscan.io/address/0x56047782ABFE56d88f1f29b12b3c0C22ee12a3d2) · [Demo script](./DEMO-SCRIPT.md) · [Launch Day Test](./LAUNCH-DAY-TEST.md)
 
@@ -234,8 +234,8 @@ Visit [cipher-dex.vercel.app](https://cipher-dex.vercel.app), connect MetaMask o
 **Run locally:**
 
 ```bash
-git clone https://github.com/Ritik200238/Zerith.git
-cd Zerith
+git clone https://github.com/Ritik200238/zerith.git
+cd zerith
 
 # Contracts
 npm install
