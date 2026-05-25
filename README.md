@@ -13,7 +13,7 @@ Encrypted block sales for token foundations. Bidders compete with sealed prices,
 [![Verified txs](https://img.shields.io/badge/End--to--end_txs-34_on_chain-16a34a?style=flat-square)](./PHASE-2-VERIFICATION-LOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-[**Live app**](https://cipher-dex.vercel.app) · [Headline sealed-auction proof](https://sepolia.etherscan.io/tx/0x98a1c650b8f992dacba8580ac25aa1c1960bde1d37fa490697a9a143014fafc7) · [Reviewer replay path](#reviewer-replay-path) · [Demo script](./DEMO-SCRIPT.md) · [Launch QA](./LAUNCH-QA-RESULTS.md)
+[**Live app**](https://zerith-fi.vercel.app) · [Headline sealed-auction proof](https://sepolia.etherscan.io/tx/0x98a1c650b8f992dacba8580ac25aa1c1960bde1d37fa490697a9a143014fafc7) · [Reviewer replay path](#reviewer-replay-path) · [Demo script](./DEMO-SCRIPT.md) · [Launch QA](./LAUNCH-QA-RESULTS.md)
 
 </div>
 
@@ -49,7 +49,7 @@ flowchart LR
 | **Encrypted payroll** | **Cross-contract privacy audit** |
 | ![Payments page](./verification-evidence/12-final-payments.png) | ![Audit page with live counts](./verification-evidence/08-audit-page-new-addresses.png) |
 
-Captured live from <https://cipher-dex.vercel.app>. Full mobile + desktop sweep in [`verification-evidence/`](./verification-evidence/) (40 PNGs).
+Captured live from <https://zerith-fi.vercel.app>. Full mobile + desktop sweep in [`verification-evidence/`](./verification-evidence/) (40 PNGs).
 
 ---
 
@@ -98,7 +98,7 @@ npx hardhat run tasks/verify-auction-e2e.ts --network ethSepolia
 #  → posts encrypted bid, prints tx hash on chain, asserts encBalance changed
 ```
 
-Or just open <https://cipher-dex.vercel.app>, click **Try Instantly** (in-browser burner, no MetaMask needed, ~5 second setup), and run a real Sepolia auction through the UI.
+Or just open <https://zerith-fi.vercel.app>, click **Try Instantly** (in-browser burner, no MetaMask needed, ~5 second setup), and run a real Sepolia auction through the UI.
 
 ---
 
@@ -123,7 +123,7 @@ Or just open <https://cipher-dex.vercel.app>, click **Try Instantly** (in-browse
 | **Freelance · 2 encrypted bids, FHE.lt picks lowest** | [post tx](https://sepolia.etherscan.io/tx/0x58647a9945b06484dd322e6ca48c3f1f6681b3700fe46745af2a7b77da098b94) |
 | **Org + OrderBook + AllowlistGate triple** | [orderbook](https://sepolia.etherscan.io/tx/0xe5fa5bb756e05d65aaf9840eea9e565a6cf56913a81447d661ac133b8ea0c1a1) |
 | Burner wallet that submitted everything above | [`0x492a…a3e0`](https://sepolia.etherscan.io/address/0x492aaF98150f0542dD8D7F5Df1bE98265809a3e0) |
-| Live product surface | <https://cipher-dex.vercel.app> |
+| Live product surface | <https://zerith-fi.vercel.app> |
 | Full verification log (34 txs, every claim) | [PHASE-2-VERIFICATION-LOG.md](./PHASE-2-VERIFICATION-LOG.md) |
 | Launch-day QA results | [LAUNCH-QA-RESULTS.md](./LAUNCH-QA-RESULTS.md) |
 
@@ -148,7 +148,7 @@ Zerith fixes the structural problem with Fully Homomorphic Encryption. Bids, pri
 ```mermaid
 flowchart TB
   subgraph Surface["Surface"]
-    UI["Next.js 16 app<br/>cipher-dex.vercel.app"]
+    UI["Next.js 16 app<br/>zerith-fi.vercel.app"]
     Burner["Embedded burner<br/>5-second onboarding"]
     SDK["@sigil/sdk<br/>(typed client)"]
   end
@@ -251,7 +251,7 @@ npm --version     # 10.x
 The fastest path is the live site:
 
 ```bash
-# Open Try Instantly on https://cipher-dex.vercel.app — burner is funded, faucet works.
+# Open Try Instantly on https://zerith-fi.vercel.app — burner is funded, faucet works.
 # Submit a sealed bid through the UI. The TxFlowDrawer walks through:
 #   Encrypt locally → Submit to FHE network → Confirm on Ethereum → Sealed forever
 ```
@@ -434,7 +434,7 @@ Two contracts kept as carry-overs from the prior deploy because they're not affe
 
 ## Frontend surface
 
-`https://cipher-dex.vercel.app` is the canonical product surface. The repo also ships an early TypeScript SDK and a set of Hardhat tasks for headless replay.
+`https://zerith-fi.vercel.app` is the canonical product surface. The repo also ships an early TypeScript SDK and a set of Hardhat tasks for headless replay.
 
 ### Most-used Hardhat tasks
 

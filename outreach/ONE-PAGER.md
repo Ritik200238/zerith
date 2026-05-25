@@ -43,7 +43,7 @@ A $50M block sale that historically loses 2% to slippage ≈ **$1M saved per sal
 |---|---|
 | Block sales contracts on Fhenix CoFHE | **Live on Ethereum Sepolia** |
 | Reviewer-friendly README + 15 tx hashes | **github.com/Ritik200238/zerith** |
-| Web UI with embedded burner wallet | **cipher-dex.vercel.app** (try in 30s, no MetaMask needed) |
+| Web UI with embedded burner wallet | **zerith-fi.vercel.app** (try in 30s, no MetaMask needed) |
 | Mainnet (Arbitrum) | Q3 2026 target, post-audit |
 
 ## Who built it

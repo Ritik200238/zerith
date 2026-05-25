@@ -17,7 +17,7 @@ I built Zerith — sealed-bid block sales on-chain using FHE (Fhenix). Bidders s
 20 minutes to walk you through the live auction? No deck — I'll show the on-chain proof.
 
 — Ritik
-github.com/Ritik200238/zerith · cipher-dex.vercel.app
+github.com/Ritik200238/zerith · zerith-fi.vercel.app
 
 ---
 
