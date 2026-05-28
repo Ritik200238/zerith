@@ -1,5 +1,9 @@
 "use client";
 
+// Side-effect: registers Reown AppKit globally on the client. Must import
+// before the AppKit hooks below resolve to anything useful.
+import "@/lib/appkit";
+
 import React, {
   createContext,
   useCallback,
@@ -10,6 +14,14 @@ import React, {
   useState,
 } from "react";
 import { ethers } from "ethers";
+import {
+  useAppKit,
+  useAppKitAccount,
+  useAppKitNetwork,
+  useAppKitProvider,
+  useDisconnect as useAppKitDisconnect,
+} from "@reown/appkit/react";
+import { sepolia } from "@reown/appkit/networks";
 import { FHENIX_TESTNET } from "@/lib/constants";
 
 /* ---------- Types ---------- */
@@ -107,13 +119,19 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<WalletMode>("disconnected");
   const [burnerPrivateKey, setBurnerPrivateKey] = useState<string | null>(null);
 
-  // Mirror of `mode` in a ref so the long-lived window.ethereum listeners
-  // (attached once on mount) can no-op when a burner is active without us
-  // having to detach/re-attach across mode switches.
+  // Mirror of `mode` in a ref so the AppKit subscription effect can read
+  // the latest value without re-running every time mode changes.
   const modeRef = useRef<WalletMode>("disconnected");
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
+
+  /* ---- Reown AppKit hooks (only meaningful when mode !== "burner") ---- */
+  const { open: openAppKitModal } = useAppKit();
+  const { address: appKitAddress, isConnected: appKitConnected } = useAppKitAccount();
+  const { chainId: appKitChainId, switchNetwork } = useAppKitNetwork();
+  const { walletProvider } = useAppKitProvider<ethers.Eip1193Provider>("eip155");
+  const { disconnect: appKitDisconnect } = useAppKitDisconnect();
 
   /* ---- Helpers ---- */
 
@@ -129,136 +147,116 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setError(null);
   }, []);
 
-  /* ---- Check chain (injected only) ---- */
-  const checkChain = useCallback(async (prov: ethers.BrowserProvider) => {
-    try {
-      const network = await prov.getNetwork();
-      setIsCorrectChain(network.chainId === BigInt(FHENIX_TESTNET.chainId));
-    } catch {
-      setIsCorrectChain(false);
-    }
-  }, []);
-
-  /* ---- Initialize from existing connection ---- */
+  /* ---- Initialize: restore burner if present (takes priority over AppKit) ---- */
   useEffect(() => {
-    // First — try restoring a saved burner. Burner takes priority over an
-    // existing injected connection because the user picked "Try instantly"
-    // last session and we should respect that.
     const stored = loadStoredBurner();
     if (stored) {
       try {
         activateBurner(stored.privateKey, stored.address);
-        return; // don't attach injected listeners while burner is active
       } catch {
-        // Corrupted privkey — clear and fall through to injected.
+        // Corrupted privkey — clear and fall through to AppKit (no auto-connect).
         clearStoredBurner();
       }
     }
+  }, [activateBurner]);
 
-    const ethereum = typeof window !== "undefined" ? window.ethereum : undefined;
-    if (!ethereum) return;
+  /* ---- Sync AppKit state -> ethers signer (skipped while burner is active) ---- */
+  useEffect(() => {
+    if (modeRef.current === "burner") return;
 
-    const prov = new ethers.BrowserProvider(ethereum);
-
-    // Check if already connected
-    prov
-      .listAccounts()
-      .then(async (accounts) => {
-        if (accounts.length > 0) {
-          const s = await prov.getSigner();
-          setProvider(prov);
-          setSigner(s);
-          setAccount(await s.getAddress());
-          setMode("injected");
-          await checkChain(prov);
-        }
-      })
-      .catch(() => {
-        // Not connected — that is fine
-      });
-
-    // Listen for account / chain changes. Listeners stay attached for the
-    // provider's lifetime; we gate on modeRef so they no-op while a burner
-    // is active (otherwise an unrelated MetaMask account-switch event would
-    // clobber the burner signer).
-    const handleAccountsChanged = (...args: unknown[]) => {
-      if (modeRef.current === "burner") return;
-      const accounts = args[0] as string[];
-      if (!accounts || accounts.length === 0) {
+    if (!appKitConnected || !walletProvider || !appKitAddress) {
+      // AppKit reports disconnected. If we were previously injected, clear.
+      if (modeRef.current === "injected") {
         setAccount(null);
         setSigner(null);
+        setProvider(null);
         setIsCorrectChain(false);
         setMode("disconnected");
-      } else {
-        setAccount(accounts[0]);
-        prov.getSigner().then(setSigner).catch(() => setSigner(null));
-        window.dispatchEvent(new CustomEvent("sigil-account-changed", { detail: accounts[0] }));
       }
-    };
-
-    const handleChainChanged = (...args: unknown[]) => {
-      if (modeRef.current === "burner") return;
-      const newChainIdHex = args[0] as string;
-      const newChainId = parseInt(newChainIdHex, 16);
-      setIsCorrectChain(newChainId === FHENIX_TESTNET.chainId);
-      const fresh = new ethers.BrowserProvider(ethereum);
-      setProvider(fresh);
-      fresh.getSigner().then(setSigner).catch(() => setSigner(null));
-      window.dispatchEvent(new CustomEvent("sigil-chain-changed", { detail: newChainId }));
-    };
-
-    ethereum.on("accountsChanged", handleAccountsChanged);
-    ethereum.on("chainChanged", handleChainChanged);
-
-    return () => {
-      ethereum.removeListener("accountsChanged", handleAccountsChanged);
-      ethereum.removeListener("chainChanged", handleChainChanged);
-    };
-  }, [checkChain, activateBurner]);
-
-  /* ---- Connect (injected MetaMask) ---- */
-  const connect = useCallback(async () => {
-    const ethereum = typeof window !== "undefined" ? window.ethereum : undefined;
-    if (!ethereum) {
-      setError("MetaMask is not installed. Use Try Instantly to demo without a wallet.");
       return;
     }
 
-    setConnecting(true);
-    setError(null);
+    let cancelled = false;
+    const prov = new ethers.BrowserProvider(walletProvider);
+    prov
+      .getSigner()
+      .then((s) => {
+        if (cancelled) return;
+        setProvider(prov);
+        setSigner(s);
+        setAccount(appKitAddress);
+        setMode("injected");
+        setIsCorrectChain(Number(appKitChainId) === FHENIX_TESTNET.chainId);
+        setError(null);
+      })
+      .catch(() => {
+        if (!cancelled) setSigner(null);
+      });
 
-    try {
-      // If a burner was active, switching to injected should clear it.
-      if (mode === "burner") {
-        clearStoredBurner();
-        setBurnerPrivateKey(null);
-      }
+    return () => {
+      cancelled = true;
+    };
+  }, [appKitConnected, appKitAddress, appKitChainId, walletProvider]);
 
-      const prov = new ethers.BrowserProvider(ethereum);
-      await prov.send("eth_requestAccounts", []);
-      const s = await prov.getSigner();
-      const addr = await s.getAddress();
-
-      setProvider(prov);
-      setSigner(s);
-      setAccount(addr);
-      setMode("injected");
-      await checkChain(prov);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to connect wallet";
-      setError(message);
-    } finally {
-      setConnecting(false);
+  /* ---- Fire legacy account-changed event so per-account hooks can reset ---- */
+  // useBlockPoll.ts listens for "sigil-account-changed" to flush per-account
+  // cached state on account switch. We preserve the event name (not worth a
+  // codemod just to drop the "sigil-" prefix) and dispatch it whenever the
+  // AppKit-driven address changes — but not for burner-mode address changes,
+  // since burner activation already runs through the disconnect/reconnect cycle.
+  const prevAccountRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (modeRef.current === "burner") {
+      prevAccountRef.current = account;
+      return;
     }
-  }, [checkChain, mode]);
+    if (appKitAddress && appKitAddress !== prevAccountRef.current) {
+      prevAccountRef.current = appKitAddress;
+      window.dispatchEvent(
+        new CustomEvent("sigil-account-changed", { detail: appKitAddress }),
+      );
+    }
+  }, [appKitAddress, account]);
 
-  /* ---- Connect via burner (existing key — used for restore + manual import) ---- */
+  /* ---- Connect via Reown wallet picker ---- */
+  const connect = useCallback(async () => {
+    // If a burner was active, switching to injected should clear it so the
+    // AppKit sync effect can drive the new signer state once the user picks.
+    if (mode === "burner") {
+      clearStoredBurner();
+      setBurnerPrivateKey(null);
+      setMode("disconnected");
+    }
+
+    setError(null);
+    try {
+      await openAppKitModal();
+      // Note: openAppKitModal() resolves when the modal opens, NOT when the
+      // user finishes connecting. Real connection state arrives via the
+      // useAppKitAccount hook, picked up by the sync effect above.
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to open wallet picker";
+      setError(message);
+    }
+  }, [mode, openAppKitModal]);
+
+  /* ---- Connect via burner (existing key — restore + manual import) ---- */
   const connectBurner = useCallback(
     async ({ privateKey, address }: { privateKey: string; address?: string }) => {
       try {
-        // Validate the privkey by constructing a Wallet. Will throw on malformed input.
+        // Validate the privkey by constructing a Wallet. Throws on malformed input.
         const probe = new ethers.Wallet(privateKey);
         const addr = address ?? probe.address;
+        // Tear down any AppKit connection silently — burner takes priority.
+        if (appKitConnected) {
+          try {
+            await appKitDisconnect();
+          } catch {
+            // Best-effort. If AppKit refuses, the modeRef check still gates
+            // the sync effect from clobbering the burner signer.
+          }
+        }
         activateBurner(privateKey, addr);
         saveStoredBurner({ privateKey, address: addr, createdAt: Date.now() });
       } catch (err) {
@@ -267,7 +265,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         throw err;
       }
     },
-    [activateBurner],
+    [activateBurner, appKitConnected, appKitDisconnect],
   );
 
   /* ---- Create-and-connect burner (the "Try Instantly" path) ---- */
@@ -275,6 +273,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setConnecting(true);
     setError(null);
     try {
+      // Tear down any AppKit connection silently — burner takes priority.
+      if (appKitConnected) {
+        try {
+          await appKitDisconnect();
+        } catch {
+          // Best-effort; see connectBurner for the same rationale.
+        }
+      }
       const resp = await fetch("/api/burner/create", { method: "POST" });
       if (!resp.ok) {
         const body = (await resp.json().catch(() => null)) as { message?: string } | null;
@@ -297,59 +303,46 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setConnecting(false);
     }
-  }, [activateBurner]);
+  }, [activateBurner, appKitConnected, appKitDisconnect]);
 
   /* ---- Disconnect ---- */
   const disconnect = useCallback(() => {
     if (mode === "burner") {
       clearStoredBurner();
+      setAccount(null);
+      setSigner(null);
+      setProvider(null);
+      setIsCorrectChain(false);
+      setError(null);
+      setMode("disconnected");
+      setBurnerPrivateKey(null);
+      return;
     }
-    setAccount(null);
-    setSigner(null);
-    setProvider(null);
-    setIsCorrectChain(false);
-    setError(null);
-    setMode("disconnected");
-    setBurnerPrivateKey(null);
-  }, [mode]);
 
-  /* ---- Switch to Fhenix ---- */
+    // Injected path — ask AppKit to drop the session. The hook-driven sync
+    // effect will then clear our local signer state on the next tick.
+    appKitDisconnect().catch(() => {
+      // Even if AppKit's disconnect fails, force-clear local state so the
+      // UI doesn't get stuck showing a connected address.
+      setAccount(null);
+      setSigner(null);
+      setProvider(null);
+      setIsCorrectChain(false);
+      setMode("disconnected");
+    });
+  }, [mode, appKitDisconnect]);
+
+  /* ---- Switch to Sepolia (Fhenix coprocessor lives here) ---- */
   const switchToFhenix = useCallback(async () => {
-    // Burner is already on Sepolia by construction; no-op.
+    // Burner is constructed against Sepolia RPC; no-op.
     if (mode === "burner") return;
 
-    const ethereum = typeof window !== "undefined" ? window.ethereum : undefined;
-    if (!ethereum) return;
-
     try {
-      await ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: FHENIX_TESTNET.chainIdHex }],
-      });
-    } catch (switchError: unknown) {
-      const err = switchError as { code?: number };
-      if (err.code === 4902) {
-        try {
-          await ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [
-              {
-                chainId: FHENIX_TESTNET.chainIdHex,
-                chainName: FHENIX_TESTNET.name,
-                rpcUrls: [FHENIX_TESTNET.rpcUrl],
-                blockExplorerUrls: [FHENIX_TESTNET.blockExplorer],
-                nativeCurrency: FHENIX_TESTNET.nativeCurrency,
-              },
-            ],
-          });
-        } catch {
-          setError("Failed to add Fhenix network to wallet.");
-        }
-      } else {
-        setError("Failed to switch to Fhenix network.");
-      }
+      await switchNetwork(sepolia);
+    } catch {
+      setError("Failed to switch to Sepolia network.");
     }
-  }, [mode]);
+  }, [mode, switchNetwork]);
 
   /* ---- Context value ---- */
   const value = useMemo<WalletContextValue>(
@@ -396,16 +389,4 @@ export function useWallet(): WalletContextValue {
     throw new Error("useWallet must be used within a WalletProvider");
   }
   return ctx;
-}
-
-/* ---------- Ethereum type augmentation ---------- */
-
-declare global {
-  interface Window {
-    ethereum?: ethers.Eip1193Provider & {
-      on: (event: string, handler: (...args: unknown[]) => void) => void;
-      removeListener: (event: string, handler: (...args: unknown[]) => void) => void;
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-    };
-  }
 }
