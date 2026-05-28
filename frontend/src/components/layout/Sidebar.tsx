@@ -33,6 +33,7 @@ import {
   Share2,
   Vault,
   Grid,
+  Code2,
 } from "lucide-react";
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -62,6 +63,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: 
   Share2,
   Vault,
   Grid,
+  Code2,
 };
 
 const GROUP_ORDER = ["Overview", "Product", "Trust"];

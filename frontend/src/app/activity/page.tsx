@@ -137,10 +137,15 @@ export default function ActivityPage() {
     const out: ActivityEvent[] = [];
     try {
       const total = Number(await sealed.getAuctionCount());
-      for (let i = 0; i < total; i++) {
-        const placed = await sealed.hasBid(i, account);
-        if (!placed) continue;
-        const a = await sealed.getAuction(i);
+      const indices = Array.from({ length: total }, (_, i) => i);
+      // Parallel: check hasBid + getAuction for every index in two waves.
+      const [bidFlags, auctionRaws] = await Promise.all([
+        Promise.all(indices.map((i) => sealed.hasBid(i, account))),
+        Promise.all(indices.map((i) => sealed.getAuction(i))),
+      ]);
+      bidFlags.forEach((placed, i) => {
+        if (!placed) return;
+        const a = auctionRaws[i];
         out.push({
           type: "auction-bid",
           // Sealed Auction doesn't store per-bid timestamp; use deadline as the
@@ -162,7 +167,7 @@ export default function ActivityPage() {
             Number(a[6]) === 4 || Number(a[6]) === 5 ? "bad" : "neutral",
           encrypted: Number(a[6]) < 2, // before reveal, your bid amount is encrypted
         });
-      }
+      });
     } catch {
       /* ignore */
     }
@@ -175,8 +180,9 @@ export default function ActivityPage() {
     const out: ActivityEvent[] = [];
     try {
       const ids: bigint[] = await por.getProverClaims(account);
-      for (const id of ids) {
-        const c = await por.getClaim(id);
+      const claims = await Promise.all(ids.map((id) => por.getClaim(id)));
+      claims.forEach((c, idx) => {
+        const id = ids[idx];
         out.push({
           type: "por-request",
           timestamp: Number(c[3]),
@@ -191,7 +197,7 @@ export default function ActivityPage() {
             Number(c[5]) === 0 ? "pending" : "bad",
           encrypted: true,
         });
-      }
+      });
     } catch {
       /* ignore */
     }

@@ -133,7 +133,6 @@ npx hardhat run tasks/verify-deposit-actually-moves-tokens.ts --network ethSepol
 - **Features with submit pipeline exercised:** 6 additional (Payments, Trade, Streaming, OTC, Agent, Wrapper modal)
 - **Routes audited for console errors:** 28/28 clean
 - **Final visual archive:** 28 full-page screenshots, post all fixes
-- **Demo video:** `demo-video/zerith-60sec-demo.webm` (52s, 7 beats)
 - **Git commits in this loop session:** ~35
 - **Hard launch-readiness reference docs:** this one + `LAUNCH-QA-RESULTS.md` + `PHASE-2-VERIFICATION-LOG.md` + `LAUNCH-DAY-TEST.md`
 

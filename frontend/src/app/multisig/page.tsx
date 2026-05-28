@@ -335,7 +335,7 @@ export default function MultisigPage() {
   if (!deployed) {
     return (
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
-        <ComingSoonBanner feature="Confidential Multisig" shipDate="Wave 4 deploy" />
+        <ComingSoonBanner feature="Confidential Multisig" shipDate="soon" />
       </main>
     );
   }
@@ -396,12 +396,60 @@ export default function MultisigPage() {
             <Users size={12} /> Multisigs
           </div>
           {multisigs.length === 0 ? (
-            <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-5 text-center">
-              <Sparkles size={22} className="text-[var(--text-muted)] mx-auto mb-2" />
-              <p className="text-xs text-[var(--text-secondary)]">No multisigs yet</p>
-              <p className="text-[11px] text-[var(--text-muted)] mt-1">
-                Click <b>New multisig</b> to create one.
+            <div
+              style={{
+                background: "var(--bg-card)",
+                border: "1px dashed var(--border-dash)",
+                borderRadius: 4,
+              }}
+              className="p-4 space-y-2.5"
+            >
+              <div
+                className="w-9 h-9 flex items-center justify-center"
+                style={{
+                  background: "var(--bg-alt)",
+                  border: "1px dashed var(--border-dash)",
+                  borderRadius: 4,
+                }}
+              >
+                <Sparkles size={15} style={{ color: "var(--text)" }} />
+              </div>
+              <p
+                className="font-mono uppercase tracking-[0.12em]"
+                style={{ fontSize: 9.5, color: "var(--text-muted)" }}
+              >
+                — No multisigs yet
               </p>
+              <p
+                className="font-display font-semibold"
+                style={{
+                  fontSize: 14,
+                  color: "var(--text)",
+                  letterSpacing: "-0.01em",
+                  lineHeight: 1.25,
+                }}
+              >
+                Govern with a hidden threshold.
+              </p>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Encrypted threshold and per-member voting weights. Observers
+                see <em>that</em> a proposal executed, not <em>which</em> votes
+                carried it.
+              </p>
+              <button
+                type="button"
+                onClick={() => setModalView("create")}
+                className="text-xs font-semibold inline-flex items-center gap-1.5 mt-1"
+                style={{ color: "var(--text)" }}
+              >
+                Create multisig →
+              </button>
             </div>
           ) : (
             multisigs.map((m) => (

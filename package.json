@@ -14,7 +14,9 @@
     "deploy:sealed": "npx hardhat run tasks/deploy-sealed-auction.ts --network ethSepolia",
     "deploy:otc": "npx hardhat run tasks/deploy-otc-board.ts --network ethSepolia",
     "launch-check": "npx hardhat run tasks/launch-day-check.ts --network ethSepolia",
-    "seed-state": "npx hardhat run tasks/seed-state.ts --network ethSepolia"
+    "seed-state": "npx hardhat run tasks/seed-state.ts --network ethSepolia",
+    "verify:mobile": "node tasks/verify-mobile-responsive.mjs",
+    "verify:mobile:archive": "node tasks/verify-mobile-responsive.mjs --archive"
   },
   "dependencies": {
     "@fhenixprotocol/cofhe-contracts": "^0.1.3",

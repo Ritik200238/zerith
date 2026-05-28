@@ -123,19 +123,16 @@ export default function TreasuryPage() {
     setLoadingClaims(true);
     try {
       const ids: bigint[] = await porRead.getProverClaims(account);
-      const fetched: Claim[] = [];
-      for (const id of ids) {
-        const c = await porRead.getClaim(id);
-        fetched.push({
-          id: Number(id),
-          prover: c[0],
-          token: c[1],
-          threshold: BigInt(c[2]),
-          requestedAt: Number(c[3]),
-          revealedAt: Number(c[4]),
-          status: Number(c[5]) as ClaimStatus,
-        });
-      }
+      const raws = await Promise.all(ids.map((id) => porRead.getClaim(id)));
+      const fetched: Claim[] = raws.map((c, idx) => ({
+        id: Number(ids[idx]),
+        prover: c[0],
+        token: c[1],
+        threshold: BigInt(c[2]),
+        requestedAt: Number(c[3]),
+        revealedAt: Number(c[4]),
+        status: Number(c[5]) as ClaimStatus,
+      }));
       // newest first
       fetched.reverse();
       setClaims(fetched);

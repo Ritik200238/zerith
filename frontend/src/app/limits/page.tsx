@@ -25,6 +25,7 @@ import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { FaucetButton } from "@/components/shared/FaucetButton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
 import { CONTRACTS } from "@/lib/constants";
 import { formatAmount, parseAmount } from "@/lib/format";
@@ -80,23 +81,23 @@ export default function LimitsPage() {
     if (!limitsRead) return;
     try {
       const count = Number(await limitsRead.nextOrderId());
+      const indices = Array.from({ length: count }, (_, i) => i);
+      const raws = await Promise.all(
+        indices.map((i) => limitsRead.limitOrders(i).catch(() => null)),
+      );
       const out: OrderData[] = [];
-      for (let i = 0; i < count; i++) {
-        try {
-          const o = await limitsRead.limitOrders(i);
-          out.push({
-            id: i,
-            owner: o.owner,
-            tokenBuy: o.tokenBuy,
-            tokenSell: o.tokenSell,
-            amount: o.amount.toString(),
-            status: Number(o.status),
-            direction: Number(o.direction),
-          });
-        } catch {
-          /* skip */
-        }
-      }
+      raws.forEach((o, i) => {
+        if (!o) return;
+        out.push({
+          id: i,
+          owner: o.owner,
+          tokenBuy: o.tokenBuy,
+          tokenSell: o.tokenSell,
+          amount: o.amount.toString(),
+          status: Number(o.status),
+          direction: Number(o.direction),
+        });
+      });
       setOrders(out.reverse());
     } catch {
       /* noop */
@@ -193,7 +194,7 @@ export default function LimitsPage() {
   if (!deployed) {
     return (
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
-        <ComingSoonBanner feature="Limit Order Engine" shipDate="Wave 4 deploy" />
+        <ComingSoonBanner feature="Limit Order Engine" shipDate="soon" />
       </main>
     );
   }
@@ -239,10 +240,14 @@ export default function LimitsPage() {
 
       <section className="mt-6 grid gap-3">
         {orders.length === 0 ? (
-          <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-8 text-center">
-            <Target size={28} className="text-[var(--text-muted)] mx-auto mb-2" />
-            <p className="text-sm text-[var(--text-secondary)]">No limit orders</p>
-          </div>
+          <EmptyState
+            icon={Target}
+            eyebrow="No limit orders"
+            title="Set a target without telegraphing it."
+            body="Encrypt the trigger price and amount, store the order on-chain. Outsiders see your wallet has an order open but not the price you'll fill at. The contract executes when conditions are met — no front-running on the trigger."
+            primary={{ label: "New limit order", onClick: () => setModalOpen(true) }}
+            secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
+          />
         ) : (
           orders.map((o) => {
             const style = STATUS_STYLE[o.status];

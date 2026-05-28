@@ -1,0 +1,47 @@
+name: Mobile responsive
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL to test against (defaults to production)"
+        required: false
+        default: "https://zerith-fi.vercel.app"
+
+jobs:
+  verify-375px:
+    name: 375px viewport overflow check
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright + ethers (root tasks deps)
+        run: |
+          npm install --no-audit --no-fund --legacy-peer-deps playwright ethers
+          npx playwright install --with-deps chromium
+
+      - name: Run mobile responsive sweep
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://zerith-fi.vercel.app' }}
+        run: npm run verify:mobile
+
+      - name: Upload overflow screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-screenshots-${{ github.run_id }}
+          path: verification-evidence/mobile/
+          if-no-files-found: ignore
+          retention-days: 14

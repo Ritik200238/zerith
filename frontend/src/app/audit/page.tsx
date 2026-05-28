@@ -289,7 +289,6 @@ export default function AuditPage() {
         </h2>
         <p className="text-xs text-[var(--text-muted)] mb-3">
           Every distinct call into the FHE library across the entire codebase.
-          Buildathon brief asked for "14+ distinct ops" — here are all of ours.
         </p>
         <div className="flex flex-wrap gap-2">
           {allOps.map((op) => (

@@ -115,23 +115,25 @@ export default function OTCPage() {
     if (!otcRead) return;
     try {
       const count = Number(await otcRead.getRequestCount());
+      // Parallel fetch with per-item resilience — a single bad index does
+      // not block the whole page render.
+      const indices = Array.from({ length: count }, (_, i) => i);
+      const raws = await Promise.all(
+        indices.map((i) => otcRead.getRequest(i).catch(() => null)),
+      );
       const out: RequestData[] = [];
-      for (let i = 0; i < count; i++) {
-        try {
-          const r = await otcRead.getRequest(i);
-          out.push({
-            id: i,
-            requester: r[0],
-            tokenWant: r[1],
-            tokenOffer: r[2],
-            status: Number(r[3]),
-            deadline: Number(r[4]),
-            quoteCount: Number(r[5]),
-          });
-        } catch {
-          /* skip */
-        }
-      }
+      raws.forEach((r, i) => {
+        if (!r) return;
+        out.push({
+          id: i,
+          requester: r[0],
+          tokenWant: r[1],
+          tokenOffer: r[2],
+          status: Number(r[3]),
+          deadline: Number(r[4]),
+          quoteCount: Number(r[5]),
+        });
+      });
       setRequests(out.reverse());
     } catch {
       /* noop */
@@ -324,17 +326,17 @@ export default function OTCPage() {
       setQuoteRows([]);
       setModalView("quotes-picker");
       try {
-        const rows: QuoteRow[] = [];
-        for (let i = 0; i < req.quoteCount; i++) {
-          const q = await otcRead.getQuote(req.id, i);
-          rows.push({
-            index: i,
-            quoter: q[0],
-            encQuotePrice: q[1].toString(),
-            encQuoteAmount: q[2].toString(),
-            accepted: q[3],
-          });
-        }
+        const indices = Array.from({ length: req.quoteCount }, (_, i) => i);
+        const raws = await Promise.all(
+          indices.map((i) => otcRead.getQuote(req.id, i)),
+        );
+        const rows: QuoteRow[] = raws.map((q, i) => ({
+          index: i,
+          quoter: q[0],
+          encQuotePrice: q[1].toString(),
+          encQuoteAmount: q[2].toString(),
+          accepted: q[3],
+        }));
         setQuoteRows(rows);
       } catch (err: unknown) {
         toast.error("Could not load quotes", err instanceof Error ? err.message.slice(0, 200) : "Read failed");
@@ -350,7 +352,7 @@ export default function OTCPage() {
   if (!deployed) {
     return (
       <main className="mx-auto px-5 md:px-10 py-12 max-w-[1180px]">
-        <ComingSoonBanner feature="OTC Desk" shipDate="Wave 4 deploy" />
+        <ComingSoonBanner feature="OTC Desk" shipDate="soon" />
       </main>
     );
   }
@@ -479,9 +481,10 @@ export default function OTCPage() {
           <EmptyState
             icon={ArrowLeftRight}
             eyebrow="No OTC requests yet"
-            title="Post a private request for quote."
-            body="Define the pair and an encrypted price band. Market makers submit sealed quotes; only the matched one ever reveals. Counterparties never see your range."
+            title="Post a sealed RFQ — counterparties never see your range."
+            body="Define the pair and an encrypted price band. Market makers submit sealed quotes; FHE checks each quote against your range on-chain; only the matched quote ever decrypts. Bands, losing quotes, and bidder identity stay hidden."
             primary={{ label: "New request", onClick: () => setModalView("post") }}
+            secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
           />
         ) : (
           requests.map((r) => {

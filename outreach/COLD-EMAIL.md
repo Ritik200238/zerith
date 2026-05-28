@@ -62,8 +62,7 @@ Hey {{handle}} — built a thing you might care about. **Encrypted block sales f
 ## What to send when they reply "interested"
 
 1. One-pager PDF (`ONE-PAGER.md` → export to PDF)
-2. 60-sec demo video (`cipherdex/demo-video/zerith-60sec-demo.webm`)
-3. Calendly link — single 30-min slot, no decision tree
+2. Calendly link — single 30-min slot, no decision tree
 
 ## What to NOT do
 

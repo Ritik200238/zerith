@@ -26,6 +26,7 @@ import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { FaucetButton } from "@/components/shared/FaucetButton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
 import { CONTRACTS } from "@/lib/constants";
 import { parseAmount, isValidAddress, shortAddress, formatRemaining } from "@/lib/format";
@@ -91,24 +92,24 @@ export default function EscrowPage() {
     if (!escrowRead) return;
     try {
       const count = Number(await escrowRead.getDealCount());
+      const indices = Array.from({ length: count }, (_, i) => i);
+      const raws = await Promise.all(
+        indices.map((i) => escrowRead.getDeal(i).catch(() => null)),
+      );
       const out: DealData[] = [];
-      for (let i = 0; i < count; i++) {
-        try {
-          const d = await escrowRead.getDeal(i);
-          out.push({
-            id: i,
-            partyA: d[0],
-            partyB: d[1],
-            tokenA: d[2],
-            tokenB: d[3],
-            status: Number(d[4]),
-            deadline: Number(d[5]),
-            dealHash: d[6],
-          });
-        } catch {
-          /* skip */
-        }
-      }
+      raws.forEach((d, i) => {
+        if (!d) return;
+        out.push({
+          id: i,
+          partyA: d[0],
+          partyB: d[1],
+          tokenA: d[2],
+          tokenB: d[3],
+          status: Number(d[4]),
+          deadline: Number(d[5]),
+          dealHash: d[6],
+        });
+      });
       setDeals(out.reverse());
     } catch {
       /* noop */
@@ -241,7 +242,7 @@ export default function EscrowPage() {
   if (!deployed) {
     return (
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
-        <ComingSoonBanner feature="Encrypted Escrow" shipDate="Wave 4 deploy" />
+        <ComingSoonBanner feature="Encrypted Escrow" shipDate="soon" />
       </main>
     );
   }
@@ -287,10 +288,14 @@ export default function EscrowPage() {
 
       <section className="mt-6 grid gap-3">
         {deals.length === 0 ? (
-          <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-8 text-center">
-            <ShieldCheck size={28} className="text-[var(--text-muted)] mx-auto mb-2" />
-            <p className="text-sm text-[var(--text-secondary)]">No deals yet</p>
-          </div>
+          <EmptyState
+            icon={ShieldCheck}
+            eyebrow="No deals yet"
+            title="Two-party escrow with hidden settlement amounts."
+            body="Both parties post encrypted terms. The contract checks them on ciphertext and only completes the trade if they match. Disputes don't leak the amounts. Use it when an OTC counterparty wants confidentiality on both legs."
+            primary={{ label: "Create deal", onClick: () => setModalView("create") }}
+            secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
+          />
         ) : (
           deals.map((d) => {
             const style = STATUS_STYLE[d.status];

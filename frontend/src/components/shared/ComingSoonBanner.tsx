@@ -47,7 +47,7 @@ export function ComingSoonBanner({
           </h2>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
             The smart contract for this feature is deployed and tested. The UI
-            is being built right now and will go live in Wave 4. We chose to
+            is being built right now and will go live shortly. We chose to
             show this honest state instead of hiding the page or shipping a
             non-functional form.
           </p>

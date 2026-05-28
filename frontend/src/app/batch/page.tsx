@@ -94,25 +94,25 @@ export default function BatchPage() {
       const adminAddr = await batchRead.admin();
       setAdmin(adminAddr);
       const count = Number(await batchRead.getRoundCount());
+      const indices = Array.from({ length: count }, (_, i) => i);
+      const raws = await Promise.all(
+        indices.map((i) => batchRead.getRound(i).catch(() => null)),
+      );
       const out: RoundData[] = [];
-      for (let i = 0; i < count; i++) {
-        try {
-          const r = await batchRead.getRound(i);
-          out.push({
-            id: i,
-            tokenA: r[0],
-            tokenB: r[1],
-            startTime: Number(r[2]),
-            endTime: Number(r[3]),
-            status: Number(r[4]),
-            clearingPrice: r[5].toString(),
-            buyCount: Number(r[6]),
-            sellCount: Number(r[7]),
-          });
-        } catch {
-          /* skip */
-        }
-      }
+      raws.forEach((r, i) => {
+        if (!r) return;
+        out.push({
+          id: i,
+          tokenA: r[0],
+          tokenB: r[1],
+          startTime: Number(r[2]),
+          endTime: Number(r[3]),
+          status: Number(r[4]),
+          clearingPrice: r[5].toString(),
+          buyCount: Number(r[6]),
+          sellCount: Number(r[7]),
+        });
+      });
       setRounds(out.reverse());
     } catch {
       /* noop */
@@ -279,7 +279,7 @@ export default function BatchPage() {
   if (!deployed) {
     return (
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
-        <ComingSoonBanner feature="Batch Auction" shipDate="Wave 4 deploy" />
+        <ComingSoonBanner feature="Batch Auction" shipDate="soon" />
       </main>
     );
   }
@@ -339,9 +339,10 @@ export default function BatchPage() {
           <EmptyState
             icon={Layers}
             eyebrow="No batch rounds yet"
-            title="Open the first batch round."
-            body="Bidders place encrypted buy/sell orders during the window. At close, a single clearing price settles every order at once — no MEV, no front-running."
+            title="Settle every order at one fair clearing price."
+            body="During the round, bidders submit encrypted price + quantity. At close, the contract finds the single clearing price that maximizes filled volume. No order arrival advantage. No MEV sandwich. Same price for everyone."
             primary={{ label: "Create round", onClick: handleCreate }}
+            secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
           />
         ) : (
           rounds.map((r) => {

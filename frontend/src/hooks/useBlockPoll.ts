@@ -55,7 +55,7 @@ export function useBlockPoll(intervalMs = 12_000): number {
 }
 
 /**
- * useAccountChangeReset — listens for the "sigil-account-changed" event
+ * useAccountChangeReset — listens for the "zerith-account-changed" event
  * dispatched by WalletProvider, calls the provided reset callback whenever
  * the user switches wallets.
  *
@@ -66,7 +66,7 @@ export function useBlockPoll(intervalMs = 12_000): number {
 export function useAccountChangeReset(onReset: () => void): void {
   useEffect(() => {
     const handler = () => onReset();
-    window.addEventListener("sigil-account-changed", handler);
-    return () => window.removeEventListener("sigil-account-changed", handler);
+    window.addEventListener("zerith-account-changed", handler);
+    return () => window.removeEventListener("zerith-account-changed", handler);
   }, [onReset]);
 }

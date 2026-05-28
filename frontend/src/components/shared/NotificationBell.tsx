@@ -31,7 +31,7 @@ const COLOR_MAP = {
   system: "text-textMuted",
 };
 
-const STORAGE_KEY = "sigil-notifications";
+const STORAGE_KEY = "zerith-notifications";
 
 function loadNotifications(): Notification[] {
   try {
@@ -82,8 +82,8 @@ export function NotificationBell() {
       });
     };
 
-    window.addEventListener("sigil-notify" as string, handler as EventListener);
-    return () => window.removeEventListener("sigil-notify" as string, handler as EventListener);
+    window.addEventListener("zerith-notify" as string, handler as EventListener);
+    return () => window.removeEventListener("zerith-notify" as string, handler as EventListener);
   }, []);
 
   // Close on outside click

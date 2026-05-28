@@ -30,6 +30,7 @@ import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { FaucetButton } from "@/components/shared/FaucetButton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
 import { CONTRACTS } from "@/lib/constants";
 import { parseAmount, isValidAddress, shortAddress, formatRemaining } from "@/lib/format";
@@ -237,7 +238,7 @@ export default function StreamingPage() {
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
         <ComingSoonBanner
           feature="Encrypted Streaming Payments"
-          shipDate="Wave 4 deploy"
+          shipDate="soon"
         />
       </main>
     );
@@ -298,11 +299,14 @@ export default function StreamingPage() {
       {/* Streams */}
       <section className="mt-6 grid gap-3">
         {streams.length === 0 ? (
-          <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-8 text-center">
-            <Activity size={28} className="text-[var(--text-muted)] mx-auto mb-2" />
-            <p className="text-sm text-[var(--text-secondary)]">No streams yet</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Click <b>Start stream</b> to create one.</p>
-          </div>
+          <EmptyState
+            icon={Activity}
+            eyebrow="No streams yet"
+            title="Stream salaries by the second — without leaking the rate."
+            body="Lock encrypted tokens to a recipient over a duration. The rate-per-second stays sealed. Recipients withdraw what's vested at any moment, and only they can see the running balance."
+            primary={{ label: "Start stream", onClick: () => setModalOpen(true) }}
+            secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
+          />
         ) : (
           streams.map((s) => {
             const isPayer = account?.toLowerCase() === s.payer.toLowerCase();

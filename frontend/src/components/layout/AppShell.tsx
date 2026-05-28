@@ -45,9 +45,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted">
               Zerith · Private Finance Infrastructure
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted">
-              v1.0 · Buildathon
-            </span>
+            <div className="flex items-center gap-4">
+              <a
+                href="/contact"
+                className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted hover:text-text transition-colors"
+              >
+                Contact
+              </a>
+              <a
+                href="/why-cdex"
+                className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted hover:text-text transition-colors"
+              >
+                Why CDEX
+              </a>
+              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted">
+                v1.0
+              </span>
+            </div>
           </div>
         </footer>
       </main>

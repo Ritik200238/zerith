@@ -136,25 +136,25 @@ export default function PaymentsPage() {
     setLoading(true);
     try {
       const total = Number(await paymentsRead.getSplitCount());
-      const list: SplitData[] = [];
 
-      for (let i = 0; i < total; i++) {
-        // Use the public mapping getter `splits(i)` (auto-generated from the
-        // `mapping(uint256 => Split) public splits`) — returns full 8-field struct
-        // in declaration order, including createdAt which getSplit() omits.
-        const s = await paymentsRead.splits(i);
-        list.push({
-          id: i,
-          creator: s[0],
-          token: s[1],
-          totalDeposited: BigInt(s[2]),
-          recipientCount: Number(s[3]),
-          claimedCount: Number(s[4]),
-          status: Number(s[5]),
-          createdAt: Number(s[6]),
-          templateId: Number(s[7]),
-        });
-      }
+      // Use the public mapping getter `splits(i)` (auto-generated from the
+      // `mapping(uint256 => Split) public splits`) — returns full 8-field struct
+      // in declaration order, including createdAt which getSplit() omits.
+      // Parallel fetch instead of sequential awaits.
+      const indices = Array.from({ length: total }, (_, i) => i);
+      const raws = await Promise.all(indices.map((i) => paymentsRead.splits(i)));
+
+      const list: SplitData[] = raws.map((s, i) => ({
+        id: i,
+        creator: s[0],
+        token: s[1],
+        totalDeposited: BigInt(s[2]),
+        recipientCount: Number(s[3]),
+        claimedCount: Number(s[4]),
+        status: Number(s[5]),
+        createdAt: Number(s[6]),
+        templateId: Number(s[7]),
+      }));
 
       list.reverse();
       setSplits(list);
@@ -540,9 +540,10 @@ export default function PaymentsPage() {
             <EmptyState
               icon={CreditCard}
               eyebrow="No payment splits yet"
-              title="Pay your team without leaking salaries."
-              body="Send encrypted amounts to up to 10 recipients in a single tx. Each recipient unseals only their own amount — colleagues see nothing."
+              title="Pay contributors without leaking the org chart."
+              body="Send encrypted amounts to up to 10 recipients in one transaction. Each recipient unseals only their own line — colleagues, counterparties, and observers see ciphertext. Salary and vendor payments stop being public records."
               primary={{ label: "Create Split", onClick: () => setModalView("create") }}
+              secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">

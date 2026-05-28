@@ -199,11 +199,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [appKitConnected, appKitAddress, appKitChainId, walletProvider]);
 
   /* ---- Fire legacy account-changed event so per-account hooks can reset ---- */
-  // useBlockPoll.ts listens for "sigil-account-changed" to flush per-account
-  // cached state on account switch. We preserve the event name (not worth a
-  // codemod just to drop the "sigil-" prefix) and dispatch it whenever the
-  // AppKit-driven address changes — but not for burner-mode address changes,
-  // since burner activation already runs through the disconnect/reconnect cycle.
+  // useBlockPoll.ts listens for "zerith-account-changed" to flush per-account
+  // cached state on account switch. We dispatch it whenever the AppKit-driven
+  // address changes — but not for burner-mode address changes, since burner
+  // activation already runs through the disconnect/reconnect cycle.
   const prevAccountRef = useRef<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -214,7 +213,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     if (appKitAddress && appKitAddress !== prevAccountRef.current) {
       prevAccountRef.current = appKitAddress;
       window.dispatchEvent(
-        new CustomEvent("sigil-account-changed", { detail: appKitAddress }),
+        new CustomEvent("zerith-account-changed", { detail: appKitAddress }),
       );
     }
   }, [appKitAddress, account]);

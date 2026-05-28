@@ -3,12 +3,12 @@
 import { useEffect, useRef } from "react";
 import type { TxState } from "@/components/shared/TransactionStatus";
 
-const STORAGE_KEY = "sigil-sound-enabled";
+const STORAGE_KEY = "zerith-sound-enabled";
 
 /**
  * useTxSound — emits a tiny success chime when a tx transitions to success.
  *
- * Off by default. User can toggle via localStorage key `sigil-sound-enabled`
+ * Off by default. User can toggle via localStorage key `zerith-sound-enabled`
  * (`"1"` to enable). The settings dropdown (future) wires this; for now any
  * curious user can flip it from devtools.
  *

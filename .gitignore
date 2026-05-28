@@ -39,9 +39,10 @@ packages/sdk/
 
 .vercel
 
-# burner wallets — never commit
+# burner / hot-wallet files — never commit. Wildcards catch any future
+# sibling files (.burner-funder.json, .beefy-burner.json, etc.) so a
+# careless `git add .` from a fresh clone cannot leak a privkey.
+.burner-*.json
+.beefy-*.json
 .burner-wallet.json
 .multibid-burners.json
-
-# Playwright demo video output dir is committed for the demo; .last-run trace not
-demo-video/.last-run.json

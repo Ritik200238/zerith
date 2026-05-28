@@ -401,7 +401,7 @@ export default function OrgPage() {
   if (!deployed) {
     return (
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
-        <ComingSoonBanner feature="Organization" shipDate="Wave 4 deploy" />
+        <ComingSoonBanner feature="Organization" shipDate="soon" />
       </main>
     );
   }
@@ -456,9 +456,51 @@ export default function OrgPage() {
             <Building2 size={12} /> Organizations
           </div>
           {orgs.length === 0 ? (
-            <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-5 text-center">
-              <Building2 size={22} className="text-[var(--text-muted)] mx-auto mb-2" />
-              <p className="text-xs text-[var(--text-secondary)]">No orgs yet</p>
+            <div
+              style={{
+                background: "var(--bg-card)",
+                border: "1px dashed var(--border-dash)",
+                borderRadius: 4,
+              }}
+              className="p-4 space-y-2.5"
+            >
+              <div
+                className="w-9 h-9 flex items-center justify-center"
+                style={{
+                  background: "var(--bg-alt)",
+                  border: "1px dashed var(--border-dash)",
+                  borderRadius: 4,
+                }}
+              >
+                <Building2 size={15} style={{ color: "var(--text)" }} />
+              </div>
+              <p
+                className="font-mono uppercase tracking-[0.12em]"
+                style={{ fontSize: 9.5, color: "var(--text-muted)" }}
+              >
+                — No organizations yet
+              </p>
+              <p
+                className="font-display font-semibold"
+                style={{
+                  fontSize: 14,
+                  color: "var(--text)",
+                  letterSpacing: "-0.01em",
+                  lineHeight: 1.25,
+                }}
+              >
+                Vote on proposals without leaking the count.
+              </p>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Encrypted member weights, encrypted vote tallies. Outsiders see
+                that the proposal passed — never which members carried it.
+              </p>
             </div>
           ) : (
             orgs.map((o) => (

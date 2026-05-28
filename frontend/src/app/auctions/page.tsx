@@ -301,22 +301,26 @@ export default function AuctionsPage() {
     setLoading(true);
     try {
       const total = Number(await auctionRead.getAuctionCount());
-      const list: AuctionData[] = [];
 
-      for (let i = 0; i < total; i++) {
-        const a = await auctionRead.getAuction(i);
-        // Blind Floor metadata — separate getter (new contract API)
-        let hasReserve = false;
-        let revealedReserveMet = false;
-        try {
-          const blind = await auctionRead.getBlindStatus(i);
-          hasReserve = blind[0];
-          revealedReserveMet = blind[1];
-        } catch {
-          /* contract may be pre-Blind-Floor or call may fail; treat as standard */
-        }
-        list.push({
-          id: i,
+      // Parallel fetch: getAuction(i) + getBlindStatus(i) for every index in one
+      // round-trip wave instead of N sequential awaits. Each pair tolerates the
+      // getBlindStatus failure case (pre-Blind-Floor contract) independently.
+      const indices = Array.from({ length: total }, (_, i) => i);
+      const auctionPromises = indices.map((i) => auctionRead.getAuction(i));
+      const blindPromises = indices.map((i) =>
+        auctionRead.getBlindStatus(i).catch(() => null),
+      );
+      const [auctionRaws, blindRaws] = await Promise.all([
+        Promise.all(auctionPromises),
+        Promise.all(blindPromises),
+      ]);
+
+      const list: AuctionData[] = auctionRaws.map((a, idx) => {
+        const blind = blindRaws[idx];
+        const hasReserve = blind ? Boolean(blind[0]) : false;
+        const revealedReserveMet = blind ? Boolean(blind[1]) : false;
+        return {
+          id: idx,
           seller: a[0],
           token: a[1],
           paymentToken: a[2],
@@ -329,8 +333,8 @@ export default function AuctionsPage() {
           myBidUnsealed:  null,
           hasReserve,
           revealedReserveMet,
-        });
-      }
+        };
+      });
 
       list.reverse(); // newest first
       setAuctions(list);
@@ -918,9 +922,10 @@ export default function AuctionsPage() {
             <EmptyState
               icon={Gavel}
               eyebrow="No sealed auctions yet"
-              title="Be the first to seal a bid."
-              body="Sealed auctions let bidders compete without revealing their numbers. Create one in 30 seconds — bids stay encrypted forever for everyone except the winner."
+              title="Sell a treasury block without leaking the size."
+              body="Foundations use sealed auctions to clear large positions without telegraphing them to MEV bots. Bidders compete on encrypted prices; only the winner is revealed. Losing bids stay encrypted on Ethereum forever — including from us."
               primary={{ label: "Create Auction", onClick: () => setModalView("create") }}
+              secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

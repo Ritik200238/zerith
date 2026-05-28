@@ -211,7 +211,7 @@ export default function ReferralsPage() {
   if (!deployed) {
     return (
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
-        <ComingSoonBanner feature="Referrals" shipDate="Wave 4 deploy" />
+        <ComingSoonBanner feature="Referrals" shipDate="soon" />
       </main>
     );
   }

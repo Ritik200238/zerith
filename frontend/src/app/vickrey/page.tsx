@@ -190,24 +190,22 @@ export default function VickreyAuctionsPage() {
     setLoading(true);
     try {
       const total = Number(await auctionRead.getAuctionCount());
-      const list: VickreyAuctionData[] = [];
-      for (let i = 0; i < total; i++) {
-        const a = await auctionRead.getAuction(i);
-        list.push({
-          id: i,
-          seller: a[0],
-          token: a[1],
-          paymentToken: a[2],
-          amount: a[3].toString(),
-          deadline: Number(a[4]),
-          bidCount: Number(a[5]),
-          status: Number(a[6]),
-          winnerBid: a[7].toString(),
-          winner: a[8],
-          secondPrice: a[9].toString(),
-          myBidUnsealed: null,
-        });
-      }
+      const indices = Array.from({ length: total }, (_, i) => i);
+      const raws = await Promise.all(indices.map((i) => auctionRead.getAuction(i)));
+      const list: VickreyAuctionData[] = raws.map((a, i) => ({
+        id: i,
+        seller: a[0],
+        token: a[1],
+        paymentToken: a[2],
+        amount: a[3].toString(),
+        deadline: Number(a[4]),
+        bidCount: Number(a[5]),
+        status: Number(a[6]),
+        winnerBid: a[7].toString(),
+        winner: a[8],
+        secondPrice: a[9].toString(),
+        myBidUnsealed: null,
+      }));
       list.reverse();
       setAuctions(list);
     } catch {
@@ -533,8 +531,9 @@ export default function VickreyAuctionsPage() {
               icon={Eye}
               eyebrow="No Vickrey auctions yet"
               title="Run the first second-price auction."
-              body="Bidders bid in private, the highest wins, but everyone pays the second-highest price. Incentive-compatible, encrypted, on-chain."
+              body="Highest bid wins, but the winner pays the second-highest price. Strategy-proof: every bidder bids their true value because over-bidding doesn't help. All bids encrypted; only the clearing price reveals."
               primary={{ label: "Create Vickrey", onClick: () => { setModalView("create"); setTxState("idle"); } }}
+              secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

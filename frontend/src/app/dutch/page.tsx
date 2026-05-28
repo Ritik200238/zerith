@@ -225,14 +225,18 @@ export default function DutchAuctionPage() {
     setLoading(true);
     try {
       const total = Number(await auctionRead.getAuctionCount());
-      const list: DutchAuctionData[] = [];
-      for (let i = 0; i < total; i++) {
-        const a = await auctionRead.getAuction(i);
-        let currentPrice = "0";
-        try {
-          currentPrice = (await auctionRead.getCurrentPrice(i)).toString();
-        } catch { /* auction may have ended */ }
-        list.push({
+      const indices = Array.from({ length: total }, (_, i) => i);
+      const [auctionRaws, priceRaws] = await Promise.all([
+        Promise.all(indices.map((i) => auctionRead.getAuction(i))),
+        Promise.all(
+          indices.map((i) =>
+            auctionRead.getCurrentPrice(i).catch(() => null),
+          ),
+        ),
+      ]);
+      const list: DutchAuctionData[] = auctionRaws.map((a, i) => {
+        const currentPrice = priceRaws[i] ? priceRaws[i].toString() : "0";
+        return {
           id: i,
           seller: a[0],
           token: a[1],
@@ -245,8 +249,8 @@ export default function DutchAuctionPage() {
           totalSold: a[8].toString(),
           status: Number(a[9]),
           currentPrice,
-        });
-      }
+        };
+      });
       list.reverse();
       setAuctions(list);
     } catch {
@@ -542,9 +546,10 @@ export default function DutchAuctionPage() {
             <EmptyState
               icon={TrendingDown}
               eyebrow="No Dutch auctions yet"
-              title="Launch a descending-price sale."
-              body="Set a high opening price that ticks down over time. Bidders buy encrypted amounts when the price reaches their target. The seal hides who's buying what."
+              title="Launch a descending-price sale without telegraphing demand."
+              body="The price ticks down on a public schedule. Bidders submit encrypted purchase amounts when the price hits their target. The chain sees the price; the size each buyer takes stays sealed."
               primary={{ label: "Create Dutch", onClick: () => { setModalView("create"); setTxState("idle"); } }}
+              secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

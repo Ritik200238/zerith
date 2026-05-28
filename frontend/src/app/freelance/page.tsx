@@ -32,6 +32,7 @@ import { useAccountChangeReset } from "@/hooks/useBlockPoll";
 import { useContract, useReadContract } from "@/hooks/useContract";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import {
   SignatureDrawer,
@@ -149,24 +150,37 @@ export default function FreelancePage() {
     setLoading(true);
     try {
       const total = Number(await freelanceRead.getJobCount());
-      const list: JobData[] = [];
 
-      for (let i = 0; i < total; i++) {
-        const j = await freelanceRead.getJob(i);
+      // Legacy threshold: jobs posted before the decimals=18→6 fix have escrow
+      // amounts of 10^18+ in raw units. Real post-fix values are bounded by
+      // the encrypted uint128 cap and a sane CDEX faucet (1000 * 10^6 = 1e9).
+      // Filter at 10^15 (one quadrillion smallest-units) — nothing legitimate
+      // lands above that, every legacy value is far above it.
+      const LEGACY_THRESHOLD = BigInt("1000000000000000"); // 1e15
+
+      const indices = Array.from({ length: total }, (_, i) => i);
+      const raws = await Promise.all(indices.map((i) => freelanceRead.getJob(i)));
+
+      const list: JobData[] = [];
+      raws.forEach((j, i) => {
+        const escrowAmount = j[2].toString();
+        // Skip pre-decimals-fix on-chain residue so the UI never renders
+        // misleading "100000000.00B CDEX" / "Legacy" cards.
+        if (BigInt(escrowAmount) >= LEGACY_THRESHOLD) return;
         // Contract returns: (client, token, escrowAmount, deadline, bidCount,
         // status, revealedBid, revealedBidder, title, milestoneCount, milestonesApproved)
         list.push({
           id: i,
           poster: j[0],
           token: j[1],
-          escrowAmount: j[2].toString(),
+          escrowAmount,
           bidCount: Number(j[4]),
           status: Number(j[5]),
           assignee: j[7] as string,
           title: j[8] as string,
           milestoneCount: Number(j[9]),
         });
-      }
+      });
 
       list.reverse();
       setJobs(list);
@@ -189,15 +203,15 @@ export default function FreelancePage() {
 
   const fetchMilestones = useCallback(async (job: JobData) => {
     if (!freelanceRead) return;
-    const ms: MilestoneData[] = [];
-    for (let i = 0; i < job.milestoneCount; i++) {
-      const m = await freelanceRead.getMilestone(job.id, i);
-      ms.push({
-        description: m[0],
-        percentage: Number(m[1]),
-        status: Number(m[2]),
-      });
-    }
+    const indices = Array.from({ length: job.milestoneCount }, (_, i) => i);
+    const raws = await Promise.all(
+      indices.map((i) => freelanceRead.getMilestone(job.id, i)),
+    );
+    const ms: MilestoneData[] = raws.map((m) => ({
+      description: m[0],
+      percentage: Number(m[1]),
+      status: Number(m[2]),
+    }));
     setMilestones(ms);
   }, [freelanceRead]);
 
@@ -593,13 +607,14 @@ export default function FreelancePage() {
               <Loader2 size={24} className="text-[var(--text)] animate-spin" />
             </div>
           ) : jobs.length === 0 ? (
-            <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="py-20 text-center space-y-3">
-              <Briefcase size={36} className="mx-auto text-[var(--text-muted)]" />
-              <p className="text-sm text-[var(--text-muted)]">No jobs posted yet</p>
-              <p className="text-xs text-[var(--text-muted)]">
-                Post the first job to get started
-              </p>
-            </div>
+            <EmptyState
+              icon={Briefcase}
+              eyebrow="No jobs posted yet"
+              title="Hire without revealing your budget."
+              body="Post a job, receive sealed bids, and pick the lowest one — all on encrypted prices. Bidders never see each other's quotes. The selected freelancer claims milestones; disputed milestones resolve via three voters who never see the bid amounts either."
+              primary={{ label: "Post Job", onClick: () => setModalView("post") }}
+              secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {jobs.map((job) => {

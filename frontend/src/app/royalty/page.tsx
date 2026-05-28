@@ -27,6 +27,7 @@ import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { FaucetButton } from "@/components/shared/FaucetButton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
 import { CONTRACTS } from "@/lib/constants";
 import { isValidAddress, shortAddress } from "@/lib/format";
@@ -231,7 +232,7 @@ export default function RoyaltyPage() {
   if (!deployed) {
     return (
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
-        <ComingSoonBanner feature="Encrypted Royalty Splits" shipDate="Wave 4 deploy" />
+        <ComingSoonBanner feature="Encrypted Royalty Splits" shipDate="soon" />
       </main>
     );
   }
@@ -277,10 +278,14 @@ export default function RoyaltyPage() {
 
       <section className="mt-6 grid gap-3">
         {royalties.length === 0 ? (
-          <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-8 text-center">
-            <Music size={28} className="text-[var(--text-muted)] mx-auto mb-2" />
-            <p className="text-sm text-[var(--text-secondary)]">No royalty splits yet</p>
-          </div>
+          <EmptyState
+            icon={Music}
+            eyebrow="No royalty splits yet"
+            title="Distribute revenue without revealing the splits."
+            body="Register a list of recipients with encrypted basis-point shares. When you distribute revenue, each recipient unseals only their own line — collaborators never see what others earn."
+            primary={{ label: "Register split", onClick: () => setModalView("register") }}
+            secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
+          />
         ) : (
           royalties.map((r) => (
             <article key={r.id} style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-4">

@@ -85,9 +85,11 @@ export const TOKEN_CONFIG = {
  *  here for one specific thing (encrypted block sales for token foundations). */
 export const NAV_ITEMS = [
   { label: "Dashboard", href: "/", icon: "LayoutDashboard", group: "Overview" },
+  { label: "Quickstart", href: "/quickstart", icon: "Sparkles", group: "Overview" },
   { label: "Block Sales", href: "/auctions", icon: "Gavel", group: "Product" },
   { label: "Treasury", href: "/treasury", icon: "Vault", group: "Product" },
   { label: "Audit", href: "/audit", icon: "Shield", group: "Trust" },
+  { label: "Docs", href: "/docs", icon: "Code2", group: "Trust" },
   { label: "More", href: "/more", icon: "Grid", group: "Trust" },
 ] as const;
 

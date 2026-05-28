@@ -13,7 +13,7 @@ Encrypted block sales for token foundations. Bidders compete with sealed prices,
 [![Verified txs](https://img.shields.io/badge/End--to--end_txs-34_on_chain-16a34a?style=flat-square)](./PHASE-2-VERIFICATION-LOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
-[**Live app**](https://zerith-fi.vercel.app) · [Headline sealed-auction proof](https://sepolia.etherscan.io/tx/0x98a1c650b8f992dacba8580ac25aa1c1960bde1d37fa490697a9a143014fafc7) · [Reviewer replay path](#reviewer-replay-path) · [Demo script](./DEMO-SCRIPT.md) · [Launch QA](./LAUNCH-QA-RESULTS.md)
+[**Live app**](https://zerith-fi.vercel.app) · [Interactive quickstart](https://zerith-fi.vercel.app/quickstart) · [Headline sealed-auction proof](https://sepolia.etherscan.io/tx/0x98a1c650b8f992dacba8580ac25aa1c1960bde1d37fa490697a9a143014fafc7) · [Reviewer replay path](#reviewer-replay-path) · [Launch QA](./LAUNCH-QA-RESULTS.md)
 
 </div>
 
@@ -55,7 +55,13 @@ Captured live from <https://zerith-fi.vercel.app>. Full mobile + desktop sweep i
 
 ## Quick start
 
-Two ways to verify the headline claim — neither requires installing anything if you only need the proof.
+Three ways to verify the headline claim — pick one. None require installing anything if you only need the proof.
+
+### Path 0 — try it live in 3 minutes (no install, no MetaMask)
+
+Open <https://zerith-fi.vercel.app/quickstart>. Five guided steps, each performs a real on-chain action: spin up a one-click burner wallet (no MetaMask), claim test tokens, place an encrypted bid on a live sealed auction, unseal your own bid via permit, and toggle the Privacy Lens to see what an outside observer sees instead. Progress persists in localStorage, so you can leave and resume.
+
+This is the fastest way to feel FHE actually working before reading any code.
 
 ### Path A — verify on Etherscan, no install
 
@@ -436,6 +442,10 @@ Two contracts kept as carry-overs from the prior deploy because they're not affe
 
 `https://zerith-fi.vercel.app` is the canonical product surface. The repo also ships an early TypeScript SDK and a set of Hardhat tasks for headless replay.
 
+### For engineers integrating Zerith
+
+The live site has a dedicated docs page at <https://zerith-fi.vercel.app/docs> covering the SDK reference, end-to-end sealed-auction lifecycle by contract call, the threat model (what we protect vs what we don't), and the verification recipe — five steps to prove any Zerith auction settled correctly using only an Etherscan link. That page is the single best entry point if you're evaluating Zerith for production integration.
+
 ### Most-used Hardhat tasks
 
 ```bash
@@ -470,9 +480,9 @@ const tx = await sigil.bid({ auctionId: 0, amount: 1200n });
 | [LAUNCH-QA-RESULTS.md](./LAUNCH-QA-RESULTS.md) | Canonical launch QA results — every claim mapped to a tx hash |
 | [LAUNCH-STATUS.md](./LAUNCH-STATUS.md) | One-page launch status (claims · evidence · open items) |
 | [PHASE-2-VERIFICATION-LOG.md](./PHASE-2-VERIFICATION-LOG.md) | All 34 verified Sepolia transactions, organized by feature |
-| [DEMO-SCRIPT.md](./DEMO-SCRIPT.md) | 60-second demo runbook |
 | [PUNCH-LIST.md](./PUNCH-LIST.md) | Outstanding work items |
 | [LAUNCH-DAY-TEST.md](./LAUNCH-DAY-TEST.md) | The acceptance test the protocol must pass on launch day |
+| [KNOWN-ISSUES.md](./KNOWN-ISSUES.md) | Tracked known issues + resolution plans |
 | [deployed-addresses.json](./deployed-addresses.json) | Source of truth for every live contract address |
 
 Frontend-specific docs live under [`frontend/`](./frontend/).
@@ -483,9 +493,9 @@ Frontend-specific docs live under [`frontend/`](./frontend/).
 
 Code: MIT (see [LICENSE](./LICENSE) — add if missing).
 
-Open source at <https://github.com/Ritik200238/zerith>. Issues + PRs welcome. Security disclosures: open a GitHub issue marked `security`.
+Open source at <https://github.com/Ritik200238/zerith>. Issues + PRs welcome. Security disclosures: open a GitHub issue marked `security` or email `security@zerith.fi`.
 
-If you run treasury at a token foundation and want to see what an encrypted block sale looks like on your own asset, the live app and the headline tx are above. Pilot inquiries via DM to [@zerithfi](https://x.com/zerithfi) on X.
+If you run treasury at a token foundation and want to see what an encrypted block sale looks like on your own asset, the live app and the headline tx are above. The full contact + 12-question FAQ lives at <https://zerith-fi.vercel.app/contact>; pilot inquiries via DM to [@zerithfi](https://x.com/zerithfi) on X also work.
 
 <div align="center">
 

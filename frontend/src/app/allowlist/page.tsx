@@ -27,6 +27,7 @@ import { useBlockPoll, useAccountChangeReset } from "@/hooks/useBlockPoll";
 import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
 import { CONTRACTS } from "@/lib/constants";
@@ -146,21 +147,21 @@ export default function AllowlistPage() {
     if (!allowlistRead) return;
     try {
       const count = Number(await allowlistRead.nextAllowlistId());
+      const indices = Array.from({ length: count }, (_, i) => i);
+      const raws = await Promise.all(
+        indices.map((i) => allowlistRead.getAllowlist(i).catch(() => null)),
+      );
       const out: AllowlistData[] = [];
-      for (let i = 0; i < count; i++) {
-        try {
-          const a = await allowlistRead.getAllowlist(i);
-          out.push({
-            id: i,
-            merkleRoot: a[0],
-            creator: a[1],
-            active: a[2],
-            description: a[3],
-          });
-        } catch {
-          /* skip */
-        }
-      }
+      raws.forEach((a, i) => {
+        if (!a) return;
+        out.push({
+          id: i,
+          merkleRoot: a[0],
+          creator: a[1],
+          active: a[2],
+          description: a[3],
+        });
+      });
       setAllowlists(out.reverse());
     } catch {
       /* noop */
@@ -352,7 +353,7 @@ export default function AllowlistPage() {
   if (!deployed) {
     return (
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
-        <ComingSoonBanner feature="Allowlist Gate" shipDate="Wave 4 deploy" />
+        <ComingSoonBanner feature="Allowlist Gate" shipDate="soon" />
       </main>
     );
   }
@@ -402,10 +403,14 @@ export default function AllowlistPage() {
 
       <section className="mt-6 grid gap-3">
         {allowlists.length === 0 ? (
-          <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-8 text-center">
-            <ListChecks size={28} className="text-[var(--text-muted)] mx-auto mb-2" />
-            <p className="text-sm text-[var(--text-secondary)]">No allowlists yet</p>
-          </div>
+          <EmptyState
+            icon={ListChecks}
+            eyebrow="No allowlists yet"
+            title="Gate sealed auctions to KYC'd participants only."
+            body="Foundations selling to institutions can't let unknown wallets bid on $50M blocks. Allowlists publish a Merkle root on-chain; buyers prove membership via off-chain proof. Encrypted bids only land if the prover is in the set."
+            primary={{ label: "Create allowlist", onClick: () => setModalView("create") }}
+            secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
+          />
         ) : (
           allowlists.map((a) => {
             const isMine = account && a.creator.toLowerCase() === account.toLowerCase();

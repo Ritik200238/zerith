@@ -177,23 +177,21 @@ export default function OverflowSalePage() {
     setLoading(true);
     try {
       const total = Number(await saleRead.getSaleCount());
-      const list: SaleData[] = [];
-      for (let i = 0; i < total; i++) {
-        const s = await saleRead.getSale(i);
-        list.push({
-          id: i,
-          creator: s[0],
-          token: s[1],
-          paymentToken: s[2],
-          totalSupply: s[3].toString(),
-          pricePerToken: s[4].toString(),
-          deadline: Number(s[5]),
-          depositCount: Number(s[6]),
-          status: Number(s[7]),
-          oversubscribed: s[8],
-          myAllocation: null,
-        });
-      }
+      const indices = Array.from({ length: total }, (_, i) => i);
+      const raws = await Promise.all(indices.map((i) => saleRead.getSale(i)));
+      const list: SaleData[] = raws.map((s, i) => ({
+        id: i,
+        creator: s[0],
+        token: s[1],
+        paymentToken: s[2],
+        totalSupply: s[3].toString(),
+        pricePerToken: s[4].toString(),
+        deadline: Number(s[5]),
+        depositCount: Number(s[6]),
+        status: Number(s[7]),
+        oversubscribed: s[8],
+        myAllocation: null,
+      }));
       list.reverse();
       setSales(list);
     } catch {
@@ -542,9 +540,10 @@ export default function OverflowSalePage() {
             <EmptyState
               icon={Droplets}
               eyebrow="No overflow sales yet"
-              title="Open the first overflow sale."
-              body="Buyers commit encrypted deposits during the window. If the round is oversubscribed, everyone gets a pro-rata allocation — no whales front-running the cap."
+              title="Oversubscribed sales without whale sniping."
+              body="A fixed-price sale where buyers commit encrypted deposits during the window. If demand exceeds supply, FHE computes the pro-rata allocation on ciphertext — nobody can game the cap because nobody sees the running total."
               primary={{ label: "Create Sale", onClick: () => { setModalView("create"); setTxState("idle"); } }}
+              secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

@@ -23,7 +23,7 @@ interface TxFeedbackConfig {
  *
  * Watches a page's txState. On the transition into "success":
  *  - fires a toast with the per-page label
- *  - dispatches a `sigil-notify` window event so the bell logs it
+ *  - dispatches a `zerith-notify` window event so the bell logs it
  *
  * Idempotent — only fires once per success transition. Resetting txState
  * back to "idle" arms it again for the next tx.
@@ -32,7 +32,7 @@ export function useTxFeedback(state: TxState, config: TxFeedbackConfig) {
   const toast = useToast();
   const fired = useRef<TxState>("idle");
 
-  // Optional success chime — opt-in via localStorage key sigil-sound-enabled.
+  // Optional success chime — opt-in via localStorage key zerith-sound-enabled.
   useTxSound(state);
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function useTxFeedback(state: TxState, config: TxFeedbackConfig) {
       toast.success(config.label, "Transaction confirmed on-chain");
       if (typeof window !== "undefined") {
         window.dispatchEvent(
-          new CustomEvent("sigil-notify", {
+          new CustomEvent("zerith-notify", {
             detail: {
               type: config.type,
               title: config.label,

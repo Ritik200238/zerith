@@ -27,6 +27,7 @@ import { useToast, useModalEscape } from "@/components/shared/Toast";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { FaucetButton } from "@/components/shared/FaucetButton";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
 import { CONTRACTS } from "@/lib/constants";
 import { formatAmount, formatRemaining, parseAmount, shortAddress } from "@/lib/format";
@@ -297,7 +298,7 @@ export default function RafflePage() {
   if (!deployed) {
     return (
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
-        <ComingSoonBanner feature="Encrypted Raffle" shipDate="Wave 4 deploy" />
+        <ComingSoonBanner feature="Encrypted Raffle" shipDate="soon" />
       </main>
     );
   }
@@ -355,11 +356,14 @@ export default function RafflePage() {
 
       <section className="mt-6 grid gap-3">
         {raffles.length === 0 ? (
-          <div style={{ background: "var(--bg-card)", border: "1px dashed var(--border-dash)", borderRadius: 4 }} className="p-8 text-center">
-            <Trophy size={28} className="text-[var(--text-muted)] mx-auto mb-2" />
-            <p className="text-sm text-[var(--text-secondary)]">No raffles yet</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">Click <b>New raffle</b> to create one.</p>
-          </div>
+          <EmptyState
+            icon={Trophy}
+            eyebrow="No raffles yet"
+            title="Pick a winner from a sealed pool."
+            body="Anyone buys a ticket (publicly, so the count is verifiable). The contract picks the winning index on encrypted state — observers see only that a winner was chosen, not who. Useful for distributing scarce allocations fairly."
+            primary={{ label: "New raffle", onClick: () => setModalOpen(true) }}
+            secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
+          />
         ) : (
           raffles.map((r) => {
             const style = STATUS_STYLE[r.status];

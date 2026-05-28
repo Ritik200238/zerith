@@ -105,7 +105,7 @@ Full-page Playwright captures of every route under `verification-evidence/10-fin
 - Display headlines with serif-italic accent inside `<em>`
 - Dashed cards (4px radius)
 - Warm off-white background (`#FAFAF8`)
-- Footer "ZERITH · PRIVATE FINANCE INFRASTRUCTURE · V1.0 · BUILDATHON"
+- Footer "ZERITH · PRIVATE FINANCE INFRASTRUCTURE · V1.0"
 
 Polish bugs caught and fixed during this audit:
 
@@ -175,7 +175,6 @@ In priority order:
 2. ~~B8 Payroll recipient claim~~ — done ✅ this session, 3 claim txs + 3 unseal proofs + 3 cross-account rejections.
 3. **B10 OTC full round-trip** — accept the existing request from a counterparty burner, settle via vault. ~10 min.
 4. **B19 Freelance milestone** — exercise the freelance contract end-to-end. ~15 min.
-5. ~~Phase 3 demo recording~~ — done ✅ `demo-video/zerith-60sec-demo.webm` (52s product tour: landing → auctions-suite → auctions → treasury → payments → activity → auctions-suite). The on-chain "the bid moment + losing bids stay encrypted" kill-shot lives on Etherscan as `0x98a1c650…fafc7` (B6 in this doc).
 
 ## H) Verdict
 
