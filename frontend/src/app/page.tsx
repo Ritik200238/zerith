@@ -47,9 +47,9 @@ const CAPABILITIES = [
   },
   {
     title: "Trade",
-    subtitle: "MEV-proof orders",
+    subtitle: "Sealed-price orders",
     description:
-      "Hidden limit orders, P2P matching, OTC board. Zero front-running possible.",
+      "Hidden limit prices, P2P matching, OTC board. Prices stay sealed — no price-based front-running.",
     href: "/trade",
     icon: ArrowLeftRight,
   },
@@ -480,7 +480,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
             {[
               { label: "FHE operations", value: "22+" },
-              { label: "Smart contracts", value: "20" },
+              { label: "Smart contracts", value: "26" },
               { label: "Auction types", value: "5" },
               { label: "Hero flows", value: "4" },
             ].map((s) => (

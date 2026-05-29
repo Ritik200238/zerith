@@ -55,14 +55,17 @@ interface JobData {
   token: string;
   bidCount: number;
   assignee: string;
-  status: number; // 0=OPEN 1=ASSIGNED 2=COMPLETED 3=DISPUTED
+  deadline: number; // unix seconds — bidding closes / settle becomes callable
+  // Contract JobStatus enum: 0=OPEN 1=SETTLING 2=ASSIGNED 3=COMPLETED 4=CANCELLED
+  status: number;
   milestoneCount: number;
 }
 
 interface MilestoneData {
+  // Contract MilestoneStatus enum: 0=PENDING 1=DELIVERED 2=APPROVED 3=DISPUTED 4=RESOLVED
   description: string;
   percentage: number;
-  status: number; // 0=PENDING 1=DELIVERED 2=APPROVED 3=DISPUTED
+  status: number;
 }
 
 type ModalView = "none" | "post" | "bid" | "detail";
@@ -71,21 +74,32 @@ type ModalView = "none" | "post" | "bid" | "detail";
 /*  Constants */
 /* ------------------------------------------------------------------ */
 
+// Mirrors the on-chain FreelanceBidding.JobStatus enum exactly.
+const JOB_STATUS = {
+  OPEN: 0,
+  SETTLING: 1,
+  ASSIGNED: 2,
+  COMPLETED: 3,
+  CANCELLED: 4,
+} as const;
+
 const JOB_STATUS_LABEL: Record<number, string> = {
-  0: "OPEN", 1: "ASSIGNED", 2: "COMPLETED", 3: "DISPUTED",
+  0: "OPEN", 1: "SETTLING", 2: "ASSIGNED", 3: "COMPLETED", 4: "CANCELLED",
 };
 const JOB_STATUS_STYLE: Record<number, { bg: string; text: string; border: string }> = {
   0: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
   1: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
-  2: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]", border: "border-borderDash" },
-  3: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
+  2: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
+  3: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]", border: "border-borderDash" },
+  4: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
 };
 
+// Mirrors the on-chain FreelanceBidding.MilestoneStatus enum exactly.
 const MS_STATUS_LABEL: Record<number, string> = {
-  0: "Pending", 1: "Delivered", 2: "Approved", 3: "Disputed",
+  0: "Pending", 1: "Delivered", 2: "Approved", 3: "Disputed", 4: "Resolved",
 };
 const MS_STATUS_COLOR: Record<number, string> = {
-  0: "text-[var(--text-muted)]", 1: "text-[var(--text-muted)]", 2: "text-[var(--text)]", 3: "text-[var(--text-muted)]",
+  0: "text-[var(--text-muted)]", 1: "text-[var(--text-muted)]", 2: "text-[var(--text)]", 3: "text-[var(--text-muted)]", 4: "text-[var(--text)]",
 };
 
 function shortAddr(addr: string): string {
@@ -174,6 +188,7 @@ export default function FreelancePage() {
           poster: j[0],
           token: j[1],
           escrowAmount,
+          deadline: Number(j[3]),
           bidCount: Number(j[4]),
           status: Number(j[5]),
           assignee: j[7] as string,
@@ -355,35 +370,48 @@ export default function FreelancePage() {
     [freelanceContract, guardedAction],
   );
 
-  const handleDispute = useCallback(
-    (jobId: number, msIdx: number) =>
-      guardedAction(`dispute-${jobId}-${msIdx}`, async () => {
-        const tx = await freelanceContract!.disputeMilestone(jobId, msIdx);
-        setTxState("confirming");
-        setTxHash(tx.hash);
-        await tx.wait();
-        setTxState("success");
-      }),
-    [freelanceContract, guardedAction],
-  );
+  /**
+   * Dispute is intentionally NOT wired to a transaction.
+   *
+   * VERIFIED on the live deployed contract (0xf717…CE05): getVoters() === []
+   * and REQUIRED_VOTES === 3. disputeMilestone() would move the milestone into
+   * DISPUTED state, but submitVote() reverts (Unauthorized — no registered
+   * voters) and resolveDispute() reverts (voteCount < 3 forever). A disputed
+   * milestone can never be approved or auto-released afterward, so its escrow
+   * share would be stranded permanently. Per the launch rule "never expose a
+   * button that traps funds", we surface an honest arbitrator-coming-soon state
+   * instead. Until then a client who is unhappy with a delivery simply withholds
+   * approval; after AUTO_RELEASE_TIMEOUT (14 days) the freelancer can trigger
+   * autoReleaseMilestone — the milestone never lands in an unrecoverable state.
+   */
 
   /**
-   * Two-stage settle (audit fix D-FB1):
-   * 1. settle(jobId) — marks lowestBid + lowestBidder publicly decryptable
-   * 2. fetch TN signatures for both
-   * 3. finalizeSettlement(jobId, bidVal, bidSig, bidderAddr, bidderSig)
+   * Settle + finalize a freelance job (audit fix D-FB1) — the verified-reachable
+   * "close bidding and assign the lowest bidder" flow. Two on-chain stages:
+   *   1. settle(jobId)         — OPEN → SETTLING, marks lowestBid+lowestBidder
+   *                              globally decryptable. Reverts before the deadline.
+   *   2. fetch TN signatures for the winning bid + bidder handles.
+   *   3. finalizeSettlement(…) — SETTLING → ASSIGNED, publishes the reveal.
+   *
+   * `alreadySettling` lets a job that is already in SETTLING (settle landed but
+   * finalize didn't) resume from step 2 instead of re-calling settle (which would
+   * revert with InvalidState). VERIFIED against the FreelanceBidding ABI:
+   * settle(uint256), finalizeSettlement(uint256,uint128,bytes,address,bytes),
+   * and the jobs(uint256) tuple exposes named `lowestBid` / `lowestBidder`.
    */
   const handleSettleJob = useCallback(
-    (jobId: number) =>
+    (jobId: number, alreadySettling = false) =>
       guardedAction(`settle-job-${jobId}`, async () => {
         if (!freelanceContract) throw new Error("Freelance contract not ready");
 
-        // Step 1: settle (mark publicly decryptable)
-        setTxState("signing");
-        const settleTx = await freelanceContract.settle(jobId);
-        setTxState("confirming");
-        setTxHash(settleTx.hash);
-        await settleTx.wait();
+        // Step 1: settle (mark publicly decryptable) — skipped if already SETTLING
+        if (!alreadySettling) {
+          setTxState("signing");
+          const settleTx = await freelanceContract.settle(jobId);
+          setTxState("confirming");
+          setTxHash(settleTx.hash);
+          await settleTx.wait();
+        }
 
         // Step 2: read encrypted handles
         const job = await freelanceContract.jobs(jobId);
@@ -429,49 +457,11 @@ export default function FreelancePage() {
   );
 
   /**
-   * 3-voter encrypted dispute resolution (audit fix D-FB2).
-   * After 3 votes are cast, the voteSum becomes publicly decryptable.
-   * Anyone fetches the TN signature for the sum and submits resolveDispute.
+   * resolveDispute is intentionally NOT wired — see the dispute note above.
+   * With zero registered voters the encrypted vote sum can never reach the
+   * REQUIRED_VOTES (3) threshold, so this transaction would always revert.
+   * The UI shows an honest "protocol arbitrator (coming soon)" state instead.
    */
-  const handleResolveDispute = useCallback(
-    (jobId: number, msIdx: number) =>
-      guardedAction(`resolve-${jobId}-${msIdx}`, async () => {
-        if (!freelanceContract) throw new Error("Freelance contract not ready");
-
-        const ms = await freelanceContract.milestones(jobId, msIdx);
-        const voteSumHandle = ms.voteSum as unknown as string;
-
-        setTxState("decrypting");
-        const proof = await decryptForTx(voteSumHandle);
-        if (!proof) throw new Error("Vote sum decryption failed");
-
-        setTxState("signing");
-        const tx = await freelanceContract.resolveDispute(
-          jobId,
-          msIdx,
-          proof.decryptedValue,
-          proof.signature,
-        );
-        setTxState("confirming");
-        setTxHash(tx.hash);
-        await tx.wait();
-        setTxState("success");
-
-        const totalVotes = Number(proof.decryptedValue);
-        setDrawerProof({
-          ctHash: voteSumHandle,
-          decryptedValue: `${totalVotes}/3 votes for freelancer (${
-            totalVotes >= 2 ? "freelancer wins" : "client wins"
-          })`,
-          signature: proof.signature,
-          txHash: tx.hash,
-          chainId: FHENIX_TESTNET.chainId,
-          label: "Dispute vote sum",
-        });
-        setDrawerOpen(true);
-      }),
-    [freelanceContract, guardedAction, decryptForTx],
-  );
 
   /* ---- helpers ---- */
 
@@ -485,6 +475,10 @@ export default function FreelancePage() {
     if (jobMilestones.length >= 10) return;
     setJobMilestones((prev) => [...prev, { desc: "", pct: "" }]);
   };
+
+  // Recomputed each render; render is driven by blockTick/refreshKey so the
+  // "Bidding open" → "Close & Reveal Winner" transition appears after the deadline.
+  const nowSec = Math.floor(Date.now() / 1000);
 
   /* ================================================================ */
   /*  Render */
@@ -689,7 +683,8 @@ export default function FreelancePage() {
 
                     {/* Card actions */}
                     <div className="px-5 py-3 border-t border-[var(--border-dash)] flex items-center gap-2">
-                      {job.status === 0 && !mine && (
+                      {/* Bidder: submit a sealed bid while bidding is open */}
+                      {job.status === JOB_STATUS.OPEN && !mine && (
                         <button
                           onClick={() => {
                             setSelectedJob(job);
@@ -705,6 +700,43 @@ export default function FreelancePage() {
                           Submit Bid
                         </button>
                       )}
+
+                      {/* Poster: close bidding once the deadline passes → reveal lowest bid & assign */}
+                      {job.status === JOB_STATUS.OPEN && mine && job.bidCount > 0 && (
+                        nowSec >= job.deadline ? (
+                          <button
+                            onClick={() => handleSettleJob(job.id)}
+                            disabled={txState === "signing" || txState === "confirming" || txState === "decrypting"}
+                            className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
+                                       bg-[var(--text)] text-[var(--bg)] transition-all
+                                       disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Zap size={12} />
+                            Close &amp; Reveal Winner
+                          </button>
+                        ) : (
+                          <div className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-[11px] font-medium
+                                          bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text-muted)]">
+                            <Clock size={12} />
+                            Bidding open
+                          </div>
+                        )
+                      )}
+
+                      {/* Anyone: a job stuck in SETTLING still needs finalize to assign the winner */}
+                      {job.status === JOB_STATUS.SETTLING && (
+                        <button
+                          onClick={() => handleSettleJob(job.id, true)}
+                          disabled={txState === "signing" || txState === "confirming" || txState === "decrypting"}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
+                                     bg-[var(--text)] text-[var(--bg)] transition-all
+                                     disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Zap size={12} />
+                          Finalize Settlement
+                        </button>
+                      )}
+
                       <button
                         onClick={async () => {
                           setSelectedJob(job);
@@ -1032,8 +1064,8 @@ export default function FreelancePage() {
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] text-[var(--text-muted)]">{ms.percentage}% of escrow</span>
                         <div className="flex items-center gap-1.5">
-                          {/* Deliver (assignee, pending) */}
-                          {isAssignee(selectedJob) && ms.status === 0 && (
+                          {/* Deliver (assignee, job ASSIGNED, milestone pending) */}
+                          {selectedJob.status === JOB_STATUS.ASSIGNED && isAssignee(selectedJob) && ms.status === 0 && (
                             <button
                               onClick={() => handleDeliver(selectedJob.id, i)}
                               className="px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-alt)] text-[var(--text)]
@@ -1042,32 +1074,63 @@ export default function FreelancePage() {
                               Deliver
                             </button>
                           )}
-                          {/* Approve (poster, delivered) */}
-                          {isPoster(selectedJob) && ms.status === 1 && (
+                          {/* Approve (poster, job ASSIGNED, milestone delivered) → releases escrow */}
+                          {selectedJob.status === JOB_STATUS.ASSIGNED && isPoster(selectedJob) && ms.status === 1 && (
                             <button
                               onClick={() => handleApprove(selectedJob.id, i)}
-                              className="px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-alt)] text-[var(--text)]
-                                         hover:bg-[var(--bg-alt)] transition-colors"
+                              className="px-2 py-1 rounded text-[10px] font-medium bg-[var(--text)] text-[var(--bg)]
+                                         transition-colors"
                             >
-                              Approve
-                            </button>
-                          )}
-                          {/* Dispute (poster, delivered) */}
-                          {isPoster(selectedJob) && ms.status === 1 && (
-                            <button
-                              onClick={() => handleDispute(selectedJob.id, i)}
-                              className="px-2 py-1 rounded text-[10px] font-medium bg-[var(--bg-alt)] text-[var(--text-muted)]
-                                         hover:bg-[var(--bg-alt)] transition-colors"
-                            >
-                              Dispute
+                              Approve &amp; Pay
                             </button>
                           )}
                         </div>
                       </div>
+
+                      {/* Honest dispute disclaimer — the on-chain 3-voter path has
+                          no registered voters on the live contract, so we do NOT
+                          expose a Dispute button that would strand this milestone's
+                          escrow. See handleDispute note for the verification. */}
+                      {selectedJob.status === JOB_STATUS.ASSIGNED && ms.status === 1 &&
+                        (isPoster(selectedJob) || isAssignee(selectedJob)) && (
+                        <div className="flex items-start gap-1.5 pt-1 text-[10px] text-[var(--text-muted)]">
+                          <Flag size={10} className="mt-0.5 shrink-0 text-[var(--text)]/40" />
+                          <span>
+                            Unhappy with this delivery? Dispute resolution runs through the
+                            protocol arbitrator (coming soon). For now, withhold approval —
+                            after 14 days the freelancer can auto-claim, so escrow is never stuck.
+                          </span>
+                        </div>
+                      )}
+
+                      {/* If a milestone is already in DISPUTED state on-chain (from a
+                          prior contract version), show an honest stranded-state notice
+                          rather than a dead button. */}
+                      {ms.status === 3 && (
+                        <div className="flex items-start gap-1.5 pt-1 text-[10px] text-[var(--text-muted)]">
+                          <AlertCircle size={10} className="mt-0.5 shrink-0 text-[var(--text)]/40" />
+                          <span>
+                            Under dispute. Resolution is handled by the protocol arbitrator
+                            (coming soon) — no action is available here yet.
+                          </span>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
               </div>
+
+              {/* Awaiting-finalize notice inside the detail view */}
+              {selectedJob.status === JOB_STATUS.SETTLING && (
+                <div className="flex items-start gap-2 rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
+                  <Clock size={14} className="mt-0.5 shrink-0 text-[var(--text)]" />
+                  <p className="text-[11px] text-[var(--text)]/80">
+                    <strong>Awaiting finalize.</strong> Bidding has closed and the lowest bid is
+                    being revealed. Anyone can submit the Threshold-Network signature to assign the
+                    winner — use “Finalize Settlement” on the job card.
+                  </p>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

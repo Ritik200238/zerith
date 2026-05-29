@@ -310,7 +310,10 @@ export default function QuickstartPage() {
     setStepError(null);
     try {
       const handle: unknown = await auctionContract.getMyBid(progress.step3AuctionId);
-      const value = await unseal(BigInt(String(handle)), 5); // FheTypes.Uint128 = 5
+      // Bids are stored as euint128 (SealedAuction.getMyBid returns euint128),
+      // so unseal with FheTypes.Uint128 = 6. Passing 5 (Uint64) silently fails
+      // to unseal a 128-bit ciphertext.
+      const value = await unseal(BigInt(String(handle)), 6); // FheTypes.Uint128 = 6
       if (value === null) throw new Error("Unseal returned null");
       setProgress((prev) => {
         const next: Progress = {
@@ -855,7 +858,7 @@ function PrivacyLensDemo({
     activeMode === "me"
       ? `${formatAmount(BigInt(myBidAmount), 0)} ${TOKEN_CONFIG.symbol}`
       : activeMode === "counterparty"
-        ? "🔒 sealed (range: ≤ reserve)"
+        ? "sealed (range: ≤ reserve)"
         : sampleHash;
 
   return (

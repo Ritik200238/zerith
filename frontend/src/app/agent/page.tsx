@@ -30,12 +30,12 @@ import {
 import { useWallet } from "@/providers/WalletProvider";
 import { useCofhe } from "@/hooks/useCofhe";
 import { useEncrypt } from "@/hooks/useEncrypt";
-import { useContract } from "@/hooks/useContract";
+import { useContract, useReadContract } from "@/hooks/useContract";
 import { useToast } from "@/components/shared/Toast";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { CONTRACTS } from "@/lib/constants";
-import { parseAmount } from "@/lib/format";
+import { parseAmount, isValidAddress } from "@/lib/format";
 import { parseAgentInput, EXAMPLE_COMMANDS, type Intent } from "@/lib/agent-parser";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 
@@ -48,6 +48,7 @@ export default function AgentPage() {
   const paymentsContract = useContract("PrivatePayments");
   const streamingContract = useContract("EncryptedStreaming");
   const sealedContract = useContract("SealedAuction");
+  const sealedRead = useReadContract("SealedAuction");
   const freelanceContract = useContract("FreelanceBidding");
 
   const [input, setInput] = useState("");
@@ -68,6 +69,33 @@ export default function AgentPage() {
       // clipboard unavailable
     }
   }, [toast]);
+
+  /* ------------------------------------------------------------------ */
+  /*  Friendly error normalizer                                          */
+  /*  Mirrors the handleTxError pattern used on the auctions/freelance   */
+  /*  pages: distinguish wallet rejection from real failures, cap the    */
+  /*  message length, and surface a persistent toast instead of a raw    */
+  /*  error string.                                                      */
+  /* ------------------------------------------------------------------ */
+
+  const handleAgentError = useCallback(
+    (err: unknown) => {
+      const isRejection =
+        err instanceof Error && err.message.includes("user rejected");
+      const message = isRejection
+        ? "You rejected the transaction in your wallet"
+        : err instanceof Error
+          ? err.message.slice(0, 200)
+          : "Transaction failed";
+      setTxState("error");
+      setTxError(message);
+      toast.error(
+        isRejection ? "Transaction cancelled" : "Agent failed",
+        message,
+      );
+    },
+    [toast],
+  );
 
   /* ------------------------------------------------------------------ */
   /*  Run intent                                                         */
@@ -94,14 +122,23 @@ export default function AgentPage() {
         case "pay": {
           if (!paymentsContract) throw new Error("PrivatePayments not deployed");
           const recipient = String(intent.fields.recipient);
-          const amount = parseAmount(String(intent.fields.amount));
-          if (amount === null) throw new Error("Invalid amount");
+          if (!isValidAddress(recipient)) throw new Error("Invalid recipient address");
+          // PrivatePayments has no singlePayment(): a one-recipient transfer is a
+          // 1-element createSplit. Match payments/page.tsx exactly — raw whole-token
+          // integer amounts (NOT decimals-scaled), encrypted as InEuint64, with the
+          // plaintext totalDeposit funding escrow off the caller's vault balance.
+          const rawAmount = String(intent.fields.amount).trim();
+          if (!/^\d+$/.test(rawAmount) || BigInt(rawAmount) <= BigInt(0)) {
+            throw new Error("Amount must be a positive whole number");
+          }
+          const amount = BigInt(rawAmount);
           const enc = await encrypt([Encryptable.uint64(amount)]);
           if (!enc) throw new Error("Encryption failed");
-          const tx = await paymentsContract.singlePayment(
+          const tx = await paymentsContract.createSplit(
             CONTRACTS.ConfidentialToken,
-            recipient,
-            enc[0],
+            [recipient],
+            enc,
+            amount,
           );
           setTxState("confirming");
           setTxHash(tx.hash);
@@ -114,10 +151,8 @@ export default function AgentPage() {
           if (!streamingContract) {
             throw new Error("EncryptedStreaming not deployed yet — check back after deploy.");
           }
-          if (CONTRACTS.EncryptedStreaming === "0x0000000000000000000000000000000000000000") {
-            throw new Error("EncryptedStreaming address is zero — pending deploy.");
-          }
           const recipient = String(intent.fields.recipient);
+          if (!isValidAddress(recipient)) throw new Error("Invalid recipient address");
           const ratePerSecond = parseAmount(String(intent.fields.ratePerSecond));
           if (ratePerSecond === null) throw new Error("Invalid rate");
           const dur = Number(intent.fields.duration);
@@ -125,6 +160,7 @@ export default function AgentPage() {
           if (!enc) throw new Error("Encryption failed");
           const startTime = Math.floor(Date.now() / 1000);
           const endTime = startTime + dur;
+          // createStream(recipient, token, InEuint64 encRate, startTime, endTime)
           const tx = await streamingContract.createStream(
             recipient,
             CONTRACTS.ConfidentialToken,
@@ -141,10 +177,37 @@ export default function AgentPage() {
 
         case "bid": {
           if (!sealedContract) throw new Error("SealedAuction not deployed");
-          const amount = parseAmount(String(intent.fields.amount));
-          if (amount === null) throw new Error("Invalid amount");
           const id = Number(intent.fields.auctionId);
-          const enc = await encrypt([Encryptable.uint128(amount)]);
+          if (!Number.isInteger(id) || id < 0) throw new Error("Invalid auction id");
+
+          // Verify the auction exists and is OPEN before encrypting/submitting, so
+          // judges who type a bid on a stale/non-existent id get a friendly message
+          // instead of a raw on-chain revert. getAuction returns
+          // [seller, token, paymentToken, amount, deadline, bidCount, status, ...]
+          // where status 0 = OPEN. Falls through silently if the read layer is
+          // unavailable — the on-chain require() is still the source of truth.
+          if (sealedRead) {
+            const count = Number(await sealedRead.getAuctionCount());
+            if (id >= count) {
+              throw new Error(`Auction #${id} does not exist (only ${count} created)`);
+            }
+            const a = await sealedRead.getAuction(id);
+            const status = Number(a[6]);
+            const deadline = Number(a[4]);
+            if (status !== 0) {
+              throw new Error(`Auction #${id} is not open for bids (status ${status})`);
+            }
+            if (deadline <= Math.floor(Date.now() / 1000)) {
+              throw new Error(`Auction #${id} has ended — bidding is closed`);
+            }
+          }
+
+          // Match auctions/page.tsx: raw whole-token integer bid, encrypted as InEuint128.
+          const rawBid = String(intent.fields.amount).trim();
+          if (!/^\d+$/.test(rawBid) || BigInt(rawBid) <= BigInt(0)) {
+            throw new Error("Bid must be a positive whole number");
+          }
+          const enc = await encrypt([Encryptable.uint128(BigInt(rawBid))]);
           if (!enc) throw new Error("Encryption failed");
           const tx = await sealedContract.bid(id, enc[0]);
           setTxState("confirming");
@@ -157,12 +220,17 @@ export default function AgentPage() {
         case "post-job": {
           if (!freelanceContract) throw new Error("FreelanceBidding not deployed");
           const title = String(intent.fields.title);
+          // Match freelance/page.tsx: escrow is decimals-scaled via parseAmount.
           const escrow = parseAmount(String(intent.fields.escrow));
           if (escrow === null) throw new Error("Invalid escrow");
+          // postJob(token, escrowAmount, duration, title, milestoneDescs, milestonePcts).
+          // Default duration = 7 days (contract MIN_DURATION is 300s); single
+          // 100%-weighted milestone, mirroring the freelance page's defaults.
           const tx = await freelanceContract.postJob(
-            title,
-            escrow,
             CONTRACTS.ConfidentialToken,
+            escrow,
+            BigInt(604800),
+            title,
             ["Final delivery"],
             [100],
           );
@@ -175,13 +243,21 @@ export default function AgentPage() {
 
         case "auction": {
           if (!sealedContract) throw new Error("SealedAuction not deployed");
-          const amount = parseAmount(String(intent.fields.amount));
-          if (amount === null) throw new Error("Invalid amount");
+          // Match auctions/page.tsx: raw whole-token integer amount (NOT scaled).
+          const rawAmount = String(intent.fields.amount).trim();
+          if (!/^\d+$/.test(rawAmount) || BigInt(rawAmount) <= BigInt(0)) {
+            throw new Error("Amount must be a positive whole number");
+          }
+          // createAuction(token, paymentToken, amount, duration, snipeExtension) — 5 args.
+          // The contract requires token != paymentToken, so we auction CDEX and price
+          // it in MockToken (the alternate side the auctions page uses). Defaults:
+          // 24h duration, 120s anti-snipe extension (the create-auction form default).
           const tx = await sealedContract.createAuction(
             CONTRACTS.ConfidentialToken,
-            CONTRACTS.ConfidentialToken,
-            amount,
-            BigInt(86400), // default 24h
+            CONTRACTS.MockToken,
+            BigInt(rawAmount),
+            BigInt(86400),
+            BigInt(120),
           );
           setTxState("confirming");
           setTxHash(tx.hash);
@@ -191,24 +267,17 @@ export default function AgentPage() {
         }
 
         default:
-          throw new Error("Cannot run an unknown intent");
+          throw new Error("This command isn't supported yet — try one of the examples below.");
       }
 
       // clear input on success
       setInput("");
     } catch (err: unknown) {
-      setTxState("error");
-      const message = err instanceof Error ? err.message.slice(0, 220) : "Tx failed";
-      setTxError(message);
-      const isRejection = err instanceof Error && err.message.includes("user rejected");
-      toast.error(
-        isRejection ? "Cancelled" : "Agent failed",
-        isRejection ? "You rejected the transaction" : message,
-      );
+      handleAgentError(err);
     }
   }, [
-    intent, account, initialized, encrypt, toast,
-    paymentsContract, streamingContract, sealedContract, freelanceContract,
+    intent, account, initialized, encrypt, toast, handleAgentError,
+    paymentsContract, streamingContract, sealedContract, sealedRead, freelanceContract,
   ]);
 
   /* ------------------------------------------------------------------ */

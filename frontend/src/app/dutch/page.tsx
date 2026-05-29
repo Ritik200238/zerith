@@ -45,6 +45,13 @@ import { useTxFeedback } from "@/hooks/useTxFeedback";
 /*  Types */
 /* ------------------------------------------------------------------ */
 
+/** A purchase made by the connected account in a given auction. */
+interface MyPurchase {
+  index: number;
+  priceAtPurchase: string;
+  claimed: boolean;
+}
+
 interface DutchAuctionData {
   id: number;
   seller: string;
@@ -58,6 +65,7 @@ interface DutchAuctionData {
   totalSold: string;
   status: number; // 0=ACTIVE 1=SETTLED 2=CANCELLED
   currentPrice: string;
+  myPurchases: MyPurchase[];
 }
 
 type ModalView = "none" | "create" | "buy";
@@ -226,12 +234,43 @@ export default function DutchAuctionPage() {
     try {
       const total = Number(await auctionRead.getAuctionCount());
       const indices = Array.from({ length: total }, (_, i) => i);
-      const [auctionRaws, priceRaws] = await Promise.all([
+      const [auctionRaws, priceRaws, myPurchasesByAuction] = await Promise.all([
         Promise.all(indices.map((i) => auctionRead.getAuction(i))),
         Promise.all(
           indices.map((i) =>
             auctionRead.getCurrentPrice(i).catch(() => null),
           ),
+        ),
+        // For each auction, resolve the connected account's own unclaimed/claimed
+        // purchases so we can surface a reachable "Claim purchase" button with the
+        // correct purchaseIndex. Filtered client-side by buyer === account.
+        Promise.all(
+          indices.map(async (i): Promise<MyPurchase[]> => {
+            if (!account) return [];
+            try {
+              const count = Number(await auctionRead.getPurchaseCount(i));
+              const raws = await Promise.all(
+                Array.from({ length: count }, (_, j) =>
+                  auctionRead.purchases(i, j).catch(() => null),
+                ),
+              );
+              const mine: MyPurchase[] = [];
+              raws.forEach((p, j) => {
+                if (!p) return;
+                // purchases(id, idx) → [buyer, priceAtPurchase, encAmount, claimed]
+                const buyer = p[0] as string;
+                if (buyer.toLowerCase() !== account.toLowerCase()) return;
+                mine.push({
+                  index: j,
+                  priceAtPurchase: p[1].toString(),
+                  claimed: Boolean(p[3]),
+                });
+              });
+              return mine;
+            } catch {
+              return [];
+            }
+          }),
         ),
       ]);
       const list: DutchAuctionData[] = auctionRaws.map((a, i) => {
@@ -249,6 +288,7 @@ export default function DutchAuctionPage() {
           totalSold: a[8].toString(),
           status: Number(a[9]),
           currentPrice,
+          myPurchases: myPurchasesByAuction[i] ?? [],
         };
       });
       list.reverse();
@@ -258,7 +298,7 @@ export default function DutchAuctionPage() {
     } finally {
       setLoading(false);
     }
-  }, [auctionRead]);
+  }, [auctionRead, account]);
 
   const blockTick = useBlockPoll();
   useEffect(() => { fetchAuctions(); }, [fetchAuctions, refreshKey, blockTick]);
@@ -558,6 +598,14 @@ export default function DutchAuctionPage() {
                 const mine = isSeller(auction);
                 const nowSec = Math.floor(Date.now() / 1000);
                 const ended = auction.endTime <= nowSec;
+                const claimable = auction.myPurchases.filter((p) => !p.claimed);
+                const claimedCount = auction.myPurchases.length - claimable.length;
+                const claimBusy = claimable.some((p) =>
+                  busyRef.current.has(`claim-${auction.id}-${p.index}`),
+                );
+                const claimInFlight =
+                  claimBusy &&
+                  (txState === "signing" || txState === "confirming" || txState === "decrypting");
 
                 return (
                   <motion.div
@@ -616,31 +664,60 @@ export default function DutchAuctionPage() {
                       </div>
                     </div>
 
-                    <div className="px-5 py-3 border-t border-[var(--border-dash)] flex items-center gap-2">
-                      {auction.status === 0 && !mine && (
-                        <button
-                          onClick={() => { setSelectedAuction(auction); setBuyAmount(""); setModalView("buy"); setTxState("idle"); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
-                                     bg-[var(--text)] text-[var(--bg)] transition-all"
-                        >
-                          <DollarSign size={12} /> Buy Now
-                        </button>
-                      )}
-                      {auction.status === 0 && mine && ended && (
-                        <button onClick={() => handleSettle(auction.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
-                                     bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
-                          <CheckCircle2 size={12} /> Settle
-                        </button>
-                      )}
-                      {auction.status === 0 && mine && !ended && Number(auction.totalSold) === 0 && (
-                        <button onClick={() => handleCancel(auction.id)}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
-                                     bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-all">
-                          <X size={12} /> Cancel
-                        </button>
-                      )}
-                    </div>
+                    {(auction.status === 0 && (!mine || (mine && (ended || Number(auction.totalSold) === 0)))) ||
+                    auction.myPurchases.length > 0 ? (
+                      <div className="px-5 py-3 border-t border-[var(--border-dash)] flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          {auction.status === 0 && !mine && (
+                            <button
+                              onClick={() => { setSelectedAuction(auction); setBuyAmount(""); setModalView("buy"); setTxState("idle"); }}
+                              className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
+                                         bg-[var(--text)] text-[var(--bg)] transition-all"
+                            >
+                              <DollarSign size={12} /> Buy Now
+                            </button>
+                          )}
+                          {auction.status === 0 && mine && ended && (
+                            <button onClick={() => handleSettle(auction.id)}
+                              className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
+                                         bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
+                              <CheckCircle2 size={12} /> Settle
+                            </button>
+                          )}
+                          {auction.status === 0 && mine && !ended && Number(auction.totalSold) === 0 && (
+                            <button onClick={() => handleCancel(auction.id)}
+                              className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
+                                         bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text-muted)] hover:bg-[var(--bg-alt)] transition-all">
+                              <X size={12} /> Cancel
+                            </button>
+                          )}
+                          {/* Buyer claim — settles purchased tokens out of the seller's vault
+                              balance. Two-step on-chain reveal (claimPurchase → TN sign →
+                              finalizeClaim), wired via handleClaim. */}
+                          {claimable.map((p) => (
+                            <button
+                              key={`claim-${auction.id}-${p.index}`}
+                              onClick={() => handleClaim(auction.id, p.index)}
+                              disabled={claimInFlight}
+                              className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
+                                         bg-[var(--text)] text-[var(--bg)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {claimInFlight ? (
+                                <><Loader2 size={12} className="animate-spin" /> Claiming...</>
+                              ) : (
+                                <><Zap size={12} /> Claim purchase{claimable.length > 1 ? ` #${p.index}` : ""}</>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        {claimedCount > 0 && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
+                            <CheckCircle2 size={10} className="text-[var(--text-muted)]" />
+                            {claimedCount} purchase{claimedCount > 1 ? "s" : ""} claimed
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </motion.div>
                 );
               })}

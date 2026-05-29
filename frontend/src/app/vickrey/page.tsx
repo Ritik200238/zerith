@@ -201,9 +201,12 @@ export default function VickreyAuctionsPage() {
         deadline: Number(a[4]),
         bidCount: Number(a[5]),
         status: Number(a[6]),
+        // getAuction tuple order (verified vs ABI + VickreyAuction.sol L313-323):
+        // 7=revealedHighest (uint128), 8=revealedSecond (uint128), 9=revealedBidder (address).
+        // winner/secondPrice were previously read from swapped indices.
         winnerBid: a[7].toString(),
-        winner: a[8],
-        secondPrice: a[9].toString(),
+        winner: a[9],
+        secondPrice: a[8].toString(),
         myBidUnsealed: null,
       }));
       list.reverse();
@@ -625,13 +628,26 @@ export default function VickreyAuctionsPage() {
                           <X size={12} /> Cancel
                         </button>
                       )}
-                      {auction.status === 1 && (
-                        <button onClick={() => { setSelectedAuction(auction); handleReveal(auction.id); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
-                                     bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
-                          <Zap size={12} /> Reveal Winner
-                        </button>
-                      )}
+                      {auction.status === 1 && (() => {
+                        const revealing =
+                          selectedAuction?.id === auction.id &&
+                          (txState === "decrypting" || txState === "signing");
+                        return (
+                          <button
+                            onClick={() => { setSelectedAuction(auction); handleReveal(auction.id); }}
+                            disabled={revealing}
+                            title="Reveals winner with cryptographic proof from the Fhenix Threshold Network"
+                            className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
+                                       bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all
+                                       disabled:opacity-50 disabled:cursor-not-allowed">
+                            {revealing ? (
+                              <><Loader2 size={12} className="animate-spin" /> Revealing…</>
+                            ) : (
+                              <><Zap size={12} /> Reveal Winner</>
+                            )}
+                          </button>
+                        );
+                      })()}
                       {auction.status === 2 && (
                         <button onClick={() => handleSettle(auction.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold

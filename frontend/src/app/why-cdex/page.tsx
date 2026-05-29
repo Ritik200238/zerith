@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { ArrowRight, Lock, Hash, RefreshCw, ExternalLink } from "lucide-react";
-import { CONTRACTS, FHENIX_TESTNET, TOKEN_CONFIG } from "@/lib/constants";
+import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
 
 export default function WhyCdexPage() {
   return (
@@ -375,7 +375,3 @@ function Bullet({
     </li>
   );
 }
-
-/* Suppress unused-import lint for TOKEN_CONFIG which is used implicitly via the
- * symbol shown in /audit; keep for future row additions. */
-const _u = TOKEN_CONFIG;

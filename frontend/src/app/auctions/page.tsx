@@ -613,7 +613,7 @@ export default function AuctionsPage() {
         // 4. Show signature drawer (uses bid proof — most informative)
         setDrawerProof({
           ctHash: bidHandle,
-          decryptedValue: `${formatAmount(bidProof.decryptedValue)} (winning bid)`,
+          decryptedValue: `${formatAmount(bidProof.decryptedValue, 0)} (winning bid)`,
           signature: bidProof.signature,
           txHash: tx.hash,
           chainId: FHENIX_TESTNET.chainId,
@@ -628,7 +628,7 @@ export default function AuctionsPage() {
               ? "Reserve MET — auction reveal verified"
               : "Reserve NOT MET — auction closes, reserve stays sealed"
             : "Auction reveal verified",
-          `Winner: ${shortAddrUtil(bidderAddr)} · Bid: ${formatAmount(bidProof.decryptedValue)}`,
+          `Winner: ${shortAddrUtil(bidderAddr)} · Bid: ${formatAmount(bidProof.decryptedValue, 0)}`,
           {
             href: `${FHENIX_TESTNET.blockExplorer}/tx/${tx.hash}`,
             hrefLabel: "View on Etherscan",
@@ -762,9 +762,9 @@ export default function AuctionsPage() {
               rows={[
                 {
                   label: "Auctioned token + amount",
-                  meValue: sample ? `${formatAmount(sample.amount)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
-                  counterpartyValue: sample ? `${formatAmount(sample.amount)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
-                  observerValue: sample ? `${formatAmount(sample.amount)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
+                  meValue: sample ? `${formatAmount(sample.amount, 0)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
+                  counterpartyValue: sample ? `${formatAmount(sample.amount, 0)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
+                  observerValue: sample ? `${formatAmount(sample.amount, 0)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
                   encrypted: false,
                 },
                 {
@@ -772,24 +772,24 @@ export default function AuctionsPage() {
                   meValue: sample?.myBidUnsealed
                     ? `${sample.myBidUnsealed} ${tokenSymbol(sample.paymentToken)}`
                     : "Unseal your bid to view",
-                  counterpartyValue: "🔒 sealed (other bidders never see your bid)",
-                  observerValue: "🔒 sealed (only the winning amount is published)",
+                  counterpartyValue: "sealed (other bidders never see your bid)",
+                  observerValue: "sealed (only the winning amount is published)",
                   encrypted: true,
                 },
                 {
                   label: "Other bidders' amounts",
-                  meValue: "🔒 sealed (never revealed)",
-                  counterpartyValue: "🔒 sealed (their own bid only)",
-                  observerValue: "🔒 sealed (losing bids never decrypt — ever)",
+                  meValue: "sealed (never revealed)",
+                  counterpartyValue: "sealed (their own bid only)",
+                  observerValue: "sealed (losing bids never decrypt — ever)",
                   encrypted: true,
                 },
                 ...(isBlind
                   ? [
                       {
                         label: "Reserve price",
-                        meValue: "🔒 sealed (seller never decrypts it on-chain either)",
-                        counterpartyValue: "🔒 sealed",
-                        observerValue: "🔒 sealed — ONLY the ≥/< boolean outcome is revealed",
+                        meValue: "sealed (seller never decrypts it on-chain either)",
+                        counterpartyValue: "sealed",
+                        observerValue: "sealed — ONLY the ≥/< boolean outcome is revealed",
                         encrypted: true,
                       },
                     ]
@@ -974,7 +974,7 @@ export default function AuctionsPage() {
                         <div>
                           <p className="text-xs text-[var(--text-muted)]">Selling</p>
                           <p className="text-lg font-bold text-[var(--text)] break-words">
-                            {formatAmount(auction.amount)}{" "}
+                            {formatAmount(auction.amount, 0)}{" "}
                             <span className="text-sm font-medium text-[var(--text)]">
                               {tokenSymbol(auction.token)}
                             </span>
@@ -1018,7 +1018,7 @@ export default function AuctionsPage() {
                               {shortAddr(auction.revealedBidder)}
                             </p>
                             <p className="text-sm text-[var(--text)] font-semibold break-words">
-                              Bid: {formatAmount(auction.revealedBid)}
+                              Bid: {formatAmount(auction.revealedBid, 0)}
                             </p>
                           </div>
                         )}
@@ -1355,7 +1355,7 @@ export default function AuctionsPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-muted)]">Selling</span>
                   <span className="text-[var(--text)] font-medium">
-                    {formatAmount(selectedAuction.amount)} {tokenSymbol(selectedAuction.token)}
+                    {formatAmount(selectedAuction.amount, 0)} {tokenSymbol(selectedAuction.token)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -1528,7 +1528,7 @@ export default function AuctionsPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-muted)]">Selling</span>
                   <span className="text-[var(--text)] font-medium">
-                    {formatAmount(selectedAuction.amount)} {tokenSymbol(selectedAuction.token)}
+                    {formatAmount(selectedAuction.amount, 0)} {tokenSymbol(selectedAuction.token)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">

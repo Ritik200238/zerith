@@ -47,8 +47,15 @@ export default function WrapperPage() {
   const wrapperRead = useReadContract("ConfidentialWrapper");
   const tokenContract = useContract("ConfidentialToken");
 
-  const deployed =
-    CONTRACTS.ConfidentialWrapper !== "0x0000000000000000000000000000000000000000";
+  // ConfidentialWrapper is NOT in deployed-addresses.json. The address in
+  // constants.ts is a stale legacy carry-over from an older contract set that
+  // was never redeployed against the current FHERC20 token. Worse, its
+  // deposit() pulls funds via a standard IERC20.safeTransferFrom, which cannot
+  // work against the confidential FHERC20 token this page defaults to (FHERC20
+  // approve()/transferFrom do not behave like a standard ERC20). Rather than
+  // ship a deposit flow that is guaranteed to revert, we treat the wrapper as
+  // not available on this network and show the honest empty-state below.
+  const deployed = false;
 
   const [tokenAddress, setTokenAddress] = useState(CONTRACTS.ConfidentialToken);
   const [encBalance, setEncBalance] = useState<string | null>(null);
@@ -256,7 +263,12 @@ export default function WrapperPage() {
   if (!deployed) {
     return (
       <main className="mx-auto max-w-[1180px] px-5 md:px-10 py-12 md:py-16 font-body" style={{ background: "var(--bg)", color: "var(--text)" }}>
-        <ComingSoonBanner feature="Confidential Wrapper" shipDate="soon" />
+        <ComingSoonBanner
+          feature="Confidential Wrapper — not available on this network"
+          shipDate="a future deploy"
+          redirectHref="/treasury"
+          redirectLabel="Use the Treasury vault instead"
+        />
       </main>
     );
   }

@@ -88,6 +88,71 @@ export default function EscrowPage() {
 
   const modalProps = useModalEscape(modalView !== "none", () => setModalView("none"), "escrow-modal-title");
 
+  /**
+   * Normalize a tx/encryption error into a friendly { title, message }.
+   * Maps wallet rejection and the Escrow contract's custom errors
+   * (Unauthorized / InvalidInput / InvalidState / Expired / Paused —
+   * see contracts/features/Escrow.sol) to human copy. Falls back to a
+   * trimmed raw message so we never surface a raw stack trace.
+   */
+  const handleTxError = useCallback(
+    (err: unknown, fallbackTitle: string) => {
+      const raw = err instanceof Error ? err.message : String(err ?? "");
+      const lower = raw.toLowerCase();
+
+      const map: { match: string; title: string; message: string }[] = [
+        {
+          match: "user rejected",
+          title: "Transaction cancelled",
+          message: "You rejected the transaction in your wallet.",
+        },
+        {
+          match: "unauthorized",
+          title: "Not allowed",
+          message: "Only a party to this deal can take that action.",
+        },
+        {
+          match: "invalidstate",
+          title: "Wrong deal state",
+          message: "This deal isn't in a state that allows that action right now. Refresh and check the status.",
+        },
+        {
+          match: "expired",
+          title: "Deal expired",
+          message: "The funding deadline has passed for this deal.",
+        },
+        {
+          match: "invalidinput",
+          title: "Invalid input",
+          message: "One of the values was rejected by the contract. Check addresses, tokens, and amounts.",
+        },
+        {
+          match: "paused",
+          title: "Protocol paused",
+          message: "Escrow is temporarily paused. Try again shortly.",
+        },
+        {
+          match: "insufficient funds",
+          title: "Insufficient gas funds",
+          message: "Your wallet doesn't have enough Sepolia ETH to pay for gas.",
+        },
+        {
+          match: "encryption failed",
+          title: fallbackTitle,
+          message: "Could not encrypt your inputs. Make sure FHE is initialized and retry.",
+        },
+      ];
+
+      const hit = map.find((m) => lower.includes(m.match));
+      const message = hit ? hit.message : raw.slice(0, 200) || "Transaction failed.";
+      const title = hit ? hit.title : fallbackTitle;
+      setTxState("error");
+      setTxError(message);
+      toast.error(title, message);
+    },
+    [toast],
+  );
+
   const fetchDeals = useCallback(async () => {
     if (!escrowRead) return;
     try {
@@ -162,12 +227,9 @@ export default function EscrowPage() {
       setModalView("none");
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
-      setTxState("error");
-      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
-      setTxError(msg);
-      toast.error("Create failed", msg);
+      handleTxError(err, "Create failed");
     }
-  }, [escrowContract, initialized, partyB, tokenA, tokenB, termsA, termsB, duration, dealLabel, encrypt, toast]);
+  }, [escrowContract, initialized, partyB, tokenA, tokenB, termsA, termsB, duration, dealLabel, encrypt, toast, handleTxError]);
 
   const handleFund = useCallback(async () => {
     if (!escrowContract || !initialized || !selectedDeal) return;
@@ -190,12 +252,9 @@ export default function EscrowPage() {
       setModalView("none");
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
-      setTxState("error");
-      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
-      setTxError(msg);
-      toast.error("Fund failed", msg);
+      handleTxError(err, "Fund failed");
     }
-  }, [escrowContract, initialized, selectedDeal, fundAmount, encrypt, toast]);
+  }, [escrowContract, initialized, selectedDeal, fundAmount, encrypt, toast, handleTxError]);
 
   const handleRelease = useCallback(
     async (deal: DealData) => {
@@ -209,13 +268,10 @@ export default function EscrowPage() {
         setTxState("success");
         setRefreshKey((k) => k + 1);
       } catch (err: unknown) {
-        setTxState("error");
-        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
-        setTxError(msg);
-        toast.error("Release failed", msg);
+        handleTxError(err, "Release failed");
       }
     },
-    [escrowContract, toast],
+    [escrowContract, toast, handleTxError],
   );
 
   const handleCancel = useCallback(
@@ -230,13 +286,10 @@ export default function EscrowPage() {
         setTxState("success");
         setRefreshKey((k) => k + 1);
       } catch (err: unknown) {
-        setTxState("error");
-        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
-        setTxError(msg);
-        toast.error("Cancel failed", msg);
+        handleTxError(err, "Cancel failed");
       }
     },
-    [escrowContract, toast],
+    [escrowContract, toast, handleTxError],
   );
 
   if (!deployed) {

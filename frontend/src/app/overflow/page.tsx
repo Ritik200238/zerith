@@ -17,13 +17,11 @@ import {
   Users,
   Shield,
   TrendingUp,
-  PieChart,
   Download,
 } from "lucide-react";
 import { useWallet } from "@/providers/WalletProvider";
 import { useCofhe } from "@/hooks/useCofhe";
 import { useEncrypt } from "@/hooks/useEncrypt";
-import { useUnseal } from "@/hooks/useUnseal";
 import { useDecryptForTx } from "@/hooks/useDecryptForTx";
 import { useBlockPoll } from "@/hooks/useBlockPoll";
 import { useToast, useModalEscape } from "@/components/shared/Toast";
@@ -57,9 +55,12 @@ interface SaleData {
   pricePerToken: string;
   deadline: number;
   depositCount: number;
-  status: number; // 0=OPEN 1=SETTLED 2=CANCELLED
+  // On-chain enum SaleStatus { OPEN=0, COMPUTING=1, SETTLED=2, CANCELLED=3 }
+  status: number;
+  // Total demand revealed after finalizeSettlement (0 until then).
+  revealedTotal: string;
+  // Derived client-side: revealedTotal > totalSupply once the sale is settled.
   oversubscribed: boolean;
-  myAllocation: string | null;
 }
 
 type ModalView = "none" | "create" | "deposit";
@@ -68,11 +69,22 @@ type ModalView = "none" | "create" | "deposit";
 /*  Constants */
 /* ------------------------------------------------------------------ */
 
-const STATUS_LABEL: Record<number, string> = { 0: "OPEN", 1: "SETTLED", 2: "CANCELLED" };
+// Matches on-chain enum SaleStatus { OPEN=0, COMPUTING=1, SETTLED=2, CANCELLED=3 }
+const STATUS_OPEN = 0;
+const STATUS_COMPUTING = 1;
+const STATUS_SETTLED = 2;
+const STATUS_CANCELLED = 3;
+const STATUS_LABEL: Record<number, string> = {
+  [STATUS_OPEN]: "OPEN",
+  [STATUS_COMPUTING]: "COMPUTING",
+  [STATUS_SETTLED]: "SETTLED",
+  [STATUS_CANCELLED]: "CANCELLED",
+};
 const STATUS_STYLE: Record<number, { bg: string; text: string; border: string }> = {
-  0: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
-  1: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
-  2: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
+  [STATUS_OPEN]: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
+  [STATUS_COMPUTING]: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
+  [STATUS_SETTLED]: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text)]", border: "border-[var(--border-dash)]" },
+  [STATUS_CANCELLED]: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
 };
 
 const DURATION_OPTS = [
@@ -129,7 +141,6 @@ export default function OverflowSalePage() {
   const { account } = useWallet();
   const { initialized } = useCofhe();
   const { encrypt, stage, encrypting } = useEncrypt();
-  const { unseal, unsealing } = useUnseal();
   const saleContract = useContract("OverflowSale");
   const saleRead = useReadContract("OverflowSale");
 
@@ -149,7 +160,6 @@ export default function OverflowSalePage() {
   const [cDuration, setCDuration] = useState(86400);
 
   const [depositAmount, setDepositAmount] = useState("");
-  const [revealAlloc, setRevealAlloc] = useState(false);
 
   const { decrypt: decryptForTx } = useDecryptForTx();
 
@@ -179,19 +189,28 @@ export default function OverflowSalePage() {
       const total = Number(await saleRead.getSaleCount());
       const indices = Array.from({ length: total }, (_, i) => i);
       const raws = await Promise.all(indices.map((i) => saleRead.getSale(i)));
-      const list: SaleData[] = raws.map((s, i) => ({
-        id: i,
-        creator: s[0],
-        token: s[1],
-        paymentToken: s[2],
-        totalSupply: s[3].toString(),
-        pricePerToken: s[4].toString(),
-        deadline: Number(s[5]),
-        depositCount: Number(s[6]),
-        status: Number(s[7]),
-        oversubscribed: s[8],
-        myAllocation: null,
-      }));
+      // getSale returns:
+      //  [0] seller [1] token [2] paymentToken [3] tokensForSale
+      //  [4] pricePerToken [5] deadline [6] depositCount [7] status [8] revealedTotal
+      const list: SaleData[] = raws.map((s, i) => {
+        const totalSupply = BigInt(s[3].toString());
+        const revealedTotal = BigInt(s[8].toString());
+        const status = Number(s[7]);
+        return {
+          id: i,
+          creator: s[0],
+          token: s[1],
+          paymentToken: s[2],
+          totalSupply: totalSupply.toString(),
+          pricePerToken: s[4].toString(),
+          deadline: Number(s[5]),
+          depositCount: Number(s[6]),
+          status,
+          revealedTotal: revealedTotal.toString(),
+          // Oversubscribed only known once the total demand is revealed (settled).
+          oversubscribed: status === STATUS_SETTLED && revealedTotal > totalSupply,
+        };
+      });
       list.reverse();
       setSales(list);
     } catch {
@@ -205,7 +224,6 @@ export default function OverflowSalePage() {
   useEffect(() => { fetchSales(); }, [fetchSales, refreshKey, blockTick]);
 
   useAccountChangeReset(useCallback(() => {
-    setSales((prev) => prev.map((s) => ({ ...s, myAllocation: null })));
     setRefreshKey((k) => k + 1);
   }, []));
 
@@ -422,22 +440,6 @@ export default function OverflowSalePage() {
     [saleContract, guardedAction, decryptForTx],
   );
 
-  const handleUnsealAllocation = useCallback(async (sale: SaleData) => {
-    if (!saleContract || !account) return;
-    try {
-      const hash = await saleContract.getMyAllocation(sale.id);
-      const val = await unseal(BigInt(hash), 5);
-      if (val !== null) {
-        setSales((prev) =>
-          prev.map((s) => (s.id === sale.id ? { ...s, myAllocation: val.toString() } : s))
-        );
-        setRevealAlloc(true);
-      }
-    } catch {
-      // no allocation or unseal failed
-    }
-  }, [saleContract, account, unseal]);
-
   /* ================================================================ */
   /*  Render */
   /* ================================================================ */
@@ -509,7 +511,8 @@ export default function OverflowSalePage() {
           <p className="text-xs text-text/80">
             <strong>Fair overflow:</strong> Deposit encrypted amounts at a fixed price.
             If total deposits exceed supply, each participant gets a pro-rata share.
-            Excess funds are refunded. Deposit amounts stay private.
+            Excess funds are refunded. Your deposit is hidden from competitors while the
+            sale is open; it&apos;s revealed only to you when you claim.
           </p>
         </div>
       )}
@@ -566,7 +569,7 @@ export default function OverflowSalePage() {
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}`}>
                           {STATUS_LABEL[sale.status]}
                         </span>
-                        {sale.oversubscribed && sale.status === 1 && (
+                        {sale.oversubscribed && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-[var(--bg-alt)] text-[var(--text-muted)] border-[var(--border-dash)]">
                             OVERSUBSCRIBED
                           </span>
@@ -605,22 +608,22 @@ export default function OverflowSalePage() {
                         </div>
                       </div>
 
-                      {/* Allocation (after settle) */}
-                      {sale.status === 1 && sale.myAllocation !== null && (
+                      {/* Total demand — revealed on-chain only after settlement */}
+                      {sale.status === STATUS_SETTLED && (
                         <div className="rounded bg-bgAlt border border-borderDash px-3 py-2">
-                          <p className="text-[10px] text-text/60 uppercase tracking-wider font-semibold">Your Allocation</p>
-                          <p className="text-sm text-text font-semibold font-mono">{sale.myAllocation} tokens</p>
+                          <p className="text-[10px] text-text/60 uppercase tracking-wider font-semibold">Total demand (revealed)</p>
+                          <p className="text-sm text-text font-semibold font-mono">{formatAmount(sale.revealedTotal)}</p>
                         </div>
                       )}
 
-                      <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)]">
-                        <Lock size={10} className="text-text/40" />
-                        Deposit amounts encrypted with FHE
+                      <div className="flex items-start gap-1.5 text-[10px] text-[var(--text-muted)]">
+                        <Lock size={10} className="text-text/40 mt-0.5 shrink-0" />
+                        Individual deposits stay encrypted during the sale. When you claim, only your own amount is revealed.
                       </div>
                     </div>
 
                     <div className="px-5 py-3 border-t border-borderDash flex items-center gap-2">
-                      {sale.status === 0 && !ended && !mine && (
+                      {sale.status === STATUS_OPEN && !ended && !mine && (
                         <button
                           onClick={() => { setSelectedSale(sale); setDepositAmount(""); setModalView("deposit"); setTxState("idle"); }}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
@@ -629,27 +632,18 @@ export default function OverflowSalePage() {
                           <Lock size={12} /> Deposit
                         </button>
                       )}
-                      {sale.status === 0 && mine && ended && (
+                      {(sale.status === STATUS_OPEN || sale.status === STATUS_COMPUTING) && mine && ended && (
                         <button onClick={() => handleSettle(sale.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
                           <CheckCircle2 size={12} /> Settle
                         </button>
                       )}
-                      {sale.status === 1 && !mine && (
+                      {sale.status === STATUS_SETTLED && !mine && (
                         <button onClick={() => handleClaim(sale.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
                                      bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all">
-                          <Download size={12} /> Claim Tokens
-                        </button>
-                      )}
-                      {sale.status === 1 && sale.myAllocation === null && !mine && (
-                        <button onClick={() => handleUnsealAllocation(sale)}
-                          disabled={unsealing}
-                          className="rounded px-3 py-2 text-xs font-medium bg-bgCard border border-borderDash text-[var(--text-muted)]
-                                     hover:text-[var(--text)] hover:bg-bgCard transition-all disabled:opacity-50">
-                          {unsealing ? <Loader2 size={12} className="animate-spin" /> : <PieChart size={12} />}
-                          {unsealing ? "..." : "Allocation"}
+                          <Download size={12} /> Claim &amp; reveal your amount
                         </button>
                       )}
                     </div>
@@ -783,7 +777,8 @@ export default function OverflowSalePage() {
               <div className="flex items-center gap-2 px-3 py-2 rounded bg-bgAlt border border-borderDash">
                 <Shield size={12} className="text-text shrink-0" />
                 <p className="text-[10px] text-text/70">
-                  Your deposit amount is encrypted. If oversubscribed, you receive a proportional allocation and a refund.
+                  Your deposit amount is encrypted and hidden from other bidders while the sale is open.
+                  When you claim, your own amount is decrypted to settle your pro-rata allocation and refund.
                 </p>
               </div>
 

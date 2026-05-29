@@ -46,3 +46,10 @@ packages/sdk/
 .beefy-*.json
 .burner-wallet.json
 .multibid-burners.json
+
+# Local burner/funder scripts containing secrets or throwaway diagnostics (never commit)
+tasks/create-beefy-burner.ts
+tasks/test-burner-faucet.ts
+frontend/render-logo.js
+.beefy-burner.json
+.burner-funder.json

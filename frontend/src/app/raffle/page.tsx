@@ -9,13 +9,20 @@ export const dynamic = "force-dynamic";
  * FHE.randomEuint64(). Winner index is encrypted on-chain until a TN
  * signature reveals it.
  *
- * Flow: Create → Buy ticket(s) → Wait for deadline → Draw → Reveal → Claim.
+ * Flow: Create → Buy ticket → Wait for deadline → Draw → Reveal → Claim.
+ * (One ticket per buyTicket() call — the contract has no multi-ticket batch.)
+ *
+ * NOTE: EncryptedRaffle is a legacy carry-over not in deployed-addresses.json.
+ * Its address predates the 2026-05-18 redeploy and the contract pulls payment
+ * via a plaintext IERC20.transferFrom, incompatible with the current FHERC20
+ * confidential token. On-chain ticket buys are therefore gated as demo-only
+ * (see handleBuy); the rest of the lifecycle stays live for walkthroughs.
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Trophy, Plus, Loader2, RefreshCw, Clock, Ticket, X, AlertCircle,
+  Trophy, Plus, Loader2, RefreshCw, Clock, X, AlertCircle,
   Lock, CheckCircle2, Sparkles, Gift,
 } from "lucide-react";
 import { ethers } from "ethers";
@@ -62,7 +69,6 @@ export default function RafflePage() {
   const toast = useToast();
   const raffleContract = useContract("EncryptedRaffle");
   const raffleRead = useReadContract("EncryptedRaffle");
-  const tokenContract = useContract("ConfidentialToken");
   const { decrypt: decryptForTx } = useDecryptForTx();
 
   const deployed =
@@ -176,37 +182,43 @@ export default function RafflePage() {
   }, [raffleContract, ticketPrice, maxTickets, duration, toast]);
 
   /* ---------------------------------------------------------------- */
-  /* buy ticket                                                        */
+  /* buy ticket — DISABLED (legacy contract, see note below)           */
   /* ---------------------------------------------------------------- */
+  //
+  // Ticket purchase is intentionally gated off. Two independent reasons,
+  // either of which alone makes a live buy unsafe:
+  //
+  //   1. STALE / UNVERIFIED ADDRESS. EncryptedRaffle is NOT in
+  //      deployed-addresses.json. The address in constants.ts
+  //      (0xEADb…f1b1) is a deliberate carry-over from the contract set
+  //      that predates the 2026-05-18 full redeploy — i.e. it was deployed
+  //      against the *previous* token, not the ConfidentialToken at
+  //      0x5604…a3d2 the UI now passes into createRaffle(). We cannot
+  //      verify the deployed bytecode matches this source.
+  //
+  //   2. TOKEN-MECHANISM MISMATCH. EncryptedRaffle.sol pulls payment with
+  //      IERC20(token).safeTransferFrom(...) — a *plaintext* ERC20 transfer.
+  //      The ConfidentialToken is an FHERC20 (ERC-7984): its real balance is
+  //      confidential and only moves via confidentialTransferFrom, which the
+  //      raffle contract never calls. The old code here called token.approve()
+  //      first — FHERC20.approve only touches the near-zero indicator balance
+  //      and never authorizes a confidential transfer, so the buy tx is a
+  //      guaranteed revert. setOperator() (the treasury vault pattern) would
+  //      not help either, because the contract does not call the confidential
+  //      transfer path it gates.
+  //
+  // Per the launch rule "a correctly-disabled flow beats a confidently-broken
+  // one", the buy is surfaced as a clearly-labelled demo-only control rather
+  // than sending a tx that cannot succeed. Re-enabling requires a fresh
+  // EncryptedRaffle deploy wired to confidentialTransferFrom + an operator
+  // grant, then adding its address to deployed-addresses.json.
 
-  const handleBuy = useCallback(
-    async (r: RaffleData) => {
-      if (!raffleContract || !tokenContract) return;
-      setTxState("signing");
-      setTxError(undefined);
-      try {
-        // Approve ticket price (the token must allow the raffle contract to pull funds)
-        const allowanceTx = await tokenContract.approve(
-          CONTRACTS.EncryptedRaffle,
-          r.ticketPrice,
-        );
-        await allowanceTx.wait();
-
-        const tx = await raffleContract.buyTicket(r.id);
-        setTxState("confirming");
-        setTxHash(tx.hash);
-        await tx.wait();
-        setTxState("success");
-        setRefreshKey((k) => k + 1);
-      } catch (err: unknown) {
-        setTxState("error");
-        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
-        setTxError(msg);
-        toast.error("Buy failed", msg);
-      }
-    },
-    [raffleContract, tokenContract, toast],
-  );
+  const handleBuy = useCallback(() => {
+    toast.info(
+      "Ticket purchase disabled",
+      "This raffle uses a legacy pre-redeploy contract whose payment path is incompatible with the current confidential token. Create/draw/reveal stay live for demo, but on-chain ticket buys are gated until the contract is redeployed.",
+    );
+  }, [toast]);
 
   /* ---------------------------------------------------------------- */
   /* draw → reveal                                                     */
@@ -324,6 +336,18 @@ export default function RafflePage() {
             <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
               Ticket counts encrypted on commit. Winner selection verifiable — but pre-draw counts stay sealed to prevent collusion.
             </p>
+            <div
+              className="mt-5 flex items-start gap-2 rounded p-3 text-xs"
+              style={{ background: "var(--bg-alt)", border: "1px dashed var(--border-dash)", color: "var(--text-secondary)" }}
+            >
+              <AlertCircle size={14} className="shrink-0 mt-0.5 text-[var(--text)]" />
+              <span>
+                <strong className="text-[var(--text)]">Demo only.</strong> This page runs a legacy
+                pre-redeploy raffle contract whose payment path is incompatible with the current
+                confidential token, so on-chain ticket purchases are gated. Create, draw, reveal and
+                claim are shown to walk through the encrypted-winner mechanism.
+              </span>
+            </div>
           </div>
         <div className="flex items-center gap-2">
           <FaucetButton />
@@ -414,11 +438,13 @@ export default function RafflePage() {
                 <div className="mt-3 flex items-center gap-2 flex-wrap">
                   {r.status === 0 && !expired && r.ticketCount < r.maxTickets && account && (
                     <button
-                      onClick={() => handleBuy(r)}
+                      onClick={handleBuy}
+                      title="Legacy demo contract — on-chain ticket buys are gated until redeploy"
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium
-                                 bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors"
+                                 bg-[var(--bg-alt)] text-[var(--text-muted)] cursor-not-allowed
+                                 opacity-60 transition-colors"
                     >
-                      <Ticket size={12} /> Buy ticket
+                      <Lock size={12} /> Buy ticket — demo only
                     </button>
                   )}
                   {r.status === 0 && expired && r.ticketCount > 0 && (

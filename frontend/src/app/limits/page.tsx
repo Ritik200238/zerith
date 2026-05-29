@@ -49,7 +49,7 @@ const STATUS_STYLE: Record<number, { bg: string; text: string }> = {
 };
 
 export default function LimitsPage() {
-  const { account } = useWallet();
+  const { account, connect } = useWallet();
   const { initialized } = useCofhe();
   const { encrypt } = useEncrypt();
   const toast = useToast();
@@ -143,9 +143,19 @@ export default function LimitsPage() {
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       setTxState("error");
-      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
-      setTxError(msg);
-      toast.error("Create failed", msg);
+      // Normalize raw chain/wallet errors to friendly copy (matches trade/page.tsx).
+      const raw = err instanceof Error ? err.message : "";
+      const isRejection = /user rejected|denied|ACTION_REJECTED/i.test(raw);
+      const isInsufficient = /insufficient funds|insufficient balance|exceeds balance/i.test(raw);
+      const friendly = isRejection
+        ? "You rejected the transaction in your wallet."
+        : isInsufficient
+          ? "Insufficient balance. Claim test tokens from the faucet and try again."
+          : raw
+            ? raw.slice(0, 200)
+            : "Could not create the limit order. Please try again.";
+      setTxError(friendly);
+      toast.error(isRejection ? "Transaction cancelled" : "Create failed", friendly);
     }
   }, [limitsContract, initialized, tokenBuy, tokenSell, amount, triggerPrice, direction, encrypt, toast]);
 
@@ -240,14 +250,28 @@ export default function LimitsPage() {
 
       <section className="mt-6 grid gap-3">
         {orders.length === 0 ? (
-          <EmptyState
-            icon={Target}
-            eyebrow="No limit orders"
-            title="Set a target without telegraphing it."
-            body="Encrypt the trigger price and amount, store the order on-chain. Outsiders see your wallet has an order open but not the price you'll fill at. The contract executes when conditions are met — no front-running on the trigger."
-            primary={{ label: "New limit order", onClick: () => setModalOpen(true) }}
-            secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
-          />
+          !account ? (
+            // Gate the create flow behind a connected wallet — route the
+            // primary CTA to connect instead of opening a modal that would
+            // fail on submit (matches the trade/freelance empty-state pattern).
+            <EmptyState
+              icon={Target}
+              eyebrow="Wallet not connected"
+              title="Connect a wallet to place an encrypted order."
+              body="Limit orders are signed and stored on-chain with an FHE-encrypted trigger price. Connect a wallet to create one — outsiders see your order exists but never the price you'll fill at."
+              primary={{ label: "Connect wallet", onClick: () => { void connect(); } }}
+              secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
+            />
+          ) : (
+            <EmptyState
+              icon={Target}
+              eyebrow="No limit orders"
+              title="Set a target without telegraphing it."
+              body="Encrypt the trigger price and amount, store the order on-chain. Outsiders see your wallet has an order open but not the price you'll fill at. The contract executes when conditions are met — no front-running on the trigger."
+              primary={{ label: "New limit order", onClick: () => setModalOpen(true) }}
+              secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
+            />
+          )
         ) : (
           orders.map((o) => {
             const style = STATUS_STYLE[o.status];

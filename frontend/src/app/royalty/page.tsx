@@ -50,7 +50,6 @@ export default function RoyaltyPage() {
 
   const royaltyContract = useContract("EncryptedRoyalty");
   const royaltyRead = useReadContract("EncryptedRoyalty");
-  const tokenContract = useContract("ConfidentialToken");
 
   const deployed =
     CONTRACTS.EncryptedRoyalty !== "0x0000000000000000000000000000000000000000";
@@ -195,7 +194,7 @@ export default function RoyaltyPage() {
   }, [royaltyContract, initialized, recipients, totalBps, encrypt, toast]);
 
   const handleDistribute = useCallback(async () => {
-    if (!royaltyContract || !tokenContract || !selectedRoyalty) return;
+    if (!royaltyContract || !selectedRoyalty) return;
     const amount = Number(distributeAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       toast.error("Invalid amount", "Positive number");
@@ -205,10 +204,10 @@ export default function RoyaltyPage() {
     setTxState("signing");
     setTxError(undefined);
     try {
-      // Approve royalty contract to pull from caller's token balance
-      const approveTx = await tokenContract.approve(CONTRACTS.EncryptedRoyalty, amount);
-      await approveTx.wait();
-
+      // Recipients are paid from the creator's encrypted SettlementVault
+      // balance — distribute() calls vault.settleTrade(msg.sender, …) and
+      // moves funds entirely within the vault. No token approval/pull needed
+      // (and FHERC20.approve reverts by design — see treasury setOperator).
       const tx = await royaltyContract.distribute(selectedRoyalty.id, BigInt(amount));
       setTxState("confirming");
       setTxHash(tx.hash);
@@ -223,7 +222,7 @@ export default function RoyaltyPage() {
       setTxError(msg);
       toast.error("Distribute failed", msg);
     }
-  }, [royaltyContract, tokenContract, selectedRoyalty, distributeAmount, toast]);
+  }, [royaltyContract, selectedRoyalty, distributeAmount, toast]);
 
   /* ---------------------------------------------------------------- */
   /* Render                                                            */
@@ -255,7 +254,7 @@ export default function RoyaltyPage() {
               Composable fan-out.{" "}<em className="font-serif italic font-normal">Each share private</em>.
             </h1>
             <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
-              Programmable royalty splits where individual shares are encrypted. Authors, labels, contributors — each sees only their cut.
+              Programmable royalty splits where individual shares are encrypted. Authors, labels, contributors — each sees their own cut; the creator who set the splits can audit all of them.
             </p>
           </div>
         <div className="flex items-center gap-2">
@@ -282,7 +281,7 @@ export default function RoyaltyPage() {
             icon={Music}
             eyebrow="No royalty splits yet"
             title="Distribute revenue without revealing the splits."
-            body="Register a list of recipients with encrypted basis-point shares. When you distribute revenue, each recipient unseals only their own line — collaborators never see what others earn."
+            body="Register a list of recipients with encrypted basis-point shares. When you distribute revenue, each recipient unseals their own line — collaborators never see each other's shares, while the creator who set the splits can audit all of them."
             primary={{ label: "Register split", onClick: () => setModalView("register") }}
             secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
           />
@@ -403,12 +402,22 @@ export default function RoyaltyPage() {
                       Will be split across {selectedRoyalty.recipientCount} recipients per their encrypted percentages.
                     </p>
                   </div>
+                  <div className="rounded bg-[var(--bg-alt)] border border-dashed border-[var(--border-dash)] p-3 flex items-start gap-2 text-[11px]">
+                    <Wallet size={14} className="text-[var(--text-muted)] shrink-0 mt-0.5" />
+                    <span className="text-[var(--text-muted)]">
+                      Recipients are paid from your encrypted vault balance —{" "}
+                      <a href="/treasury" className="text-[var(--text)] underline underline-offset-2 hover:opacity-70">
+                        deposit to the vault first
+                      </a>
+                      .
+                    </span>
+                  </div>
                   <button onClick={handleDistribute} disabled={!distributeAmount || txState === "signing" || txState === "confirming"}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded text-sm font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-all disabled:opacity-50">
                     {txState === "signing" || txState === "confirming"
                       ? <Loader2 size={14} className="animate-spin" />
                       : <Wallet size={14} />}
-                    Approve & distribute
+                    Distribute from vault
                   </button>
                 </>
               )}

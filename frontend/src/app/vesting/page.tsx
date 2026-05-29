@@ -25,6 +25,7 @@ import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
+import { PrivacyLens } from "@/components/shared/PrivacyLens";
 import { CONTRACTS } from "@/lib/constants";
 import { formatAmount, shortAddress } from "@/lib/format";
 
@@ -92,15 +93,18 @@ export default function VestingPage() {
             const c = await signed.getMyClaimed(id);
             encClaimed = c.toString();
           } catch {}
+          // getSchedule returns: [0]beneficiary [1]token [2]granter
+          // [3]cliffEnd [4]vestingEnd [5]revoked. NOTE: the getter does
+          // NOT return startTime — only the public schedules() mapping does.
           out.push({
             id,
             beneficiary: s[0],
             token: s[1],
             granter: s[2],
-            startTime: Number(s[3]),
-            cliffEnd: Number(s[4]),
-            vestingEnd: Number(s[5]),
-            revoked: s[6],
+            startTime: 0,
+            cliffEnd: Number(s[3]),
+            vestingEnd: Number(s[4]),
+            revoked: Boolean(s[5]),
             vestedPct: pct,
             encTotalHandle: encTotal,
             encClaimedHandle: encClaimed,
@@ -216,6 +220,42 @@ export default function VestingPage() {
           Vesting schedules are created by authorized contracts (e.g. auction settlements) — not from this page directly.
           You see and claim schedules where you are the beneficiary.
         </span>
+      </div>
+
+      <div className="mb-6">
+        <PrivacyLens
+          title="Vesting Privacy"
+          rows={[
+            {
+              label: "Schedule timeline (cliff → end)",
+              meValue: "Public — visible to anyone",
+              counterpartyValue: "Public — visible to anyone",
+              observerValue: "Public — visible to anyone",
+              encrypted: false,
+            },
+            {
+              label: "Beneficiary & granter",
+              meValue: "Public addresses",
+              counterpartyValue: "Public addresses",
+              observerValue: "Public addresses",
+              encrypted: false,
+            },
+            {
+              label: "Total grant amount",
+              meValue: "Visible to you only (unseal)",
+              counterpartyValue: "🔒 sealed",
+              observerValue: "🔒 sealed",
+              encrypted: true,
+            },
+            {
+              label: "Claimed amount",
+              meValue: "Visible to you only (unseal)",
+              counterpartyValue: "🔒 sealed",
+              observerValue: "🔒 sealed",
+              encrypted: true,
+            },
+          ]}
+        />
       </div>
 
       <section className="grid gap-3">

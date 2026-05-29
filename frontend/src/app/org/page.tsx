@@ -58,6 +58,51 @@ interface ProposalData {
   revealedNo: number;
 }
 
+/**
+ * Maps raw ethers / contract revert strings to human-readable copy.
+ * Covers this page's Organization custom errors plus the common wallet
+ * + FHERC20 reverts, so toasts never surface raw `err.message`.
+ */
+const REVERT_COPY: Array<[RegExp, string]> = [
+  // wallet-level rejections (ethers v6 ACTION_REJECTED / MetaMask text)
+  [/user rejected|action_rejected|user denied|rejected the request/i, "You rejected the transaction in your wallet."],
+  [/insufficient funds/i, "Not enough Sepolia ETH to cover gas."],
+  // Organization contract custom errors (verified against abis/Organization.json)
+  [/\bAlreadyMember\b/, "That address is already a member of this org."],
+  [/\bAlreadyVoted\b/, "You have already voted on this proposal."],
+  [/\bNotMember\b/, "You are not a member of this org."],
+  [/\bNotAdmin\b/, "Only the org admin can do that."],
+  [/\bOrgNotFound\b/, "Organization not found."],
+  [/\bNotPending\b/, "This proposal is not in a state that allows this action."],
+  [/\bNotRevealed\b/, "The vote tally has not been revealed yet."],
+  [/\bVotingClosed\b/, "Voting has closed for this proposal."],
+  [/\bVotingOpen\b/, "Voting is still open — wait for the deadline first."],
+  [/\bInvalidEncryptedInput\b/, "The encrypted input could not be verified. Try again."],
+  [/\bInvalidInput\b/, "One of the inputs is invalid. Check the form and try again."],
+  [/\bReentrancyGuardReentrantCall\b/, "Transaction blocked: re-entrant call."],
+  // generic FHERC20 misuse (approve()/transfer() on a confidential token)
+  [/FHERC20IncompatibleFunction/, "This confidential token does not support that call. Use setOperator instead of approve."],
+];
+
+function prettifyError(err: unknown): string {
+  // Gather every field ethers v6 might decode the revert into.
+  const e = err as
+    | { message?: string; shortMessage?: string; reason?: string; code?: string; revert?: { name?: string } }
+    | undefined;
+  if (e?.code === "ACTION_REJECTED") return "You rejected the transaction in your wallet.";
+  const named = e?.revert?.name ? ` ${e.revert.name}` : "";
+  const haystack = [e?.shortMessage, e?.reason, named, e?.message]
+    .filter(Boolean)
+    .join(" ");
+  if (!haystack) return "Transaction failed. Please try again.";
+  for (const [pattern, copy] of REVERT_COPY) {
+    if (pattern.test(haystack)) return copy;
+  }
+  // Fall back to the cleanest available string, trimmed.
+  const fallback = e?.shortMessage || e?.reason || e?.message || "Transaction failed.";
+  return fallback.slice(0, 200);
+}
+
 const STATUS_LABEL: Record<number, string> = {
   0: "VOTING", 1: "REVEAL PENDING", 2: "APPROVED", 3: "REJECTED", 4: "EXECUTED",
 };
@@ -217,7 +262,7 @@ export default function OrgPage() {
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       setTxState("error");
-      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+      const msg = prettifyError(err);
       setTxError(msg);
       toast.error("Create failed", msg);
     }
@@ -250,7 +295,7 @@ export default function OrgPage() {
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       setTxState("error");
-      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+      const msg = prettifyError(err);
       setTxError(msg);
       toast.error("Add member failed", msg);
     }
@@ -287,7 +332,7 @@ export default function OrgPage() {
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       setTxState("error");
-      const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+      const msg = prettifyError(err);
       setTxError(msg);
       toast.error("Propose failed", msg);
     }
@@ -306,7 +351,7 @@ export default function OrgPage() {
         setRefreshKey((k) => k + 1);
       } catch (err: unknown) {
         setTxState("error");
-        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        const msg = prettifyError(err);
         setTxError(msg);
         toast.error("Vote failed", msg);
       }
@@ -327,7 +372,7 @@ export default function OrgPage() {
         setRefreshKey((k) => k + 1);
       } catch (err: unknown) {
         setTxState("error");
-        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        const msg = prettifyError(err);
         setTxError(msg);
         toast.error("Reveal request failed", msg);
       }
@@ -365,7 +410,7 @@ export default function OrgPage() {
         setRefreshKey((k) => k + 1);
       } catch (err: unknown) {
         setTxState("error");
-        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        const msg = prettifyError(err);
         setTxError(msg);
         toast.error("Publish reveal failed", msg);
       }
@@ -386,7 +431,7 @@ export default function OrgPage() {
         setRefreshKey((k) => k + 1);
       } catch (err: unknown) {
         setTxState("error");
-        const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
+        const msg = prettifyError(err);
         setTxError(msg);
         toast.error("Mark executed failed", msg);
       }

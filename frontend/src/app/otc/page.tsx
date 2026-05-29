@@ -254,6 +254,9 @@ export default function OTCPage() {
   const handleAccept = useCallback(
     async (req: RequestData, quoteIndex: number) => {
       if (!otcContract) return;
+      // Keep the picker modal open through the whole tx so the row shows a
+      // live spinner; only close + refresh once the receipt resolves.
+      setAcceptingIndex(quoteIndex);
       setTxState("signing");
       try {
         const tx = await otcContract.acceptQuote(req.id, quoteIndex);
@@ -261,12 +264,15 @@ export default function OTCPage() {
         setTxHash(tx.hash);
         await tx.wait();
         setTxState("success");
+        setModalView("none");
         setRefreshKey((k) => k + 1);
       } catch (err: unknown) {
         setTxState("error");
         const msg = err instanceof Error ? err.message.slice(0, 200) : "Failed";
         setTxError(msg);
         toast.error("Accept failed", msg);
+      } finally {
+        setAcceptingIndex(null);
       }
     },
     [otcContract, toast],
@@ -319,11 +325,15 @@ export default function OTCPage() {
   /** Load all quotes for a request and open the picker modal. Fixes the audit
    *  bug where requester could only "Accept first quote" (hardcoded index 0). */
   const [quoteRows, setQuoteRows] = useState<QuoteRow[]>([]);
+  // Index of the quote row currently being accepted — drives the per-row
+  // spinner and disables every Accept button while the tx is in flight.
+  const [acceptingIndex, setAcceptingIndex] = useState<number | null>(null);
   const openQuotesPicker = useCallback(
     async (req: RequestData) => {
       if (!otcRead) return;
       setSelectedRequest(req);
       setQuoteRows([]);
+      setAcceptingIndex(null);
       setModalView("quotes-picker");
       try {
         const indices = Array.from({ length: req.quoteCount }, (_, i) => i);
@@ -443,22 +453,22 @@ export default function OTCPage() {
                 {
                   label: "Order size",
                   meValue: "Your exact size",
-                  counterpartyValue: "🔒 sealed (only the matched amount is revealed post-trade)",
-                  observerValue: "🔒 sealed",
+                  counterpartyValue: "sealed (only the matched amount is revealed post-trade)",
+                  observerValue: "sealed",
                   encrypted: true,
                 },
                 {
                   label: "Price range",
                   meValue: "Your min / max",
-                  counterpartyValue: "🔒 sealed (their quote settles iff in range, zero otherwise)",
-                  observerValue: "🔒 sealed",
+                  counterpartyValue: "sealed (their quote settles iff in range, zero otherwise)",
+                  observerValue: "sealed",
                   encrypted: true,
                 },
                 {
                   label: "Quote price (when quoter)",
                   meValue: "Your quoted price (unsealable by you)",
                   counterpartyValue: "Your quote — readable; their range — sealed",
-                  observerValue: "🔒 sealed",
+                  observerValue: "sealed",
                   encrypted: true,
                 },
                 {
@@ -890,9 +900,10 @@ export default function OTCPage() {
                           key={q.index}
                           row={q}
                           unseal={unseal}
+                          accepting={acceptingIndex === q.index}
+                          anyAccepting={acceptingIndex !== null}
                           onAccept={() => {
-                            handleAccept(selectedRequest, q.index);
-                            setModalView("none");
+                            void handleAccept(selectedRequest, q.index);
                           }}
                         />
                       ))}
@@ -948,10 +959,16 @@ function QuoteRowCard({
   row,
   unseal,
   onAccept,
+  accepting,
+  anyAccepting,
 }: {
   row: QuoteRow;
   unseal: (h: bigint, t: number) => Promise<bigint | null>;
   onAccept: () => void;
+  /** This specific row's accept tx is in flight — show the inline spinner. */
+  accepting: boolean;
+  /** Some row is being accepted — disable every Accept button until it settles. */
+  anyAccepting: boolean;
 }) {
   const [price, setPrice] = useState<string | null>(null);
   const [amount, setAmount] = useState<string | null>(null);
@@ -983,13 +1000,13 @@ function QuoteRowCard({
           {price !== null ? (
             <span className="font-mono" style={{ color: "var(--text)" }}>{price}</span>
           ) : (
-            <span className="font-mono" style={{ color: "var(--text-muted)" }}>🔒 sealed</span>
+            <span className="font-mono" style={{ color: "var(--text-muted)" }}>sealed</span>
           )}
           &nbsp;·&nbsp;Amount:&nbsp;
           {amount !== null ? (
             <span className="font-mono" style={{ color: "var(--text)" }}>{amount}</span>
           ) : (
-            <span className="font-mono" style={{ color: "var(--text-muted)" }}>🔒 sealed</span>
+            <span className="font-mono" style={{ color: "var(--text-muted)" }}>sealed</span>
           )}
         </div>
       </div>
@@ -1006,11 +1023,12 @@ function QuoteRowCard({
         )}
         <button
           onClick={onAccept}
-          disabled={row.accepted}
-          className="px-3 py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
+          disabled={row.accepted || anyAccepting}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold transition-opacity hover:opacity-80 disabled:opacity-40"
           style={{ background: "var(--text)", color: "var(--bg)", borderRadius: 6 }}
         >
-          {row.accepted ? "Accepted" : "Accept"}
+          {accepting && <Loader2 size={11} className="animate-spin" />}
+          {row.accepted ? "Accepted" : accepting ? "Accepting…" : "Accept"}
         </button>
       </div>
     </div>

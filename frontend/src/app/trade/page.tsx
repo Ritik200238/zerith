@@ -31,7 +31,7 @@ import { useTxFlow } from "@/hooks/useTxFlow";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
-import { parseAmount } from "@/lib/format";
+import { parseAmount, formatAmount } from "@/lib/format";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 
 /* ------------------------------------------------------------------ */
@@ -254,8 +254,9 @@ export default function TradePage() {
       if (!account || order.maker.toLowerCase() !== account.toLowerCase()) return;
       const ctHash = encHandlesRef.current.get(order.id);
       if (ctHash === undefined) return;
-      // FheTypes.Uint128 = 5
-      const value = await unseal(ctHash, 5);
+      // OrderBook stores encPrice as euint128 → FheTypes.Uint128 = 6.
+      // (Passing 5 = Uint64 silently fails to unseal a 128-bit ciphertext.)
+      const value = await unseal(ctHash, 6);
       if (value !== null) {
         setOrders((prev) =>
           prev.map((o) =>
@@ -548,7 +549,7 @@ export default function TradePage() {
                             </span>
                           </td>
                           <td className="px-5 py-3.5 text-right font-mono text-[var(--text)]">
-                            {order.amountSell}
+                            {formatAmount(order.amountSell)}
                           </td>
                           <td className="px-5 py-3.5 text-right">
                             <span className="inline-flex items-center gap-1.5 text-[var(--text-muted)] text-xs">
@@ -557,19 +558,29 @@ export default function TradePage() {
                             </span>
                           </td>
                           <td className="px-5 py-3.5 text-center">
-                            <button
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setTakerPrice("");
-                                setModalView("fill");
-                              }}
-                              className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium
-                                         bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)]
-                                         hover:bg-[var(--bg-alt)] hover:border-[var(--border-dash)] transition-all"
-                            >
-                              <ShoppingCart size={12} />
-                              Fill Order
-                            </button>
+                            {mine ? (
+                              // Maker cannot fill their own order — the contract
+                              // reverts with InvalidInput() when maker == msg.sender.
+                              // Mirror OTC's !isMine guard and surface it in the UI.
+                              <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                                <Lock size={11} className="text-[var(--text)]/40" />
+                                Your order
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setTakerPrice("");
+                                  setModalView("fill");
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium
+                                           bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)]
+                                           hover:bg-[var(--bg-alt)] hover:border-[var(--border-dash)] transition-all"
+                              >
+                                <ShoppingCart size={12} />
+                                Fill Order
+                              </button>
+                            )}
                           </td>
                         </motion.tr>
                       );
@@ -771,12 +782,12 @@ export default function TradePage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-right font-mono text-[var(--text)]">
-                        {order.amountSell}
+                        {formatAmount(order.amountSell)}
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         {order.unsealedPrice !== null ? (
                           <span className="font-mono text-[var(--text)]">
-                            {order.unsealedPrice}
+                            {formatAmount(order.unsealedPrice)}
                           </span>
                         ) : (
                           <button
@@ -864,7 +875,7 @@ export default function TradePage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-muted)]">Amount</span>
                   <span className="font-mono text-[var(--text)]">
-                    {selectedOrder.amountSell}
+                    {formatAmount(selectedOrder.amountSell)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">

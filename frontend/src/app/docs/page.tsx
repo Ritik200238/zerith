@@ -172,56 +172,63 @@ export default function DocsPage() {
           tagline="Typed TypeScript client for posting, bidding, and settling encrypted auctions."
         >
           <p>
-            The repository ships a typed SDK at{" "}
-            <Code>packages/sdk</Code>, currently published as{" "}
-            <Code>@sigil/sdk</Code> (a rename to <Code>@zerith/sdk</Code> is
-            queued). It wraps <Code>cofhejs</Code>, <Code>ethers v6</Code>, and
-            the contract ABIs into one client.
+            Zerith does not ship a bespoke client. The frontend integrates
+            directly against two installed packages:{" "}
+            <Code>@cofhe/sdk</Code> (Fhenix CoFHE — encryption, decryption,
+            permits) and <Code>ethers v6</Code> (the on-chain calls, against the
+            published contract ABIs). Every snippet below is exactly the pattern
+            the app uses in{" "}
+            <Code>frontend/src/providers/CofheProvider.tsx</Code> and the feature
+            pages — copy-paste runnable against what&apos;s installed.
           </p>
 
           <Subhead>Install</Subhead>
           <CodeBlock
             language="bash"
-            code={`npm install @sigil/sdk ethers cofhejs`}
+            code={`npm install @cofhe/sdk cofhejs ethers`}
           />
 
-          <Subhead>Initialize</Subhead>
+          <Subhead>Initialize the CoFHE client</Subhead>
           <CodeBlock
             language="ts"
-            code={`import { SigilClient } from "@sigil/sdk";
-import { ethers } from "ethers";
+            code={`import { ethers } from "ethers";
+// @cofhe/sdk ships WASM — import the web entrypoints client-side only.
+import { createCofheClient, createCofheConfig } from "@cofhe/sdk/web";
+import { Ethers6Adapter } from "@cofhe/sdk/adapters";
+import { chains } from "@cofhe/sdk/chains";
 
 const provider = new ethers.JsonRpcProvider(SEPOLIA_RPC_URL);
-const wallet = new ethers.Wallet(privateKey, provider);
+const signer = new ethers.Wallet(privateKey, provider);
 
-const sigil = await SigilClient.init({
-  signer: wallet,
-  network: "ethSepolia",
-});`}
+const cofhe = createCofheClient(
+  createCofheConfig({ supportedChains: [chains.sepolia] }),
+);
+const { publicClient, walletClient } = await Ethers6Adapter(provider, signer);
+await cofhe.connect(publicClient, walletClient);`}
           />
 
           <Subhead>Most-used methods</Subhead>
           <Table
             rows={[
               [
-                <Code key="m1">sigil.bid({"{ auctionId, amount }"})</Code>,
-                "Submit an encrypted bid on a live sealed auction. Encrypts client-side, posts the InEuint128 handle on-chain.",
+                <Code key="m1">cofhe.encryptInputs([Encryptable.uint128(amount)]).execute()</Code>,
+                "Encrypt a value client-side into an InEuint128 (with a ZK proof of validity). Pass the returned handle to the contract call. Use Encryptable.uint64(...) for euint64 amounts.",
               ],
               [
-                <Code key="m2">sigil.unsealMyBid(auctionId)</Code>,
-                "Decrypt your own bid via the threshold network. Cross-account calls are rejected by the TN — you can only unseal handles your address owns.",
+                <Code key="m2">cofhe.decryptForView(ctHash, FheTypes.Uint128).execute()</Code>,
+                "Decrypt your own handle locally via the threshold network, gated by your permit. Cross-account calls are rejected by the TN — you can only unseal handles your address owns.",
               ],
               [
-                <Code key="m3">sigil.createAuction(...)</Code>,
-                "Seller-side. Posts a new sealed auction with public amount + duration, encrypted reserve (Blind Floor mode optional).",
+                <Code key="m3">cofhe.decryptForTx(handle).withoutPermit().execute()</Code>,
+                "Fetch a TN co-signed (value, signature) pair for an FHE.allowGlobal'd handle, then submit it on-chain (e.g. revealWinner). Permissionless once the handle is globally allowed.",
               ],
               [
-                <Code key="m4">sigil.revealWinner(auctionId)</Code>,
-                "After close, fetch the TN co-signed reveal of the winning bid + bidder, submit on-chain. Permissionless — anyone can call.",
+                <Code key="m4">cofhe.permits.getOrCreateSelfPermit()</Code>,
+                "Idempotently ensure an active self-permit exists. Permits gate decryptForView; they last ~24h and auto-rotate in the app.",
               ],
               [
-                <Code key="m5">sigil.deposit({"{ token, amount }"})</Code>,
-                "Move FHERC-20 tokens into the SettlementVault custody. Required before any encrypted-write that needs a balance.",
+                <Code key="m5">new ethers.Contract(addr, abi, signer)</Code>,
+                "Plain ethers v6 contract instance for the on-chain calls — createAuction, bid, closeAuction, revealWinner, vault.deposit. Addresses live in deployed-addresses.json.",
               ],
             ]}
           />
@@ -229,18 +236,29 @@ const sigil = await SigilClient.init({
           <Subhead>End-to-end example</Subhead>
           <CodeBlock
             language="ts"
-            code={`// 1. Connect a signer
-const sigil = await SigilClient.init({ signer: wallet });
+            code={`import { Encryptable } from "@cofhe/sdk";
+import { FheTypes } from "@cofhe/sdk";
 
-// 2. Make sure the vault has your tokens
-await sigil.deposit({ token: CDEX, amount: 100n });
+// cofhe + signer are set up as above. SealedAuction / SettlementVault are
+// ethers.Contract instances built from deployed-addresses.json + the ABIs.
 
-// 3. Bid on auction #4 with an encrypted price
-const tx = await sigil.bid({ auctionId: 4, amount: 1200n });
+// 1. Fund the vault first. deposit pulls from your wallet via the FHERC-20,
+//    so you must authorize the vault as an operator once (FHERC20.approve
+//    reverts by design — use setOperator instead).
+const MAX_UINT48 = "281474976710655"; // 2**48 - 1
+if (!(await token.isOperator(wallet.address, vaultAddr))) {
+  await (await token.setOperator(vaultAddr, MAX_UINT48)).wait();
+}
+const [encDeposit] = (await cofhe.encryptInputs([Encryptable.uint64(100n)]).execute());
+await (await vault.deposit(tokenAddr, encDeposit)).wait();
+
+// 2. Bid on auction #4 with an encrypted price (euint128 -> Encryptable.uint128).
+const [encBid] = (await cofhe.encryptInputs([Encryptable.uint128(1200n)]).execute());
+const tx = await sealedAuction.bid(4, encBid);
 console.log("bid tx:", tx.hash);
 
-// 4. Later, unseal your own bid (only you can)
-const myBid = await sigil.unsealMyBid(4);
+// 3. Later, unseal your own bid (only you can — bids are euint128).
+const myBid = await cofhe.decryptForView(await sealedAuction.getMyBid(4), FheTypes.Uint128).execute();
 console.log("my bid was:", myBid); // 1200n`}
           />
         </Section>
@@ -376,7 +394,7 @@ await sealedAuction.settleAuction(auctionId);`}
             <Bullet
               warn
               title="Threshold network availability."
-              body="Decryption-on-reveal requires the FHE network to co-sign. If the network is unreachable at reveal time, settlement is delayed (not lost — there's a 7-day emergency timeout for bidder-side cancellation)."
+              body="Decryption-on-reveal requires the FHE network to co-sign. If the network is unreachable, settlement is delayed (not lost): once a handle is FHE.allowGlobal'd at close, reveal is permissionless — anyone can fetch the co-signed result and submit revealWinner the moment the network returns. Note: the auctions have no on-chain emergency-refund. A 7-day EMERGENCY_TIMEOUT exists only on FreelanceBidding (escrowed jobs stuck in settling); do not assume it covers sealed auctions."
             />
             <Bullet
               warn

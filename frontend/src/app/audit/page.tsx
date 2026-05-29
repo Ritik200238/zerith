@@ -222,13 +222,21 @@ export default function AuditPage() {
                       <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
                         {desc.countLabel}
                       </div>
-                      <div className="text-sm font-mono text-[var(--text)]">
-                        {loadingCounts
-                          ? "…"
-                          : live === null || live === undefined
-                            ? "—"
-                            : live.toLocaleString()}
-                      </div>
+                      {loadingCounts ? (
+                        <div className="text-sm font-mono text-[var(--text)]">…</div>
+                      ) : live === null ? (
+                        <div
+                          title="Live on-chain count could not be loaded — this claim is currently unverifiable. Check your network connection or RPC."
+                          className="flex items-center justify-end gap-1 text-sm font-mono text-[var(--warning,#B47A1B)]"
+                        >
+                          <AlertTriangle size={12} />
+                          <span>unverifiable</span>
+                        </div>
+                      ) : (
+                        <div className="text-sm font-mono text-[var(--text)]">
+                          {(live ?? 0).toLocaleString()}
+                        </div>
+                      )}
                     </div>
                   )}
                   <a
@@ -395,6 +403,3 @@ function useFallbackProvider() {
   }, []);
   return p;
 }
-
-/* Suppress unused import lint */
-const _u = AlertTriangle;

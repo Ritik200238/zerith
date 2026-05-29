@@ -556,10 +556,10 @@ export default function TreasuryPage() {
                 balancePlaintext !== null
                   ? `${balancePlaintext} ${TOKEN_CONFIG.symbol}`
                   : "Unseal above to view",
-              counterpartyValue: "🔒 sealed (use Proof of Reserves to attest a threshold)",
+              counterpartyValue: "sealed (use Proof of Reserves to attest a threshold)",
               observerValue: encBalanceHandle
                 ? `${encBalanceHandle.slice(0, 12)}…${encBalanceHandle.slice(-8)}`
-                : "🔒 sealed",
+                : "sealed",
               encrypted: true,
             },
             {

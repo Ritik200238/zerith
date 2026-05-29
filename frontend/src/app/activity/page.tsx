@@ -49,6 +49,13 @@ type EventType = "payment-sent" | "payment-received" | "auction-bid" | "por-requ
 interface ActivityEvent {
   type: EventType;
   timestamp: number;
+  /**
+   * What `timestamp` actually represents. Most sources record the event time
+   * ("at"). SealedAuction has no per-bid timestamp on-chain, so auction-bid
+   * rows carry the auction deadline instead — labeled "closes" so the feed
+   * never presents a close time as if it were the moment the bid was placed.
+   */
+  timeKind?: "at" | "closes";
   href: string;
   primary: string;       // headline
   secondary?: string;    // subline
@@ -148,10 +155,12 @@ export default function ActivityPage() {
         const a = auctionRaws[i];
         out.push({
           type: "auction-bid",
-          // Sealed Auction doesn't store per-bid timestamp; use deadline as the
-          // most meaningful timestamp for sorting (auction-end is when bid
-          // resolves). Frontend orders by this; user sees "by deadline".
+          // Sealed Auction doesn't store a per-bid timestamp on-chain; a[4] is
+          // the auction deadline (verified: getAuction tuple index 4 =
+          // "deadline"). We use it for sorting AND surface it honestly via
+          // timeKind: "closes" so the row never implies this is the bid time.
           timestamp: Number(a[4]),
+          timeKind: "closes",
           href: "/auctions",
           primary: `Bid on auction #${i}`,
           secondary: `Seller ${shortAddr(a[0])} · amount ${formatAmount(a[3].toString())} ${shortAddr(a[1]).slice(-4)}`,
@@ -365,8 +374,17 @@ function EventRow({ ev }: { ev: ActivityEvent }) {
               </span>
             )}
             {ev.status && <StatusBadge text={ev.status} kind={ev.statusKind ?? "neutral"} />}
-            <span className="mono text-textMuted ml-auto">
-              {ev.timestamp > 0 ? new Date(ev.timestamp * 1000).toLocaleString() : "—"}
+            <span
+              className="mono text-textMuted ml-auto"
+              title={
+                ev.timeKind === "closes"
+                  ? "Sealed Auction stores no per-bid timestamp on-chain; this is the auction close time."
+                  : undefined
+              }
+            >
+              {ev.timestamp > 0
+                ? `${ev.timeKind === "closes" ? "closes " : ""}${new Date(ev.timestamp * 1000).toLocaleString()}`
+                : "—"}
             </span>
           </div>
           <div className="text-sm font-semibold text-text">{ev.primary}</div>

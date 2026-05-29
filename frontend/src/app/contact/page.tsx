@@ -5,10 +5,10 @@ export const dynamic = "force-dynamic";
 /**
  * Contact + FAQ — /contact
  *
- * The "how do I actually reach a human at Zerith" page. Three asks:
- *   1. Direct email — for foundation BD / press / security disclosures
- *   2. Cal.com booking — 30 min slot for foundations exploring a pilot
- *   3. Twitter / GitHub — for everyone else
+ * The "how do I actually reach a human at Zerith" page. Channels:
+ *   1. GitHub Issues — primary channel for everything: bugs, features,
+ *      pilot inquiries, integration questions, contributor discussion
+ *   2. GitHub Security Advisory — private vulnerability disclosure
  *
  * Below: a curated FAQ that answers the questions a foundation
  * finance lead asks before they email. Editorial style — dashed
@@ -18,8 +18,6 @@ export const dynamic = "force-dynamic";
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Mail,
-  Calendar,
   Github,
   ArrowRight,
   ChevronDown,
@@ -45,37 +43,21 @@ interface Channel {
 
 const CHANNELS: Channel[] = [
   {
-    Icon: Calendar,
-    label: "Book a 30-min call",
+    Icon: Github,
+    label: "GitHub Issues",
     description:
-      "Foundation pilot inquiries, design partnerships, integration questions. We will show you a live encrypted auction on your own asset shape.",
-    href: "https://cal.com/zerith/30min",
-    cta: "Schedule",
+      "The fastest way to reach us. Bug reports, feature requests, foundation pilot inquiries, integration questions, and contributor discussion all live here. Public, tracked, and answered as fast as we can.",
+    href: "https://github.com/Ritik200238/zerith/issues",
+    cta: "Open an issue",
     primary: true,
-  },
-  {
-    Icon: Mail,
-    label: "Email",
-    description:
-      "BD, press, partnership, and general inquiries. We answer every email within 24 hours during weekdays.",
-    href: "mailto:hello@zerith.fi",
-    cta: "hello@zerith.fi",
   },
   {
     Icon: Shield,
     label: "Security disclosure",
     description:
-      "Found a vulnerability? Please disclose it privately first. We will acknowledge within 24 hours and coordinate the fix + public credit.",
-    href: "mailto:security@zerith.fi",
-    cta: "security@zerith.fi",
-  },
-  {
-    Icon: Github,
-    label: "GitHub Issues",
-    description:
-      "Bug reports, feature requests, and contributor discussion. Public and welcome.",
-    href: "https://github.com/Ritik200238/zerith/issues",
-    cta: "Open an issue",
+      "Found a vulnerability? Open a GitHub issue marked [SECURITY] (or a private security advisory on the repo) so we can coordinate a fix and public credit. We respond as fast as we can.",
+    href: "https://github.com/Ritik200238/zerith/security/advisories/new",
+    cta: "Report privately",
   },
 ];
 
@@ -148,8 +130,7 @@ const FAQS: FaqEntry[] = [
         Today: nothing — it's a public testnet protocol. At general
         availability we will charge a small basis-point fee on settled
         notional, with a discounted pilot rate for design partners. We
-        will publish exact pricing on the <code>/pricing</code> page
-        before mainnet launch.
+        will publish exact pricing before mainnet launch.
       </>
     ),
   },
@@ -211,8 +192,8 @@ const FAQS: FaqEntry[] = [
         Yes. We ship a typed TypeScript SDK and Hardhat task runners for
         scripted use, and the contracts are unowned at the user level —
         a foundation can post auctions and accept bids permissionlessly
-        from any wallet they choose. For high-volume integrations,
-        please book a call.
+        from any wallet they choose. For high-volume integrations, open a
+        GitHub issue and we will dig in with you.
       </>
     ),
   },
@@ -280,8 +261,8 @@ export default function ContactPage() {
           >
             Foundations exploring an encrypted block sale, market makers
             asking integration questions, security researchers, journalists —
-            the channels below all reach a real person, not a router. We
-            answer everything personally within 24 hours on weekdays.
+            GitHub is where it all happens, in the open. Everything is
+            tracked publicly and answered as fast as we can.
           </p>
         </header>
 
@@ -333,7 +314,7 @@ export default function ContactPage() {
               }}
             >
               These are the real questions we hear. If yours isn&apos;t
-              listed, the channels above route to a person who can answer.
+              listed, open a GitHub issue above and a real person will answer.
             </p>
           </div>
           <div

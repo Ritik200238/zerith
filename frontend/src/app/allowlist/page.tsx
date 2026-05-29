@@ -373,10 +373,10 @@ export default function AllowlistPage() {
               className="font-display font-bold tracking-tight leading-[1.02] mb-4"
               style={{ fontSize: "clamp(38px, 5vw, 64px)", letterSpacing: "-0.04em" }}
             >
-              Merkle whitelist.{" "}<em className="font-serif italic font-normal">Encrypted allocations</em>.
+              Merkle whitelist.{" "}<em className="font-serif italic font-normal">Gated participation</em>.
             </h1>
             <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
-              Gate access via Merkle root. Per-address allocation amounts encrypted — gate-keeper sees who joined, never how much.
+              Gate access via an on-chain Merkle root; membership is proven off-chain — the root reveals nothing about who is on the list.
             </p>
           </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -406,8 +406,8 @@ export default function AllowlistPage() {
           <EmptyState
             icon={ListChecks}
             eyebrow="No allowlists yet"
-            title="Gate sealed auctions to KYC'd participants only."
-            body="Foundations selling to institutions can't let unknown wallets bid on $50M blocks. Allowlists publish a Merkle root on-chain; buyers prove membership via off-chain proof. Encrypted bids only land if the prover is in the set."
+            title="Gate participation to a known set of addresses."
+            body="Foundations selling to institutions can't let unknown wallets into a $50M round. Allowlists publish a Merkle root on-chain; participants prove membership with an off-chain proof. The root commits to the set without revealing who is on it — a gated feature only accepts callers whose proof verifies."
             primary={{ label: "Create allowlist", onClick: () => setModalView("create") }}
             secondary={{ label: "First time? Run the quickstart", href: "/quickstart" }}
           />
@@ -421,7 +421,7 @@ export default function AllowlistPage() {
                     <span className="text-[10px] font-mono text-[var(--text-muted)]">#{a.id}</span>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
                       a.active ? "bg-[var(--bg-alt)] text-[var(--text)]" : "bg-bgAlt text-[var(--text-muted)]"
-                    }`}>{a.active ? "ACTIVE" : "OPEN"}</span>
+                    }`}>{a.active ? "GATED · proof required" : "OPEN · gate disabled"}</span>
                     {isMine && <span className="text-[10px] text-[var(--text)]">yours</span>}
                   </div>
                   <span className="text-[10px] text-[var(--text-muted)]">creator {shortAddress(a.creator)}</span>
@@ -443,7 +443,7 @@ export default function AllowlistPage() {
                   {!a.active && account && (
                     <button onClick={() => handleVerifyOpen(a)}
                       className="flex items-center gap-1 px-3 py-1 rounded text-[11px] font-medium bg-[var(--bg-alt)] text-[var(--text)] hover:bg-[var(--bg-alt)] transition-colors">
-                      <CheckCircle2 size={11} /> Claim (open allowlist)
+                      <CheckCircle2 size={11} /> Claim (gate disabled — no proof needed)
                     </button>
                   )}
                   {isMine && a.active && (

@@ -126,6 +126,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     modeRef.current = mode;
   }, [mode]);
 
+  // Synchronous flag set the instant a burner is activated. `setMode("burner")`
+  // is async (batched), so on first render modeRef can still read "disconnected"
+  // while AppKit auto-reconnect fires — letting the sync effect clobber a just-
+  // restored burner. This ref flips immediately inside activateBurner, before
+  // any state flush, so the AppKit sync guard can see the burner is live.
+  const burnerActiveRef = useRef(false);
+
+  // Tracks the last account we dispatched a change event for. Declared here
+  // (above activateBurner) so the burner path can compare/update it directly;
+  // the AppKit address-changed effect below also reads/writes it.
+  const prevAccountRef = useRef<string | null>(null);
+
   /* ---- Reown AppKit hooks (only meaningful when mode !== "burner") ---- */
   const { open: openAppKitModal } = useAppKit();
   const { address: appKitAddress, isConnected: appKitConnected } = useAppKitAccount();
@@ -136,6 +148,22 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   /* ---- Helpers ---- */
 
   const activateBurner = useCallback((privateKey: string, address: string) => {
+    // Flip the synchronous guard FIRST, before any (batched/async) state set,
+    // so a concurrent AppKit auto-reconnect can't clobber this burner.
+    burnerActiveRef.current = true;
+    modeRef.current = "burner";
+
+    // If we're switching from one burner identity to a different one, the prior
+    // identity's account-scoped state (unsealed amounts, cached handles) must be
+    // flushed — otherwise it leaks across burner identities. The burner path
+    // never goes through the AppKit address-changed effect, so dispatch here.
+    const prevAccount = prevAccountRef.current;
+    const switchedIdentity =
+      typeof window !== "undefined" &&
+      prevAccount !== null &&
+      prevAccount.toLowerCase() !== address.toLowerCase();
+    prevAccountRef.current = address;
+
     const rpc = new ethers.JsonRpcProvider(FHENIX_TESTNET.rpcUrl, FHENIX_TESTNET.chainId);
     const wallet = new ethers.Wallet(privateKey, rpc);
     setProvider(rpc);
@@ -145,6 +173,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setMode("burner");
     setBurnerPrivateKey(privateKey);
     setError(null);
+
+    if (switchedIdentity) {
+      window.dispatchEvent(
+        new CustomEvent("zerith-account-changed", { detail: address }),
+      );
+    }
   }, []);
 
   /* ---- Initialize: restore burner if present (takes priority over AppKit) ---- */
@@ -162,7 +196,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   /* ---- Sync AppKit state -> ethers signer (skipped while burner is active) ---- */
   useEffect(() => {
-    if (modeRef.current === "burner") return;
+    // burnerActiveRef is the synchronous source of truth: on first render an
+    // AppKit auto-reconnect can fire before setMode("burner") flushes, so
+    // modeRef may still read "disconnected" here. Checking the ref prevents
+    // this effect from clobbering a just-restored burner signer.
+    if (burnerActiveRef.current || modeRef.current === "burner") return;
 
     if (!appKitConnected || !walletProvider || !appKitAddress) {
       // AppKit reports disconnected. If we were previously injected, clear.
@@ -188,9 +226,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setMode("injected");
         setIsCorrectChain(Number(appKitChainId) === FHENIX_TESTNET.chainId);
         setError(null);
+        // Connection resolved — release the spinner started by connect().
+        setConnecting(false);
       })
       .catch(() => {
-        if (!cancelled) setSigner(null);
+        if (cancelled) return;
+        setSigner(null);
+        setConnecting(false);
       });
 
     return () => {
@@ -202,8 +244,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // useBlockPoll.ts listens for "zerith-account-changed" to flush per-account
   // cached state on account switch. We dispatch it whenever the AppKit-driven
   // address changes — but not for burner-mode address changes, since burner
-  // activation already runs through the disconnect/reconnect cycle.
-  const prevAccountRef = useRef<string | null>(null);
+  // activation already runs through the disconnect/reconnect cycle (handled
+  // synchronously inside activateBurner).
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (modeRef.current === "burner") {
@@ -223,12 +265,19 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     // If a burner was active, switching to injected should clear it so the
     // AppKit sync effect can drive the new signer state once the user picks.
     if (mode === "burner") {
+      // Drop the synchronous burner guard so the AppKit sync effect is allowed
+      // to run again once the user picks an injected wallet.
+      burnerActiveRef.current = false;
       clearStoredBurner();
       setBurnerPrivateKey(null);
       setMode("disconnected");
     }
 
     setError(null);
+    // Drive the "Connecting…" spinner. Cleared when the AppKit sync effect
+    // resolves a signer / errors, or by the safety timeout below if the user
+    // dismisses the modal without connecting.
+    setConnecting(true);
     try {
       await openAppKitModal();
       // Note: openAppKitModal() resolves when the modal opens, NOT when the
@@ -237,7 +286,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to open wallet picker";
       setError(message);
+      setConnecting(false);
+      return;
     }
+    // Safety net: if the user closes the modal without connecting, the sync
+    // effect never fires, so release the spinner after a grace period rather
+    // than leaving it stuck on forever. A successful connect clears `connecting`
+    // first (via the sync effect), making this a no-op.
+    setTimeout(() => {
+      setConnecting((c) => (c ? false : c));
+    }, 60_000);
   }, [mode, openAppKitModal]);
 
   /* ---- Connect via burner (existing key — restore + manual import) ---- */
@@ -307,6 +365,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   /* ---- Disconnect ---- */
   const disconnect = useCallback(() => {
     if (mode === "burner") {
+      // Release the synchronous burner guard so the AppKit sync effect is free
+      // to run again (e.g. if the user later connects an injected wallet).
+      burnerActiveRef.current = false;
+      prevAccountRef.current = null;
       clearStoredBurner();
       setAccount(null);
       setSigner(null);

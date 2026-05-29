@@ -113,6 +113,7 @@ export default function AuctionSuitePage() {
   const overflowRead = useReadContract("OverflowSale");
 
   const [counts, setCounts] = useState<CountState>({});
+  const [loaded, setLoaded] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchCounts = useCallback(async () => {
@@ -137,6 +138,7 @@ export default function AuctionSuitePage() {
       }
     }
     setCounts(next);
+    setLoaded(true);
   }, [sealedRead, vickreyRead, dutchRead, batchRead, overflowRead]);
 
   const blockTick = useBlockPoll();
@@ -177,12 +179,26 @@ export default function AuctionSuitePage() {
           <div className="flex items-baseline justify-between flex-wrap gap-2">
             <div>
               <div className="mono text-textMuted mb-1">TOTAL ACROSS ALL MECHANISMS</div>
-              <div className="font-display text-4xl font-bold">
-                {totalCount}{" "}
-                <span className="font-body font-normal text-textMuted text-xl">
-                  auctions ever created
-                </span>
-              </div>
+              {loaded ? (
+                <div className="font-display text-4xl font-bold">
+                  {totalCount}{" "}
+                  <span className="font-body font-normal text-textMuted text-xl">
+                    auctions ever created
+                  </span>
+                </div>
+              ) : (
+                <div className="font-display text-4xl font-bold flex items-center gap-3 text-textMuted">
+                  <span
+                    className="inline-block h-9 w-16 rounded animate-pulse"
+                    style={{ background: "var(--bg-alt)" }}
+                    aria-hidden
+                  />
+                  <span className="mono text-sm font-normal inline-flex items-center gap-1.5">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    syncing…
+                  </span>
+                </div>
+              )}
             </div>
             <div className="mono text-textMuted">
               {MECHANISMS.length} mechanisms · 100% encrypted bids
@@ -225,9 +241,19 @@ export default function AuctionSuitePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="mono text-textMuted">LIVE COUNT</div>
-                      <div className="font-display text-2xl">
-                        {count == null ? "—" : count.toString()}
-                      </div>
+                      {loaded ? (
+                        <div className="font-display text-2xl">
+                          {count == null ? "—" : count.toString()}
+                        </div>
+                      ) : (
+                        <div className="h-8 flex items-center" aria-label="syncing">
+                          <span
+                            className="inline-block h-6 w-10 rounded animate-pulse"
+                            style={{ background: "var(--bg-alt)" }}
+                            aria-hidden
+                          />
+                        </div>
+                      )}
                     </div>
                     <Link href={m.href} className="btn btn-primary btn-sm">
                       Open

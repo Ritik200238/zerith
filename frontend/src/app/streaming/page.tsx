@@ -32,6 +32,7 @@ import { TransactionStatus, type TxState } from "@/components/shared/Transaction
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
+import { PrivacyLens } from "@/components/shared/PrivacyLens";
 import { CONTRACTS } from "@/lib/constants";
 import { parseAmount, isValidAddress, shortAddress, formatRemaining } from "@/lib/format";
 
@@ -52,6 +53,32 @@ const STATUS_STYLE: Record<number, { bg: string; text: string }> = {
   1: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]" },
   2: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]" },
 };
+
+/**
+ * Turn a raw contract revert into plain English. EncryptedStreaming reverts with
+ * named custom errors (see contracts/features/EncryptedStreaming.sol); ethers
+ * surfaces the name inside err.message. We match the name and return a sentence
+ * a non-technical user can act on, falling back to a trimmed raw message.
+ */
+const CONTRACT_ERROR_MESSAGES: Record<string, string> = {
+  NotRecipient: "Only the stream's recipient can claim accrued funds.",
+  NotPayer: "Only the stream's payer can stop this stream.",
+  Unauthorized: "You're not allowed to perform this action on this stream.",
+  InvalidInput: "Check your inputs — recipient, rate, and duration must be valid (duration ≥ 60s, recipient can't be yourself).",
+  InvalidStream: "That stream doesn't exist.",
+  NotActive: "This stream is no longer active.",
+  TooEarly: "Nothing has accrued yet — try again once the stream has started running.",
+};
+
+function friendlyError(err: unknown, fallback: string): string {
+  if (!(err instanceof Error)) return fallback;
+  const raw = err.message;
+  if (raw.includes("user rejected")) return "You rejected the transaction.";
+  for (const name of Object.keys(CONTRACT_ERROR_MESSAGES)) {
+    if (raw.includes(name)) return CONTRACT_ERROR_MESSAGES[name];
+  }
+  return raw.slice(0, 200);
+}
 
 export default function StreamingPage() {
   const { account } = useWallet();
@@ -168,12 +195,12 @@ export default function StreamingPage() {
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       setTxState("error");
-      const message = err instanceof Error ? err.message.slice(0, 200) : "Transaction failed";
+      const message = friendlyError(err, "Transaction failed");
       setTxError(message);
       const isRejection = err instanceof Error && err.message.includes("user rejected");
       toast.error(
         isRejection ? "Transaction cancelled" : "Stream creation failed",
-        isRejection ? "You rejected the transaction" : message,
+        message,
       );
     }
   }, [streamingContract, initialized, recipient, rate, duration, delay, encrypt, toast]);
@@ -197,7 +224,7 @@ export default function StreamingPage() {
         setRefreshKey((k) => k + 1);
       } catch (err: unknown) {
         setTxState("error");
-        const message = err instanceof Error ? err.message.slice(0, 200) : "Claim failed";
+        const message = friendlyError(err, "Claim failed");
         setTxError(message);
         toast.error("Claim failed", message);
       }
@@ -224,7 +251,7 @@ export default function StreamingPage() {
         setRefreshKey((k) => k + 1);
       } catch (err: unknown) {
         setTxState("error");
-        const message = err instanceof Error ? err.message.slice(0, 200) : "Cancel failed";
+        const message = friendlyError(err, "Cancel failed");
         setTxError(message);
         toast.error("Cancel failed", message);
       }
@@ -454,6 +481,33 @@ export default function StreamingPage() {
                   />
                 </div>
               </div>
+
+              <PrivacyLens
+                title="Stream privacy · preview"
+                rows={[
+                  {
+                    label: "Recipient",
+                    meValue: recipient ? shortAddress(recipient) : "—",
+                    counterpartyValue: recipient ? shortAddress(recipient) : "—",
+                    observerValue: recipient ? shortAddress(recipient) : "—",
+                    encrypted: false,
+                  },
+                  {
+                    label: "Duration",
+                    meValue: `${duration || "0"}s`,
+                    counterpartyValue: `${duration || "0"}s`,
+                    observerValue: `${duration || "0"}s`,
+                    encrypted: false,
+                  },
+                  {
+                    label: "Rate per second",
+                    meValue: rate ? `${rate} CDEX/s` : "—",
+                    counterpartyValue: "sealed",
+                    observerValue: "sealed",
+                    encrypted: true,
+                  },
+                ]}
+              />
 
               {!initialized && (
                 <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] p-3 flex items-center gap-2 text-xs">

@@ -45,8 +45,8 @@ const FEED: FeedEntry[] = [
   { contract: "FreelanceBidding",    label: "Freelance Jobs",         unit: "jobs",     href: "/freelance", icon: Briefcase,      getter: "getJobCount" },
   { contract: "OrderBook",           label: "Active Orders",          unit: "orders",   href: "/trade",     icon: ArrowLeftRight, getter: "getActiveOrderCount" },
   { contract: "EncryptedStreaming",  label: "Active Streams",         unit: "streams",  href: "/streaming", icon: Activity,       getter: "getStreamCount" },
-  { contract: "Organization",        label: "Organizations",          unit: "orgs",     href: "/agent",     icon: Building2,      getter: "getOrgCount" },
-  { contract: "ConfidentialMultisig", label: "Confidential Multisigs", unit: "vaults",  href: "/audit",     icon: Sparkles,       getter: "getMultisigCount" },
+  { contract: "Organization",        label: "Organizations",          unit: "orgs",     href: "/org",       icon: Building2,      getter: "getOrgCount" },
+  { contract: "ConfidentialMultisig", label: "Confidential Multisigs", unit: "vaults",  href: "/multisig",  icon: Sparkles,       getter: "getMultisigCount" },
   { contract: "EncryptedRaffle",     label: "Encrypted Raffles",      unit: "raffles",  href: "/raffle",    icon: Trophy,         getter: "getRaffleCount" },
 ];
 

@@ -9,7 +9,7 @@ Encrypted block sales for token foundations. Bidders compete with sealed prices,
 [![Ethereum Sepolia](https://img.shields.io/badge/Ethereum_Sepolia-Live-16a34a?style=flat-square)](https://sepolia.etherscan.io/address/0xdEe59FD1d8Ac071146c7ED012a0a343FdD56b0A0)
 [![Fhenix CoFHE](https://img.shields.io/badge/Fhenix_CoFHE-Integrated-16a34a?style=flat-square)](https://fhenix.io)
 [![Contracts](https://img.shields.io/badge/Contracts_deployed-26-16a34a?style=flat-square)](#deployed-contracts)
-[![Tests](https://img.shields.io/badge/Hardhat_tests-40%2B_passing-16a34a?style=flat-square)](./test)
+[![Tests](https://img.shields.io/badge/Unit_tests-400%2B_across_20_suites-16a34a?style=flat-square)](./test)
 [![Verified txs](https://img.shields.io/badge/End--to--end_txs-34_on_chain-16a34a?style=flat-square)](./PHASE-2-VERIFICATION-LOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
@@ -88,9 +88,9 @@ npm install
 npx hardhat run tasks/launch-day-check.ts --network ethSepolia
 #  → 26 contracts confirmed live · addresses match deployed-addresses.json
 
-# 3 · Run the full Hardhat test suite (40+ unit tests, all 20 contracts)
+# 3 · Run the full Hardhat test suite (400+ unit tests across 20 contract suites)
 npm test
-#  → 40+ tests passing across 20 contract suites
+#  → 400+ unit tests passing across 20 contract suites
 ```
 
 To run a *fresh* encrypted auction on Sepolia from a new burner wallet:
@@ -139,7 +139,7 @@ Sepolia faucet: <https://sepoliafaucet.com> — ~0.05 ETH covers an afternoon of
 
 ## Why this exists
 
-Token foundations sit on roughly **$30B+ in concentrated treasury positions** (DeepDAO, 2025 estimate across the top 100 DAOs). When they sell, they leak. Every public token sale by Optimism, dYdX, Polygon, and others has measurably moved its own price during execution — typically **5–20%** of notional in slippage and front-running, paid to MEV searchers who watched the order flow land.
+Token foundations sit on **tens of billions in concentrated DAO treasury positions** — DeepDAO tracks well over **$10B** across the largest DAO treasuries, much of it held as a single native token. When they sell, they leak. Every public token sale by Optimism, dYdX, Polygon, and others has measurably moved its own price during execution — typically **5–20%** of notional in slippage and front-running, paid to MEV searchers who watched the order flow land.
 
 Public chains broadcast every number. A sealed bid on Ethereum is not actually sealed. A foundation's reserve price is not actually reserved. A bidder's competitor sees every counter-quote in the mempool before it confirms. This is the cost of using a transparent ledger for finance that needs confidentiality — and it is structural, not solvable by better wallets.
 
@@ -156,7 +156,7 @@ flowchart TB
   subgraph Surface["Surface"]
     UI["Next.js 16 app<br/>zerith-fi.vercel.app"]
     Burner["Embedded burner<br/>5-second onboarding"]
-    SDK["@sigil/sdk<br/>(typed client)"]
+    SDK["@zerith/sdk<br/>(typed client)"]
   end
 
   subgraph Runtime["Browser runtime"]
@@ -213,7 +213,7 @@ Five primitives integrated. We do not claim anything we have not shipped.
 
 | Primitive | Where Zerith uses it | User-visible value | Source |
 |---|---|---|---|
-| **Fhenix CoFHE coprocessor** | Every encrypted contract imports `@fhenixprotocol/cofhe-contracts/FHE.sol`. 22+ distinct FHE operations across the codebase (gt, max, select, add, sub, lt, gte, allowThis, allowTransient, allowSender, decrypt, publishDecryptResult, etc.). | The chain runs operations on ciphertext without ever materializing the plaintext. | [`contracts/features/`](./contracts/features) |
+| **Fhenix CoFHE coprocessor** | Every encrypted contract imports `@fhenixprotocol/cofhe-contracts/FHE.sol`. The `/audit` page live-counts **26 distinct FHE operations** across the codebase (gt, lt, gte, lte, eq, max, min, add, sub, mul, div, rem, and, or, select, asEuint8/64/128, allowThis, allow, allowTransient, allowGlobal, randomEuint64, publishDecryptResult). | The chain runs operations on ciphertext without ever materializing the plaintext. | [`contracts/features/`](./contracts/features) |
 | **Threshold Network** | Encrypted handle submission goes through the TN for co-signing before it lands on Ethereum. Decryption requires `client.decryptForTx().withoutPermit().execute()` against the TN to fetch operator signatures. | A reveal cannot be faked by a single party — operator quorum is enforced. | proven via reveal tx [`0x98a1c650…`](https://sepolia.etherscan.io/tx/0x98a1c650b8f992dacba8580ac25aa1c1960bde1d37fa490697a9a143014fafc7) |
 | **cofhejs / @cofhe/sdk** | Browser-side encryption WASM. Generates the ZK proof that proves the ciphertext was constructed correctly without revealing the plaintext. Used in every `handleBid` / `handleCreateSplit` / `handleQuote` flow. | The user encrypts on their own device. The plaintext never leaves the browser. | [`frontend/src/hooks/useEncrypt.ts`](./frontend/src/hooks/useEncrypt.ts) |
 | **EIP-1193 burner signer** | New-user onboarding generates a fresh `ethers.Wallet`, the backend funds it from a Sepolia hot wallet, the browser uses it as the active signer. No MetaMask. | A foundation finance lead can try the product in 5 seconds without installing a wallet extension. | [`frontend/src/app/api/burner/create/route.ts`](./frontend/src/app/api/burner/create/route.ts) |
@@ -227,11 +227,12 @@ Refreshed **2026-05-24** against the live chain and the repo.
 
 | Metric | Value | Where to look |
 |---|---|---|
-| Contracts deployed (Ethereum Sepolia) | **26** | [`deployed-addresses.json`](./deployed-addresses.json) |
-| Solidity sources | **32** files (incl. interfaces + libraries) | `find contracts -name "*.sol"` |
-| Hardhat unit-test suites | **20** | [`test/unit/`](./test/unit/) |
+| Contracts deployed (Ethereum Sepolia) | **26** addresses (incl. 1 `MockToken` test-pair ERC-20) | [`deployed-addresses.json`](./deployed-addresses.json) |
+| Solidity sources | **32** files (incl. interfaces + libraries) | `contracts/**/*.sol` |
+| Unit tests | **400+** (`it()` cases) across **20** suites | [`test/unit/`](./test/unit/) |
+| Test coverage | **20 of 27** product contracts (25 in `deployed-addresses.json` excl. `MockToken` + 2 carry-overs); the 7 newest primitives are E2E-verified on Sepolia, unit tests in progress | [`test/unit/`](./test/unit/) |
 | End-to-end Sepolia transactions verified | **34** | [PHASE-2-VERIFICATION-LOG.md](./PHASE-2-VERIFICATION-LOG.md) |
-| Distinct FHE operations used | **22+** | grep `FHE\\.` in `contracts/` |
+| Distinct FHE operations used | **26** | live-counted on [`/audit`](https://zerith-fi.vercel.app/audit) |
 | Auction mechanisms | **5** (Sealed · Vickrey · Dutch · Batch · Overflow) | `contracts/features/` |
 | DAO finance primitives | **8** (Treasury · Payments · OTC · Streaming · Multisig · Org · OrderBook · Allowlist) | `contracts/features/` |
 | Frontend routes (mobile-clean) | **28** | [`verification-evidence/mobile/`](./verification-evidence/mobile/) |
@@ -272,7 +273,7 @@ cp .env.example .env
 
 # Compile + test
 npm run compile
-npm test                                  # 40+ tests passing
+npm test                                  # 400+ unit tests passing across 20 suites
 
 # Verify all live contracts respond
 npx hardhat run tasks/launch-day-check.ts --network ethSepolia
@@ -367,7 +368,7 @@ The primary nav surfaces only the wedge + trust pages. Everything else is reacha
 - **TxFlowDrawer** — 4-step state machine UI (encrypt → submit → confirm → sealed) wired into every encrypted-write flow, so FHE latency feels intentional instead of broken
 - **Privacy Lens** — every page renders from three perspectives (me · counterparty · observer), default-on so the privacy claim is visible from first paint
 - **Editorial UI** — 28 routes mobile-clean, dashed-border design system, no AI-slop placeholders
-- **40+ Hardhat unit tests** across 20 contract suites, all passing
+- **400+ Hardhat unit tests** across 20 contract suites, all passing — covering 20 of the 27 product contracts (25 keyed in `deployed-addresses.json` excluding the `MockToken` test pair, plus the 2 carry-over contracts); the 7 newest primitives are E2E-verified on Sepolia with unit tests in progress
 - **34 end-to-end Sepolia transactions** verified through real burner wallets, full log in [PHASE-2-VERIFICATION-LOG.md](./PHASE-2-VERIFICATION-LOG.md)
 
 ### Queued for v1.1
@@ -387,7 +388,7 @@ We do not pretend these are done. They are the work between "shippable testnet p
 
 ### Ethereum Sepolia · chainId 11155111
 
-26 contracts deployed **2026-05-18** with the vault ACL fix (`FHE.allowTransient(amount, token)` before `confidentialTransferFrom`). Every address verified on Etherscan; full address book in [`deployed-addresses.json`](./deployed-addresses.json).
+26 addresses deployed **2026-05-18** with the vault ACL fix (`FHE.allowTransient(amount, token)` before `confidentialTransferFrom`). Every address is verified on Etherscan; the full address book is [`deployed-addresses.json`](./deployed-addresses.json). One of the 26 is `MockToken`, a plain ERC-20 used only as the second leg of a trading pair in tests — so the product surface is 25 contracts here, plus the 2 carry-overs below.
 
 | Contract | Address |
 |---|---|
@@ -416,7 +417,7 @@ We do not pretend these are done. They are the work between "shippable testnet p
 | `Reputation` | [`0xcbD4c5269219f3eE8a1C3Dbe0FB24d1F6558Ac09`](https://sepolia.etherscan.io/address/0xcbD4c5269219f3eE8a1C3Dbe0FB24d1F6558Ac09) |
 | `PortfolioTracker` | [`0xe72F751B9FB60C542e352F82826f465FD3bc47a0`](https://sepolia.etherscan.io/address/0xe72F751B9FB60C542e352F82826f465FD3bc47a0) |
 | `ProofOfReserves` | [`0xFA609253c0CA0297e8c272543EE806CAC203bd70`](https://sepolia.etherscan.io/address/0xFA609253c0CA0297e8c272543EE806CAC203bd70) |
-| `MockToken` (test pair) | [`0x949caC2113c0AF90b309Ec1A9136f7B159d1A672`](https://sepolia.etherscan.io/address/0x949caC2113c0AF90b309Ec1A9136f7B159d1A672) |
+| `MockToken` (test-pair ERC-20, not a product contract) | [`0x949caC2113c0AF90b309Ec1A9136f7B159d1A672`](https://sepolia.etherscan.io/address/0x949caC2113c0AF90b309Ec1A9136f7B159d1A672) |
 
 Two contracts kept as carry-overs from the prior deploy because they're not affected by the vault fix:
 
@@ -460,15 +461,15 @@ npx hardhat run tasks/verify-multisig-e2e.ts     --network ethSepolia  # encrypt
 ### SDK (early, see SDK README)
 
 ```ts
-// packages/sdk (currently published as @sigil/sdk; will move to @zerith/sdk)
-import { SigilClient } from "@sigil/sdk";
+// packages/sdk — published as @zerith/sdk
+import { ZerithClient } from "@zerith/sdk";
 import { ethers } from "ethers";
 
 const wallet = new ethers.Wallet(privateKey, provider);
-const sigil = await SigilClient.init({ signer: wallet, network: "ethSepolia" });
+const zerith = await ZerithClient.init({ signer: wallet, network: "ethSepolia" });
 
-// Post a sealed bid programmatically
-const tx = await sigil.bid({ auctionId: 0, amount: 1200n });
+// Post a sealed bid programmatically (amount is a human-readable string)
+const tx = await zerith.bid({ auctionId: 0, amount: "1200" });
 ```
 
 ---

@@ -12,13 +12,10 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
-  CheckCircle2,
   Users,
-  Copy,
   Trash2,
   Download,
   FileText,
-  Eye,
 } from "lucide-react";
 import { useWallet } from "@/providers/WalletProvider";
 import { useCofhe } from "@/hooks/useCofhe";
@@ -35,6 +32,7 @@ import { FaucetButton } from "@/components/shared/FaucetButton";
 import { PrivacyLens } from "@/components/shared/PrivacyLens";
 import { CONTRACTS, TOKEN_CONFIG, FHENIX_TESTNET } from "@/lib/constants";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
+import { formatAmount } from "@/lib/format";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -52,13 +50,6 @@ interface SplitData {
   templateId: number;
 }
 
-interface RecipientInfo {
-  address: string;
-  amount: string;
-  claimed: boolean;
-  unsealed: string | null;
-}
-
 type ModalView = "none" | "create" | "template" | "claim" | "detail";
 type TabView = "splits" | "templates";
 
@@ -66,7 +57,9 @@ type TabView = "splits" | "templates";
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const STATUS_LABEL: Record<number, string> = { 0: "ACTIVE", 1: "COMPLETED" };
+// SplitStatus enum (PrivatePayments.sol): 0=FUNDED 1=COMPLETED 2=CANCELLED.
+// UI labels FUNDED as "ACTIVE" — that's the live, claimable state.
+const STATUS_LABEL: Record<number, string> = { 0: "ACTIVE", 1: "COMPLETED", 2: "CANCELLED" };
 const STATUS_STYLE: Record<number, React.CSSProperties> = {
   0: {
     color: "var(--text)",
@@ -74,6 +67,11 @@ const STATUS_STYLE: Record<number, React.CSSProperties> = {
     border: "1px dashed var(--border-dash)",
   },
   1: {
+    color: "var(--text-muted)",
+    background: "var(--bg-alt)",
+    border: "1px dashed var(--border-dash)",
+  },
+  2: {
     color: "var(--text-muted)",
     background: "var(--bg-alt)",
     border: "1px dashed var(--border-dash)",
@@ -98,6 +96,13 @@ export default function PaymentsPage() {
 
   /* ---- state ---- */
   const [splits, setSplits] = useState<SplitData[]>([]);
+  // Per-split claim eligibility for the connected account, read from the
+  // public isRecipient/hasClaimed getters. Drives whether Claim renders —
+  // the contract reverts claim() with Unauthorized() for non-recipients,
+  // so we only show the button to an actual unclaimed recipient.
+  const [claimState, setClaimState] = useState<
+    Record<number, { isRecipient: boolean; hasClaimed: boolean }>
+  >({});
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<TabView>("splits");
@@ -106,7 +111,9 @@ export default function PaymentsPage() {
   const [modalView, setModalView] = useState<ModalView>("none");
   const modalProps = useModalEscape(modalView !== "none", () => setModalView("none"));
   const [selectedSplit, setSelectedSplit] = useState<SplitData | null>(null);
-  const [recipients, setRecipients] = useState<RecipientInfo[]>([]);
+  // Caller's own unsealed amount per split (off-chain via decryptForView).
+  // Keyed by splitId; only the recipient can resolve a value.
+  const [unsealedAmount, setUnsealedAmount] = useState<Record<number, string>>({});
 
   /* ---- create form ---- */
   const [newRecipients, setNewRecipients] = useState<{ address: string; amount: string }[]>([
@@ -158,18 +165,41 @@ export default function PaymentsPage() {
 
       list.reverse();
       setSplits(list);
+
+      // Resolve claim eligibility for the connected account against each split.
+      // isRecipient/hasClaimed are public getters (verified in the ABI). Errors
+      // default to not-eligible so we never render a Claim that would revert.
+      if (account) {
+        const eligibility = await Promise.all(
+          list.map(async (s) => {
+            try {
+              const [isRec, claimed] = await Promise.all([
+                paymentsRead.isRecipient(s.id, account),
+                paymentsRead.hasClaimed(s.id, account),
+              ]);
+              return [s.id, { isRecipient: Boolean(isRec), hasClaimed: Boolean(claimed) }] as const;
+            } catch {
+              return [s.id, { isRecipient: false, hasClaimed: false }] as const;
+            }
+          }),
+        );
+        setClaimState(Object.fromEntries(eligibility));
+      } else {
+        setClaimState({});
+      }
     } catch {
       setSplits([]);
+      setClaimState({});
     } finally {
       setLoading(false);
     }
-  }, [paymentsRead]);
+  }, [paymentsRead, account]);
 
   const blockTick = useBlockPoll();
   useEffect(() => { fetchSplits(); }, [fetchSplits, refreshKey, blockTick]);
 
   useAccountChangeReset(useCallback(() => {
-    setRecipients([]);
+    setUnsealedAmount({});
     setRefreshKey((k) => k + 1);
   }, []));
 
@@ -325,22 +355,24 @@ export default function PaymentsPage() {
   /*  Unseal my amount in a split                                      */
   /* ---------------------------------------------------------------- */
 
-  const handleUnsealAmount = useCallback(async (splitId: number, index: number) => {
+  const handleUnsealAmount = useCallback(async (splitId: number) => {
     if (!paymentsContract || !account) return;
     try {
-      // Contract getMyAmount(splitId) takes 1 arg — returns caller's own encrypted amount.
-      // The `index` is only used locally to update the right row in UI state.
+      // getMyAmount(splitId) is msg.sender-scoped — calling via the signer
+      // contract sets `from` to the connected account, so the contract returns
+      // the caller's OWN encrypted handle (reverts Unauthorized() otherwise).
+      // euint64 → FheTypes.Uint64 = 5 (matches treasury/wrapper).
       const hash = await paymentsContract.getMyAmount(splitId);
       const val = await unseal(BigInt(hash), 5);
       if (val !== null) {
-        setRecipients((prev) =>
-          prev.map((r, i) => (i === index ? { ...r, unsealed: val.toString() } : r))
-        );
+        setUnsealedAmount((prev) => ({ ...prev, [splitId]: val.toString() }));
+      } else {
+        toast.error("Could not unseal", "No active permit, or you are not a recipient of this split.");
       }
     } catch {
-      // no amount or unseal failed
+      toast.error("Could not unseal", "You are not a recipient of this split.");
     }
-  }, [paymentsContract, account, unseal]);
+  }, [paymentsContract, account, unseal, toast]);
 
   /* ---- helpers ---- */
 
@@ -361,6 +393,14 @@ export default function PaymentsPage() {
 
   const isCreator = (s: SplitData) =>
     account !== null && s.creator.toLowerCase() === account.toLowerCase();
+
+  // Claim is only valid for a FUNDED split where the connected account is an
+  // actual recipient who hasn't claimed yet — matches the contract's guards
+  // so we never surface a button that reverts with Unauthorized().
+  const canClaim = (s: SplitData) => {
+    const e = claimState[s.id];
+    return s.status === 0 && !!e && e.isRecipient && !e.hasClaimed;
+  };
 
   /* ================================================================ */
   /*  Render                                                           */
@@ -641,7 +681,7 @@ export default function PaymentsPage() {
                       className="px-5 py-3 flex items-center gap-2"
                       style={{ borderTop: "1px dashed var(--border-dash)" }}
                     >
-                      {split.status === 0 && !mine && (
+                      {canClaim(split) && (
                         <button
                           onClick={() => handleClaim(split.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold transition-opacity hover:opacity-80"
@@ -716,6 +756,33 @@ export default function PaymentsPage() {
                   <X size={18} />
                 </button>
               </div>
+
+              {/* Funding source notice — claims pay out of the creator's
+                  encrypted vault balance; if it's empty the contract silently
+                  settles 0, so recipients must deposit first. */}
+              {modalView === "create" && (
+                <div
+                  className="flex items-start gap-2 px-3 py-2.5"
+                  style={{
+                    background: "var(--bg-alt)",
+                    border: "1px dashed var(--border-dash)",
+                    borderRadius: 4,
+                  }}
+                >
+                  <AlertCircle size={13} className="mt-0.5 shrink-0" style={{ color: "var(--text-muted)" }} />
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                    Recipients are paid from your encrypted vault balance —{" "}
+                    <a
+                      href="/treasury"
+                      className="underline underline-offset-2 transition-opacity hover:opacity-70"
+                      style={{ color: "var(--text)" }}
+                    >
+                      deposit first
+                    </a>
+                    .
+                  </p>
+                </div>
+              )}
 
               {/* Template name (only for template) */}
               {modalView === "template" && (
@@ -913,16 +980,16 @@ export default function PaymentsPage() {
                   },
                   {
                     label: "Total deposit",
-                    meValue: `${selectedSplit.totalDeposited} ${TOKEN_CONFIG.symbol}`,
-                    counterpartyValue: `${selectedSplit.totalDeposited} ${TOKEN_CONFIG.symbol}`,
-                    observerValue: `${selectedSplit.totalDeposited} ${TOKEN_CONFIG.symbol}`,
+                    meValue: `${formatAmount(selectedSplit.totalDeposited)} ${TOKEN_CONFIG.symbol}`,
+                    counterpartyValue: `${formatAmount(selectedSplit.totalDeposited)} ${TOKEN_CONFIG.symbol}`,
+                    observerValue: `${formatAmount(selectedSplit.totalDeposited)} ${TOKEN_CONFIG.symbol}`,
                     encrypted: false,
                   },
                   {
                     label: "Per-recipient amounts",
                     meValue: "Your row only — others sealed",
                     counterpartyValue: "Your row only — others sealed",
-                    observerValue: "🔒 sealed",
+                    observerValue: "sealed",
                     encrypted: true,
                   },
                 ]}
@@ -951,7 +1018,63 @@ export default function PaymentsPage() {
                 </div>
               </div>
 
-              {selectedSplit.status === 0 && !isCreator(selectedSplit) && (
+              {/* Recipient-only: unseal your own encrypted amount off-chain.
+                  getMyAmount(splitId) is caller-scoped, so only a recipient can
+                  resolve a value (non-recipients get a toast, not a leak). */}
+              {claimState[selectedSplit.id]?.isRecipient && (
+                <div className="space-y-2">
+                  <p
+                    className="font-mono text-[10px] uppercase tracking-[0.1em]"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Your amount
+                  </p>
+                  {unsealedAmount[selectedSplit.id] !== undefined ? (
+                    <div
+                      className="flex items-center gap-2 px-3 py-2.5"
+                      style={{
+                        background: "var(--bg-alt)",
+                        border: "1px dashed var(--border-dash)",
+                        borderRadius: 4,
+                      }}
+                    >
+                      <Lock size={13} className="shrink-0" style={{ color: "var(--text-muted)" }} />
+                      <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+                        {formatAmount(unsealedAmount[selectedSplit.id])} {TOKEN_CONFIG.symbol}
+                      </span>
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        visible only to you
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleUnsealAmount(selectedSplit.id)}
+                      disabled={unsealing}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40"
+                      style={{
+                        background: "transparent",
+                        border: "1px dashed var(--border-dash)",
+                        color: "var(--text)",
+                        borderRadius: 8,
+                      }}
+                    >
+                      {unsealing ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" />
+                          Unsealing...
+                        </>
+                      ) : (
+                        <>
+                          <Lock size={15} />
+                          Unseal my amount
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {canClaim(selectedSplit) && (
                 <button
                   onClick={() => handleClaim(selectedSplit.id)}
                   disabled={txState === "signing" || txState === "confirming"}

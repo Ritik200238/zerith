@@ -164,8 +164,13 @@ export default function BatchPage() {
         toast.error("Invalid price", "Positive number");
         return;
       }
-      if (!Number.isFinite(amount) || amount <= 0) {
+      const MAX_ORDER_AMOUNT = 1_000_000_000;
+      if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(amount)) {
         toast.error("Invalid amount", "Positive integer");
+        return;
+      }
+      if (amount > MAX_ORDER_AMOUNT) {
+        toast.error("Amount too large", `Max ${MAX_ORDER_AMOUNT.toLocaleString()} per order`);
         return;
       }
       setTxState("signing");
@@ -201,9 +206,24 @@ export default function BatchPage() {
   const handleCloseAndCompute = useCallback(
     async (round: RoundData) => {
       if (!batchContract) return;
-      const ladder = priceLadder.split(",").map((s) => BigInt(s.trim())).filter((n) => n > BigInt(0));
+      let ladder: bigint[];
+      try {
+        ladder = priceLadder
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0)
+          .map((s) => {
+            if (!/^\d+$/.test(s)) throw new Error(`bad token: ${s}`);
+            const n = BigInt(s);
+            if (n <= BigInt(0)) throw new Error(`non-positive: ${s}`);
+            return n;
+          });
+      } catch {
+        toast.error("Invalid ladder", "comma-separated positive integers only");
+        return;
+      }
       if (ladder.length === 0) {
-        toast.error("Invalid ladder", "Provide comma-separated prices");
+        toast.error("Invalid ladder", "comma-separated positive integers only");
         return;
       }
       setTxState("signing");
@@ -491,7 +511,7 @@ export default function BatchPage() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs text-[var(--text-muted)] font-medium">Amount (public)</label>
-                    <input value={orderAmount} onChange={(e) => setOrderAmount(e.target.value)} type="number" min={1}
+                    <input value={orderAmount} onChange={(e) => setOrderAmount(e.target.value)} type="number" min={1} max={1000000000} step={1}
                       className="w-full bg-[var(--bg-alt)] rounded px-3 py-2 text-sm text-[var(--text)] outline-none focus:ring-1 ring-[var(--text)]" />
                   </div>
                   {!initialized && (

@@ -1,15 +1,28 @@
 "use client";
 
 /**
- * Cofhe2Provider — initializes the new @cofhe/sdk@0.5+ client.
+ * Cofhe2Provider — second @cofhe/sdk client instance, dedicated to the
+ * verifiable on-chain reveal (decryptForTx) path.
  *
- * Runs in PARALLEL with the legacy CofheProvider (cofhejs@0.3.1).
- * Both can be active at once — features migrate to this one as they're piloted.
+ * NOTE: this is NOT a different SDK from CofheProvider. Both providers import
+ * the SAME @cofhe/sdk (web / adapters / chains) — there is no legacy
+ * cofhejs@0.3.1 here; nothing in src/ imports cofhejs. They run in parallel
+ * only to keep two concerns on separate client instances. The real
+ * differences are:
  *
- * The new SDK exposes the explicit decryptForView / decryptForTx model.
- * decryptForTx returns a Threshold Network signature that contracts verify
- * via FHE.publishDecryptResult — the verifiable on-chain reveal pattern
- * shipped in @cofhe/sdk@0.4 and stabilized in @cofhe/sdk@0.5.
+ *  1. Chain set. CofheProvider configures supportedChains: [sepolia] only.
+ *     This provider also lists arbSepolia + baseSepolia for future
+ *     multi-chain expansion (see config below).
+ *
+ *  2. Decrypt model (the load-bearing split):
+ *     - CofheProvider's client is consumed via useCofhe → useUnseal, which
+ *       calls client.decryptForView(...) — a permit-gated, owner-only VIEW
+ *       read — and owns the 23h self-permit auto-rotation.
+ *     - THIS client is consumed via useDecryptForTx, which calls
+ *       client.decryptForTx(...). That returns a Threshold Network signature
+ *       contracts verify via FHE.publishDecryptResult, so any caller can
+ *       trigger the reveal — the verifiable on-chain reveal pattern. No
+ *       permit-rotation effect lives here.
  */
 
 import React, {
