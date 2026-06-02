@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.join(__dirname, "..");
-const BASE = "https://cipher-dex.vercel.app";
+const BASE = "https://www.zerithfi.tech";
 const SEPOLIA_CHAIN_ID = 11155111;
 
 function loadBurner() {

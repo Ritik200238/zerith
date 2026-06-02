@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.join(__dirname, "..");
-const BASE = process.env.BASE_URL ?? "https://zerith-fi.vercel.app";
+const BASE = process.env.BASE_URL ?? "https://www.zerithfi.tech";
 const VIEWPORT_WIDTH = 375;
 const ARCHIVE = process.argv.includes("--archive");
 

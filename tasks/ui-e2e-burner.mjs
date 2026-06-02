@@ -1,6 +1,6 @@
 // UI E2E harness — Playwright + injected window.ethereum backed by the
 // burner wallet's private key. Drives the real frontend buttons on the
-// live cipher-dex.vercel.app deployment, captures video + screenshots +
+// live www.zerithfi.tech deployment, captures video + screenshots +
 // network requests + tx hashes from the on-chain receipts.
 //
 // Run:
@@ -28,7 +28,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.join(__dirname, "..");
-const BASE = "https://cipher-dex.vercel.app";
+const BASE = "https://www.zerithfi.tech";
 const SEPOLIA_CHAIN_ID = 11155111;
 
 function loadBurner() {

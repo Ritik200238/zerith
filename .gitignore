@@ -63,3 +63,8 @@ frontend/render-logo.js
 /PUNCH-LIST.md
 /QA-TESTPLAN.md
 /CONTRACT-REDEPLOY-DECISIONS.md
+
+.vercel
+
+# Internal go-to-market materials — kept local, not published
+/outreach/

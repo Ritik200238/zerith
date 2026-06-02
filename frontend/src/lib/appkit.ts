@@ -39,8 +39,8 @@ if (!projectId && typeof window !== "undefined") {
 const metadata = {
   name: "Zerith",
   description: "Private finance infrastructure for DAOs — encrypted block sales, payments, and treasury operations on Fhenix FHE.",
-  url: "https://zerith-fi.vercel.app",
-  icons: ["https://zerith-fi.vercel.app/favicon.svg"],
+  url: "https://www.zerithfi.tech",
+  icons: ["https://www.zerithfi.tech/favicon.svg"],
 };
 
 export const appKit = createAppKit({

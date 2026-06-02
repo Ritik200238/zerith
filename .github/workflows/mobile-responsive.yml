@@ -10,7 +10,7 @@ on:
       base_url:
         description: "Base URL to test against (defaults to production)"
         required: false
-        default: "https://zerith-fi.vercel.app"
+        default: "https://www.zerithfi.tech"
 
 jobs:
   verify-375px:
@@ -34,7 +34,7 @@ jobs:
 
       - name: Run mobile responsive sweep
         env:
-          BASE_URL: ${{ github.event.inputs.base_url || 'https://zerith-fi.vercel.app' }}
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://www.zerithfi.tech' }}
         run: npm run verify:mobile
 
       - name: Upload overflow screenshots

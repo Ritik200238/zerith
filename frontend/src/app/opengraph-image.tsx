@@ -166,7 +166,7 @@ export default async function OpenGraphImage() {
           }}
         >
           <span>Built on Fhenix CoFHE</span>
-          <span>zerith-fi.vercel.app</span>
+          <span>www.zerithfi.tech</span>
         </div>
       </div>
     ),

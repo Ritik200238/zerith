@@ -14,12 +14,12 @@ Bidders compete with sealed prices, the chain clears a fair settlement, and losi
 [![Contracts](https://img.shields.io/badge/Contracts-26_deployed-16a34a?style=flat-square)](#-deployed-contracts)
 [![Tests](https://img.shields.io/badge/Tests-400%2B%20across%2020%20suites-16a34a?style=flat-square)](./test)
 [![On-chain txs](https://img.shields.io/badge/Verified-34_on--chain_txs-16a34a?style=flat-square)](./docs/VERIFICATION-LOG.md)
-[![FHE ops](https://img.shields.io/badge/FHE_ops-26_distinct-6d28d9?style=flat-square)](https://zerith-fi.vercel.app/audit)
+[![FHE ops](https://img.shields.io/badge/FHE_ops-26_distinct-6d28d9?style=flat-square)](https://www.zerithfi.tech/audit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-2563eb?style=flat-square)](./LICENSE)
 
 <br/>
 
-**[▶ Live App](https://zerith-fi.vercel.app)** &nbsp;·&nbsp; **[⚡ Interactive Quickstart](https://zerith-fi.vercel.app/quickstart)** &nbsp;·&nbsp; **[📖 Docs](https://zerith-fi.vercel.app/docs)** &nbsp;·&nbsp; **[🔍 On-chain Proof](https://sepolia.etherscan.io/tx/0x98a1c650b8f992dacba8580ac25aa1c1960bde1d37fa490697a9a143014fafc7)**
+**[▶ Live App](https://www.zerithfi.tech)** &nbsp;·&nbsp; **[⚡ Interactive Quickstart](https://www.zerithfi.tech/quickstart)** &nbsp;·&nbsp; **[📖 Docs](https://www.zerithfi.tech/docs)** &nbsp;·&nbsp; **[🔍 On-chain Proof](https://sepolia.etherscan.io/tx/0x98a1c650b8f992dacba8580ac25aa1c1960bde1d37fa490697a9a143014fafc7)**
 
 </div>
 
@@ -124,7 +124,7 @@ The plaintext never leaves the user's browser. The chain runs `FHE.gt / max / se
 | **Encrypted payroll** | **Cross-contract privacy audit** |
 | ![Payments](./verification-evidence/12-final-payments.png) | ![Audit page](./verification-evidence/08-audit-page-new-addresses.png) |
 
-<sub>Captured live from <https://zerith-fi.vercel.app>. Full mobile + desktop sweep (40 PNGs) in [`verification-evidence/`](./verification-evidence/).</sub>
+<sub>Captured live from <https://www.zerithfi.tech>. Full mobile + desktop sweep (40 PNGs) in [`verification-evidence/`](./verification-evidence/).</sub>
 
 ---
 
@@ -134,7 +134,7 @@ You don't need to install anything to verify the core claim — pick the path th
 
 ### ⚡ Try it live (no install, no MetaMask, ~3 min)
 
-Open **[zerith-fi.vercel.app/quickstart](https://zerith-fi.vercel.app/quickstart)**. Five guided steps, each a *real* on-chain action: spin up a one-click burner wallet, claim test tokens, place an encrypted bid on a live sealed auction, unseal your own bid via permit, and toggle the Privacy Lens to see what an outside observer sees instead. Progress persists locally, so you can leave and resume.
+Open **[www.zerithfi.tech/quickstart](https://www.zerithfi.tech/quickstart)**. Five guided steps, each a *real* on-chain action: spin up a one-click burner wallet, claim test tokens, place an encrypted bid on a live sealed auction, unseal your own bid via permit, and toggle the Privacy Lens to see what an outside observer sees instead. Progress persists locally, so you can leave and resume.
 
 This is the fastest way to *feel* FHE working before reading any code.
 
@@ -253,7 +253,7 @@ zerith/
 ├── test/unit/              # 400+ Hardhat unit tests across 20 suites
 ├── tasks/                  # deploy + e2e-verification + seeding scripts
 ├── packages/sdk/           # @zerith/sdk — typed TypeScript client
-├── frontend/               # Next.js 16 app (zerith-fi.vercel.app)
+├── frontend/               # Next.js 16 app (www.zerithfi.tech)
 │   └── src/
 │       ├── app/            #   28 routes (auctions, treasury, payments, …)
 │       ├── components/     #   PrivacyLens, TxFlowDrawer, shared UI
@@ -277,7 +277,7 @@ zerith/
 | Unit tests | **400+** `it()` cases across **20** suites | [`test/unit/`](./test/unit/) |
 | Test coverage | **20 of 27** product contracts; the 7 newest primitives are E2E-verified on Sepolia, unit tests in progress | [`test/unit/`](./test/unit/) |
 | End-to-end Sepolia transactions verified | **34** | [docs/VERIFICATION-LOG.md](./docs/VERIFICATION-LOG.md) |
-| Distinct FHE operations used | **26** | live-counted on [`/audit`](https://zerith-fi.vercel.app/audit) |
+| Distinct FHE operations used | **26** | live-counted on [`/audit`](https://www.zerithfi.tech/audit) |
 | Auction mechanisms | **5** (Sealed · Vickrey · Dutch · Batch · Overflow) | `contracts/features/` |
 | DAO-finance primitives | **8** | `contracts/features/` |
 | Frontend routes (mobile-clean) | **28** | [`verification-evidence/mobile/`](./verification-evidence/mobile/) |
@@ -364,7 +364,7 @@ zerith/
 
 | Doc | Purpose |
 |---|---|
-| [Docs site](https://zerith-fi.vercel.app/docs) | SDK reference · sealed-auction lifecycle · threat model · verification recipe |
+| [Docs site](https://www.zerithfi.tech/docs) | SDK reference · sealed-auction lifecycle · threat model · verification recipe |
 | [docs/VERIFICATION-LOG.md](./docs/VERIFICATION-LOG.md) | All 34 verified Sepolia transactions, by feature |
 | [docs/KNOWN-ISSUES.md](./docs/KNOWN-ISSUES.md) | Tracked known issues + resolution plans |
 | [deployed-addresses.json](./deployed-addresses.json) | Source of truth for every live contract address |
@@ -413,10 +413,10 @@ Please run `npm test` (contracts) and `npm run typecheck` (in `frontend/`) befor
 
 Released under the **[MIT License](./LICENSE)**.
 
-- **Live app** — <https://zerith-fi.vercel.app>
+- **Live app** — <https://www.zerithfi.tech>
 - **GitHub** — <https://github.com/Ritik200238/zerith>
 - **X / Twitter** — [@zerithfi](https://x.com/zerithfi)
-- **Contact + FAQ** — <https://zerith-fi.vercel.app/contact>
+- **Contact + FAQ** — <https://www.zerithfi.tech/contact>
 
 If you run treasury at a token foundation and want to see what an encrypted block sale looks like on your own asset — the live app and the headline transaction are above.
 

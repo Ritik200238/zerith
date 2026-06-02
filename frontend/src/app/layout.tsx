@@ -11,7 +11,7 @@ import "./globals.css";
 // Tracked in KNOWN-ISSUES.md — migrating to Turbopack is gated on cofhejs WASM
 // support landing upstream.
 
-const SITE_URL = "https://zerith-fi.vercel.app";
+const SITE_URL = "https://www.zerithfi.tech";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
