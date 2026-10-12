@@ -702,6 +702,8 @@ function Code({ children }: { children: React.ReactNode }) {
         borderRadius: 3,
         padding: "1px 6px",
         color: "var(--text)",
+        // Long calls like decryptForTx(...).withoutACP().execute() must wrap on phones.
+        overflowWrap: "anywhere",
       }}
     >
       {children}
