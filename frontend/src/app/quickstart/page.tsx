@@ -53,14 +53,17 @@ import { useToast } from "@/components/shared/Toast";
 import { humanizeTxError } from "@/hooks/useTxFlow";
 import { useCofhe } from "@/hooks/useCofhe";
 import { CONTRACTS, FHENIX_TESTNET, TOKEN_CONFIG } from "@/lib/constants";
-import { formatAmount } from "@/lib/format";
+import { formatAmount, parseAmount } from "@/lib/format";
 
 /* ─── Persistent progress ───────────────────────────────── */
 
-const STORAGE_KEY = "zerith-quickstart-progress-v1";
-const SAMPLE_BID_AMOUNT = "100"; // CDEX, hardcoded so the demo is repeatable
+// v2: amounts are stored in 6-decimal base units and progress is per-wallet.
+const STORAGE_KEY = "zerith-quickstart-progress-v2";
+const SAMPLE_BID_AMOUNT = "100"; // whole CDEX, fixed so the demo is repeatable
 
 interface Progress {
+  /** Wallet this progress belongs to; switching wallets starts over. */
+  account: string | null;
   step1Done: boolean;
   step2Done: boolean;
   step3Done: boolean;
@@ -69,11 +72,14 @@ interface Progress {
   step3TxHash: string | null;
   step4Done: boolean;
   step4UnsealedAmount: string | null;
+  /** The bid's on-chain ciphertext handle — what a public observer sees. */
+  step4Handle: string | null;
   step5LensSeen: { me: boolean; counterparty: boolean; observer: boolean };
   step5Done: boolean;
 }
 
 const DEFAULT_PROGRESS: Progress = {
+  account: null,
   step1Done: false,
   step2Done: false,
   step3Done: false,
@@ -82,6 +88,7 @@ const DEFAULT_PROGRESS: Progress = {
   step3TxHash: null,
   step4Done: false,
   step4UnsealedAmount: null,
+  step4Handle: null,
   step5LensSeen: { me: false, counterparty: false, observer: false },
   step5Done: false,
 };
@@ -128,17 +135,19 @@ export default function QuickstartPage() {
     setHydrated(true);
   }, []);
 
-  /* ── Sync wallet-connected state into step1 (auto-mark) ── */
+  /* ── Bind progress to the connected wallet (auto-mark step 1) ── */
   useEffect(() => {
-    if (!hydrated) return;
-    if (account && !progress.step1Done) {
-      setProgress((prev) => {
-        const next = { ...prev, step1Done: true };
-        saveProgress(next);
-        return next;
-      });
-    }
-  }, [account, hydrated, progress.step1Done]);
+    if (!hydrated || !account) return;
+    setProgress((prev) => {
+      const owner = prev.account?.toLowerCase();
+      // A different wallet must not inherit another wallet's bid or decrypted value.
+      const base = owner && owner !== account.toLowerCase() ? DEFAULT_PROGRESS : prev;
+      if (base === prev && prev.step1Done && prev.account) return prev;
+      const next = { ...base, account, step1Done: true };
+      saveProgress(next);
+      return next;
+    });
+  }, [account, hydrated]);
 
   /* ── Tracking states ── */
   const [busyStep, setBusyStep] = useState<1 | 2 | 3 | 4 | null>(null);
@@ -262,7 +271,7 @@ export default function QuickstartPage() {
       }
 
       const { Encryptable } = await import("@cofhe/sdk");
-      const enc = await encrypt([Encryptable.uint128(BigInt(SAMPLE_BID_AMOUNT))]);
+      const enc = await encrypt([Encryptable.uint128(parseAmount(SAMPLE_BID_AMOUNT)!)]);
       if (!enc) throw new Error("Encryption failed");
 
       const tx = await auctionContract.bid(target.id, enc[0]);
@@ -328,17 +337,17 @@ export default function QuickstartPage() {
           ...prev,
           step4Done: true,
           step4UnsealedAmount: value.toString(),
+          step4Handle: BigInt(String(handle)).toString(16),
         };
         saveProgress(next);
         return next;
       });
       toast.success(
         "Bid unsealed",
-        `You see ${value.toString()} ${TOKEN_CONFIG.symbol}. Nobody else can.`,
+        `You see ${formatAmount(value)} ${TOKEN_CONFIG.symbol}. Nobody else can.`,
       );
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message.slice(0, 240) : "Unseal failed";
+      const msg = humanizeTxError(err);
       setStepError(msg);
       toast.error("Unseal failed", msg);
     } finally {
@@ -622,7 +631,8 @@ export default function QuickstartPage() {
             <PrivacyLensDemo
               seen={progress.step5LensSeen}
               onModeSelected={handleLensMode}
-              myBidAmount={progress.step4UnsealedAmount ?? SAMPLE_BID_AMOUNT}
+              myBidAmount={progress.step4UnsealedAmount}
+              handle={progress.step4Handle}
             />
           </Step>
         </div>
@@ -844,10 +854,14 @@ function PrivacyLensDemo({
   seen,
   onModeSelected,
   myBidAmount,
+  handle,
 }: {
   seen: { me: boolean; counterparty: boolean; observer: boolean };
   onModeSelected: (m: "me" | "counterparty" | "observer") => void;
-  myBidAmount: string;
+  /** Unsealed bid in base units, or null if step 4 isn't done. */
+  myBidAmount: string | null;
+  /** Hex ciphertext handle of the bid, or null if not loaded. */
+  handle: string | null;
 }) {
   const [activeMode, setActiveMode] = useState<
     "me" | "counterparty" | "observer"
@@ -861,13 +875,16 @@ function PrivacyLensDemo({
     [onModeSelected],
   );
 
-  const sampleHash = "0xb8140d85564817ed6c8d…0500";
   const value =
     activeMode === "me"
-      ? `${formatAmount(BigInt(myBidAmount), 0)} ${TOKEN_CONFIG.symbol}`
+      ? myBidAmount
+        ? `${formatAmount(myBidAmount)} ${TOKEN_CONFIG.symbol}`
+        : "Unseal your bid in step 4 to see it here"
       : activeMode === "counterparty"
-        ? "sealed (range: ≤ reserve)"
-        : sampleHash;
+        ? "sealed — the seller and other bidders can't read it"
+        : handle
+          ? `0x${handle.slice(0, 20)}…${handle.slice(-4)}`
+          : "ciphertext handle (loads after step 4)";
 
   return (
     <div className="space-y-3">
@@ -942,7 +959,7 @@ function PrivacyLensDemo({
         {activeMode === "me"
           ? "← This is your view. Decrypted via your permit. Nobody else gets this."
           : activeMode === "counterparty"
-            ? "← What a transacting counterparty sees. Range hint, never the number."
+            ? "← What the seller and other bidders see: nothing about your number."
             : "← What a public observer sees. The chain stores ciphertext hashes — encrypted forever."}
       </p>
     </div>
