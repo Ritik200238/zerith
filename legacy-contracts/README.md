@@ -13,3 +13,8 @@ the vault's escrow (`lockFunds` / `releaseFunds`) the way `SealedAuction` and
 
 The core product — `SettlementVault`, `SealedAuction`, `PrivatePayments`,
 `ProofOfReserves` — lives in `contracts/`.
+
+`tasks/` holds the May 2026 deploy, seed and end-to-end scripts. They target
+the paused contracts or the pre-1.0 SDK (`InEuint*` inputs, `withoutPermit`),
+so they no longer run against the current network. The scripts for the core
+product are `tasks/deploy-core.ts` and `tasks/verify-escrow-auction-e2e.ts`.
