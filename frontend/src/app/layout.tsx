@@ -8,7 +8,7 @@ import "./globals.css";
 // requires the SWC/Turbopack font loader. The CSS variables --font-display etc.
 // are defined in globals.css and consumed by Tailwind config.
 //
-// Tracked in KNOWN-ISSUES.md — migrating to Turbopack is gated on cofhejs WASM
+// Tracked in docs/KNOWN-ISSUES.md — migrating to Turbopack is gated on the SDK WASM
 // support landing upstream.
 
 const SITE_URL = "https://www.zerithfi.tech";

@@ -1,3 +1,9 @@
+> **Historical (May 2026).** This log covers the earlier deployment, before the
+> October 2026 escrow fixes and the move to Fhenix CoFHE 1.0. Those contracts no
+> longer accept encrypted inputs on the current testnet. For the current core, see
+> "Verify it on-chain" in the [README](../README.md) and the scripts
+> `tasks/verify-escrow-auction-e2e.ts` and `tasks/verify-escrow-payroll-e2e.ts`.
+
 # Phase 2 Functional Verification Log
 
 Burner wallet: `0x492aaF98150f0542dD8D7F5Df1bE98265809a3e0`
