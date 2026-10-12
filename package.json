@@ -10,7 +10,8 @@
     "deploy:sepolia": "npx hardhat run tasks/deploy-core.ts --network ethSepolia",
     "e2e:sepolia": "npx hardhat run tasks/verify-escrow-auction-e2e.ts --network ethSepolia",
     "verify:mobile": "node tasks/verify-mobile-responsive.mjs",
-    "verify:mobile:archive": "node tasks/verify-mobile-responsive.mjs --archive"
+    "verify:mobile:archive": "node tasks/verify-mobile-responsive.mjs --archive",
+    "seed:sepolia": "npx hardhat run tasks/seed-live-auctions.ts --network ethSepolia"
   },
   "dependencies": {
     "@fhenixprotocol/cofhe-contracts": "1.0.0",
