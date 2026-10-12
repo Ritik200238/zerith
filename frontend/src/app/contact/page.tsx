@@ -101,10 +101,11 @@ const FAQS: FaqEntry[] = [
     question: "Are you on mainnet?",
     answer: (
       <>
-        Not yet. The protocol is live on Ethereum Sepolia today with 26
-        deployed contracts and verified end-to-end transactions. Mainnet
-        (Arbitrum) is gated on a formal security audit and migration to
-        a Safe multisig — both tracked publicly in our launch sequence.
+        Not yet. The core product — sealed block sales, the encrypted
+        treasury and private payroll — runs on Ethereum Sepolia on Fhenix
+        CoFHE 1.0, with full sales verified end to end on-chain. Mainnet is
+        gated on an external security audit and moving contract ownership to
+        a multisig.
       </>
     ),
   },
@@ -113,12 +114,13 @@ const FAQS: FaqEntry[] = [
     question: "Has Zerith been audited?",
     answer: (
       <>
-        Not yet by an external firm. Internally we have 40+ Hardhat unit
-        tests, 34 verified Sepolia transactions, and a public privacy-audit
-        page (<Link href="/audit" className="underline">/audit</Link>) that
-        opens the schema for every contract. A formal audit is the gating
-        item for our mainnet launch and will be commissioned with one of
-        Spearbit, Zellic, ChainSecurity, or Trail of Bits.
+        Not by an external firm yet. The core contracts have a Hardhat test
+        suite that includes the attacks found in our own October 2026 review
+        (phantom deposits, winning without paying, wrapped totals), an
+        end-to-end Sepolia script, and a public privacy page (
+        <Link href="/audit" className="underline">/audit</Link>) generated
+        from the contract source. An external audit is required before
+        mainnet.
       </>
     ),
   },
@@ -189,11 +191,12 @@ const FAQS: FaqEntry[] = [
     question: "Can I integrate Zerith into our existing treasury workflow?",
     answer: (
       <>
-        Yes. We ship a typed TypeScript SDK and Hardhat task runners for
-        scripted use, and the contracts are unowned at the user level —
-        a foundation can post auctions and accept bids permissionlessly
-        from any wallet they choose. For high-volume integrations, open a
-        GitHub issue and we will dig in with you.
+        Yes. There&apos;s no Zerith-specific SDK: you call the contracts
+        with ethers and encrypt with Fhenix&apos;s <code>@cofhe/sdk</code>,
+        exactly as the <Link href="/docs" className="underline">docs</Link>{" "}
+        show. Creating a sale, bidding, closing and revealing don&apos;t need
+        our permission, so a foundation can run sales from any wallet it
+        chooses. For larger integrations, open a GitHub issue.
       </>
     ),
   },
@@ -221,11 +224,10 @@ const FAQS: FaqEntry[] = [
     question: "Can I run my own Zerith deployment?",
     answer: (
       <>
-        Yes. The repository is open source under MIT (we are evaluating a
-        switch to Apache 2.0 for stronger patent protection). All 26
-        contracts deploy cleanly via{" "}
-        <code>npm run deploy:sepolia</code> or the equivalent for Arbitrum
-        Sepolia. See the README for the full reproduction path.
+        Yes. The repository is open source under MIT. The core contracts
+        deploy with <code>npm run deploy:sepolia</code>; see the README for
+        the full path, including the end-to-end check you can run against
+        your own deployment.
       </>
     ),
   },
