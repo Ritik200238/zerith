@@ -108,213 +108,175 @@ describe("PrivatePayments", function () {
     });
   });
 
+  // ─── Splits (escrowed) ─────────────────────────────────
+
+  const UNTIL = 2n ** 48n - 1n;
+  const pt = async (h: string | bigint) => hre.cofhe.mocks.getPlaintext(BigInt(h));
+  const vaultBal = async (who: HardhatEthersSigner) =>
+    pt(await vault.getEncBalance(who.address, await token.getAddress()));
+
+  async function fundCreator(amount: bigint) {
+    await token.connect(deployer).adminMint(creator.address, amount);
+    await token.connect(creator).setOperator(await vault.getAddress(), UNTIL);
+    await vault.connect(creator).deposit(await token.getAddress(), await encryptUint64(creator, amount));
+  }
+
+  async function createSplit(amounts: bigint[], recipients = [recipient1, recipient2]) {
+    const encs = [];
+    for (const a of amounts) encs.push(await encryptUint64(creator, a));
+    return payments.connect(creator).createSplit(
+      await token.getAddress(),
+      recipients.map((r) => r.address),
+      encs,
+    );
+  }
+
   describe("createSplitFromTemplate()", function () {
     beforeEach(async function () {
-      await payments.connect(creator).createTemplate(
-        "Payroll",
-        [recipient1.address, recipient2.address]
-      );
+      await payments.connect(creator).createTemplate("Payroll", [recipient1.address, recipient2.address]);
     });
 
-    it("creates split from active template", async function () {
+    it("creates and escrows a split from an active template", async function () {
+      await fundCreator(1_000n);
       const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(creator, 500n);
-      const enc2 = await encryptUint64(creator, 300n);
-
       await expect(
-        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, [enc1, enc2], 800)
+        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, [
+          await encryptUint64(creator, 300n),
+          await encryptUint64(creator, 500n),
+        ]),
       )
         .to.emit(payments, "SplitCreated")
         .to.emit(payments, "SplitFunded");
-
       const s = await payments.getSplit(0);
-      expect(s.creator).to.equal(creator.address);
-      expect(s.token).to.equal(tokenAddr);
-      expect(s.totalDeposited).to.equal(800n);
       expect(s.recipientCount).to.equal(2n);
-      expect(s.claimedCount).to.equal(0n);
-      expect(s.status).to.equal(0n); // FUNDED
       expect(s.templateId).to.equal(0n);
+      expect(await vaultBal(creator)).to.equal(200n);
     });
 
     it("reverts if not template creator", async function () {
       const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(outsider, 500n);
-      const enc2 = await encryptUint64(outsider, 300n);
-
       await expect(
-        payments.connect(outsider).createSplitFromTemplate(0, tokenAddr, [enc1, enc2], 800)
+        payments.connect(outsider).createSplitFromTemplate(0, tokenAddr, [
+          await encryptUint64(outsider, 1n),
+          await encryptUint64(outsider, 1n),
+        ]),
       ).to.be.revertedWithCustomError(payments, "Unauthorized");
     });
 
     it("reverts if template deactivated", async function () {
       await payments.connect(creator).deactivateTemplate(0);
-
       const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(creator, 500n);
-      const enc2 = await encryptUint64(creator, 300n);
-
       await expect(
-        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, [enc1, enc2], 800)
+        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, [
+          await encryptUint64(creator, 1n),
+          await encryptUint64(creator, 1n),
+        ]),
       ).to.be.revertedWithCustomError(payments, "InvalidState");
     });
 
     it("reverts if amount count mismatch", async function () {
       const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(creator, 500n);
-
       await expect(
-        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, [enc1], 500)
+        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, [await encryptUint64(creator, 1n)]),
       ).to.be.revertedWithCustomError(payments, "InvalidInput");
     });
   });
 
-  describe("createSplit() (direct)", function () {
-    it("creates split with recipients and amounts", async function () {
-      const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(creator, 500n);
-      const enc2 = await encryptUint64(creator, 300n);
-
-      await expect(
-        payments.connect(creator).createSplit(
-          tokenAddr,
-          [recipient1.address, recipient2.address],
-          [enc1, enc2],
-          800
-        )
-      )
-        .to.emit(payments, "SplitCreated");
-
-      const s = await payments.getSplit(0);
-      expect(s.creator).to.equal(creator.address);
-      expect(s.recipientCount).to.equal(2n);
-      expect(s.templateId).to.equal(0n); // no template
+  describe("createSplit()", function () {
+    it("locks the whole split from the creator up front", async function () {
+      await fundCreator(1_000n);
+      await createSplit([300n, 500n]);
+      expect(await vaultBal(creator)).to.equal(200n);
+      expect(await pt(await payments.connect(recipient1).getMyAmount(0))).to.equal(300n);
+      expect(await pt(await payments.connect(recipient2).getMyAmount(0))).to.equal(500n);
     });
 
-    it("reverts with zero deposit", async function () {
-      const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(creator, 500n);
-
-      await expect(
-        payments.connect(creator).createSplit(
-          tokenAddr, [recipient1.address], [enc1], 0
-        )
-      ).to.be.revertedWithCustomError(payments, "InvalidInput");
+    it("locks nothing and zeroes every amount when the creator can't cover the total", async function () {
+      await fundCreator(700n);
+      await createSplit([300n, 500n]);
+      expect(await vaultBal(creator)).to.equal(700n);
+      expect(await pt(await payments.connect(recipient1).getMyAmount(0))).to.equal(0n);
+      expect(await pt(await payments.connect(recipient2).getMyAmount(0))).to.equal(0n);
     });
 
-    it("reverts with mismatched arrays", async function () {
-      const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(creator, 500n);
+    it("rejects amounts that overflow uint64 when summed (no wrapped total)", async function () {
+      await fundCreator(1_000n);
+      await createSplit([2n ** 64n - 1n, 1_001n]); // sum wraps to 1000
+      expect(await vaultBal(creator)).to.equal(1_000n);
+      expect(await pt(await payments.connect(recipient1).getMyAmount(0))).to.equal(0n);
+      expect(await pt(await payments.connect(recipient2).getMyAmount(0))).to.equal(0n);
+    });
 
-      await expect(
-        payments.connect(creator).createSplit(
-          tokenAddr,
-          [recipient1.address, recipient2.address],
-          [enc1],
-          500
-        )
-      ).to.be.revertedWithCustomError(payments, "InvalidInput");
+    it("rejects duplicate recipients, mismatched arrays and empty lists", async function () {
+      await expect(createSplit([1n, 1n], [recipient1, recipient1]))
+        .to.be.revertedWithCustomError(payments, "InvalidInput");
+      await expect(createSplit([1n], [recipient1, recipient2]))
+        .to.be.revertedWithCustomError(payments, "InvalidInput");
+      await expect(createSplit([], []))
+        .to.be.revertedWithCustomError(payments, "InvalidInput");
+    });
+
+    it("lets the creator read each recipient's amount, and nobody else", async function () {
+      await fundCreator(1_000n);
+      await createSplit([300n, 500n]);
+      expect(await pt(await payments.connect(creator).getRecipientAmount(0, recipient2.address))).to.equal(500n);
+      await expect(payments.connect(outsider).getRecipientAmount(0, recipient2.address))
+        .to.be.revertedWithCustomError(payments, "Unauthorized");
+      await expect(payments.connect(outsider).getMyAmount(0))
+        .to.be.revertedWithCustomError(payments, "Unauthorized");
     });
   });
 
-  describe("claim() — single step, no decrypt", function () {
+  describe("claim()", function () {
     beforeEach(async function () {
-      const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(creator, 500n);
-      const enc2 = await encryptUint64(creator, 300n);
-
-      await payments.connect(creator).createSplit(
-        tokenAddr,
-        [recipient1.address, recipient2.address],
-        [enc1, enc2],
-        800
-      );
+      await fundCreator(1_000n);
+      await createSplit([300n, 500n]);
     });
 
-    it("recipient claims successfully", async function () {
-      await expect(payments.connect(recipient1).claim(0))
-        .to.emit(payments, "PaymentClaimed")
-        .withArgs(0, recipient1.address);
-
-      expect(await payments.hasClaimed(0, recipient1.address)).to.equal(true);
-
-      const s = await payments.getSplit(0);
-      expect(s.claimedCount).to.equal(1n);
+    it("pays the recipient from escrow", async function () {
+      await expect(payments.connect(recipient1).claim(0)).to.emit(payments, "PaymentClaimed");
+      expect(await vaultBal(recipient1)).to.equal(300n);
+      expect((await payments.getSplit(0)).claimedCount).to.equal(1n);
     });
 
-    it("completes split when all recipients claim", async function () {
+    it("still pays even if the creator empties their vault afterwards", async function () {
+      await vault.connect(creator).withdraw(await token.getAddress(), await encryptUint64(creator, 200n));
+      await payments.connect(recipient2).claim(0);
+      expect(await vaultBal(recipient2)).to.equal(500n);
+    });
+
+    it("completes the split when everyone has claimed", async function () {
       await payments.connect(recipient1).claim(0);
-      await expect(payments.connect(recipient2).claim(0))
-        .to.emit(payments, "SplitCompleted")
-        .withArgs(0);
-
-      const s = await payments.getSplit(0);
-      expect(s.status).to.equal(1n); // COMPLETED
-      expect(s.claimedCount).to.equal(2n);
+      await expect(payments.connect(recipient2).claim(0)).to.emit(payments, "SplitCompleted");
+      expect((await payments.getSplit(0)).status).to.equal(1n);
     });
 
-    it("rejects double claim", async function () {
+    it("rejects double claims and outsiders", async function () {
       await payments.connect(recipient1).claim(0);
-
-      await expect(
-        payments.connect(recipient1).claim(0)
-      ).to.be.revertedWithCustomError(payments, "InvalidState");
-    });
-
-    it("rejects non-recipient", async function () {
-      await expect(
-        payments.connect(outsider).claim(0)
-      ).to.be.revertedWithCustomError(payments, "Unauthorized");
+      await expect(payments.connect(recipient1).claim(0)).to.be.revertedWithCustomError(payments, "InvalidState");
+      await expect(payments.connect(outsider).claim(0)).to.be.revertedWithCustomError(payments, "Unauthorized");
     });
   });
 
   describe("cancelSplit()", function () {
-    it("cancels split with no claims", async function () {
-      const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(creator, 500n);
-
-      await payments.connect(creator).createSplit(
-        tokenAddr, [recipient1.address], [enc1], 500
-      );
-
-      await expect(payments.connect(creator).cancelSplit(0))
-        .to.emit(payments, "SplitCancelled")
-        .withArgs(0);
-
-      const s = await payments.getSplit(0);
-      expect(s.status).to.equal(2n); // CANCELLED
+    beforeEach(async function () {
+      await fundCreator(1_000n);
+      await createSplit([300n, 500n]);
     });
 
-    it("reverts if claims exist", async function () {
-      const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(creator, 500n);
-      const enc2 = await encryptUint64(creator, 300n);
-
-      await payments.connect(creator).createSplit(
-        tokenAddr,
-        [recipient1.address, recipient2.address],
-        [enc1, enc2],
-        800
-      );
-
+    it("returns unclaimed amounts to the creator", async function () {
       await payments.connect(recipient1).claim(0);
-
-      await expect(
-        payments.connect(creator).cancelSplit(0)
-      ).to.be.revertedWithCustomError(payments, "InvalidState");
+      await expect(payments.connect(creator).cancelSplit(0)).to.emit(payments, "SplitCancelled");
+      expect(await vaultBal(creator)).to.equal(700n); // 200 left + 500 unclaimed
+      expect(await vaultBal(recipient1)).to.equal(300n);
+      expect((await payments.getSplit(0)).status).to.equal(2n);
+      await expect(payments.connect(recipient2).claim(0)).to.be.revertedWithCustomError(payments, "InvalidState");
     });
 
-    it("reverts if not creator", async function () {
-      const tokenAddr = await token.getAddress();
-      const enc1 = await encryptUint64(creator, 500n);
-
-      await payments.connect(creator).createSplit(
-        tokenAddr, [recipient1.address], [enc1], 500
-      );
-
-      await expect(
-        payments.connect(outsider).cancelSplit(0)
-      ).to.be.revertedWithCustomError(payments, "Unauthorized");
+    it("reverts if not creator, or already cancelled", async function () {
+      await expect(payments.connect(outsider).cancelSplit(0)).to.be.revertedWithCustomError(payments, "Unauthorized");
+      await payments.connect(creator).cancelSplit(0);
+      await expect(payments.connect(creator).cancelSplit(0)).to.be.revertedWithCustomError(payments, "InvalidState");
     });
   });
 });

@@ -7,16 +7,20 @@ import {ISettlementVault} from "../interfaces/ISettlementVault.sol";
 import {IPlatformRegistry} from "../interfaces/IPlatformRegistry.sol";
 import {FHEConstants} from "../libraries/FHEConstants.sol";
 
-/// @title PrivatePayments — Encrypted multi-recipient splits with templates and recurring
-/// @notice Creator funds a split with encrypted per-recipient amounts. Each recipient
-///         claims privately. Supports reusable templates for recurring payroll.
+/// @title PrivatePayments — Encrypted multi-recipient payroll splits, escrowed up front
+/// @notice The creator funds a split with encrypted per-recipient amounts. The whole
+///         split is locked from the creator's vault balance when it's created, so every
+///         recipient can always claim their amount. Per-recipient amounts AND the total
+///         stay encrypted; each recipient can unseal only their own.
+/// @dev All-or-nothing: if the creator can't cover the (encrypted) total, or the
+///      amounts overflow uint64 when summed, nothing is locked and every recipient's
+///      amount becomes 0. Supports reusable templates for recurring payroll.
 contract PrivatePayments is ReentrancyGuard, FHEConstants {
     enum SplitStatus { FUNDED, COMPLETED, CANCELLED }
 
     struct Split {
         address creator;
         address token;
-        uint256 totalDeposited;
         uint256 recipientCount;
         uint256 claimedCount;
         SplitStatus status;
@@ -57,7 +61,7 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
     error Paused();
 
     event SplitCreated(uint256 indexed splitId, address indexed creator, address token, uint256 recipientCount);
-    event SplitFunded(uint256 indexed splitId, uint256 totalDeposited);
+    event SplitFunded(uint256 indexed splitId);
     event PaymentClaimed(uint256 indexed splitId, address indexed recipient);
     event SplitCancelled(uint256 indexed splitId);
     event SplitCompleted(uint256 indexed splitId);
@@ -117,44 +121,38 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
     function createSplit(
         address token,
         address[] calldata _recipients,
-        InEuint64[] calldata encAmountsInput,
-        uint256 totalDeposit
+        InEuint64[] calldata encAmountsInput
     ) external whenNotPaused nonReentrant returns (uint256 splitId) {
-        splitId = _createSplitInternal(token, _recipients, encAmountsInput, totalDeposit, 0);
+        splitId = _createSplitInternal(token, _recipients, encAmountsInput, 0);
     }
 
     /// @notice Create and fund a split from a saved template (recurring use)
     function createSplitFromTemplate(
         uint256 templateId,
         address token,
-        InEuint64[] calldata encAmountsInput,
-        uint256 totalDeposit
+        InEuint64[] calldata encAmountsInput
     ) external whenNotPaused nonReentrant returns (uint256 splitId) {
         Template storage tmpl = templates[templateId];
         if (tmpl.creator != msg.sender) revert Unauthorized();
         if (!tmpl.active) revert InvalidState();
         if (tmpl.recipients.length != encAmountsInput.length) revert InvalidInput();
 
-        splitId = _createSplitInternal(token, tmpl.recipients, encAmountsInput, totalDeposit, templateId);
+        splitId = _createSplitInternal(token, tmpl.recipients, encAmountsInput, templateId);
     }
 
     function _createSplitInternal(
         address token,
         address[] memory _recipients,
         InEuint64[] calldata encAmountsInput,
-        uint256 totalDeposit,
         uint256 templateId
     ) internal returns (uint256 splitId) {
         if (_recipients.length == 0 || _recipients.length > MAX_RECIPIENTS) revert InvalidInput();
         if (_recipients.length != encAmountsInput.length) revert InvalidInput();
-        if (totalDeposit == 0) revert InvalidInput();
 
         splitId = nextSplitId++;
-
         splits[splitId] = Split({
             creator: msg.sender,
             token: token,
-            totalDeposited: totalDeposit,
             recipientCount: _recipients.length,
             claimedCount: 0,
             status: SplitStatus.FUNDED,
@@ -162,31 +160,51 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
             templateId: templateId
         });
 
+        // Sum the encrypted amounts, tracking uint64 overflow so a wrapped total can
+        // never lock less than the recipients are later paid.
+        euint64[] memory amounts = new euint64[](_recipients.length);
+        euint64 total = ZERO_64;
+        ebool noOverflow = FHE.asEbool(true);
         for (uint256 i = 0; i < _recipients.length; i++) {
             address recipient = _recipients[i];
             if (recipient == address(0)) revert InvalidInput();
-
-            euint64 amount = FHE.asEuint64(encAmountsInput[i]);
-            splitRecipients[splitId].push(recipient);
-            encAmounts[splitId][recipient] = amount;
+            if (isRecipient[splitId][recipient]) revert InvalidInput(); // no duplicates
             isRecipient[splitId][recipient] = true;
+
+            amounts[i] = FHE.asEuint64(encAmountsInput[i]);
+            euint64 next = FHE.add(total, amounts[i]);
+            noOverflow = FHE.and(noOverflow, FHE.gte(next, total));
+            total = next;
+        }
+
+        // Lock the whole split from the creator: all of it, or nothing.
+        euint64 toLock = FHE.select(noOverflow, total, ZERO_64);
+        FHE.allowTransient(toLock, address(vault));
+        euint64 locked = vault.lockFunds(msg.sender, token, toLock);
+        ebool funded = FHE.and(noOverflow, FHE.eq(locked, total));
+
+        for (uint256 i = 0; i < _recipients.length; i++) {
+            address recipient = _recipients[i];
+            euint64 amount = FHE.select(funded, amounts[i], ZERO_64);
+            encAmounts[splitId][recipient] = amount;
+            splitRecipients[splitId].push(recipient);
 
             FHE.allowThis(amount);
             FHE.allow(amount, recipient);
+            FHE.allow(amount, msg.sender); // the creator can audit what they're paying
 
             recipientSplitHistory[recipient].push(splitId);
         }
 
         creatorSplitHistory[msg.sender].push(splitId);
         emit SplitCreated(splitId, msg.sender, token, _recipients.length);
-        emit SplitFunded(splitId, totalDeposit);
+        emit SplitFunded(splitId);
     }
 
     // ─── Claims (single-step, no decryption) ─────────────
 
-    /// @notice Claim payment — passes encrypted handle directly to vault. Amount NEVER decrypted.
-    /// @dev No on-chain decryption = amount stays encrypted forever. True end-to-end privacy.
-    ///      Recipient can unseal their amount off-chain via cofhejs.unseal() before or after claiming.
+    /// @notice Claim payment from escrow. The amount is never decrypted on-chain;
+    ///         the recipient can unseal it off-chain with a permit before or after claiming.
     function claim(uint256 splitId) external whenNotPaused nonReentrant {
         Split storage split = splits[splitId];
         if (split.status != SplitStatus.FUNDED) revert InvalidState();
@@ -196,11 +214,7 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
         hasClaimed[splitId][msg.sender] = true;
         split.claimedCount++;
 
-        // Pass encrypted handle DIRECTLY to vault — no decryption needed
-        euint64 amount = encAmounts[splitId][msg.sender];
-        FHE.allowTransient(amount, address(vault));
-        FHE.allow(amount, address(vault));
-        vault.settleTrade(split.creator, msg.sender, split.token, amount);
+        _release(msg.sender, split.token, encAmounts[splitId][msg.sender]);
 
         if (split.claimedCount == split.recipientCount) {
             split.status = SplitStatus.COMPLETED;
@@ -212,15 +226,27 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
 
     // ─── Management ────────────────────────────────────────
 
-    /// @notice Cancel split if nobody has claimed
-    function cancelSplit(uint256 splitId) external {
+    /// @notice Cancel a split and return every unclaimed amount to the creator.
+    ///         Recipients who already claimed keep their payment.
+    function cancelSplit(uint256 splitId) external nonReentrant {
         Split storage split = splits[splitId];
         if (split.creator != msg.sender) revert Unauthorized();
         if (split.status != SplitStatus.FUNDED) revert InvalidState();
-        if (split.claimedCount > 0) revert InvalidState();
 
         split.status = SplitStatus.CANCELLED;
+        address[] storage rs = splitRecipients[splitId];
+        for (uint256 i = 0; i < rs.length; i++) {
+            if (!hasClaimed[splitId][rs[i]]) {
+                hasClaimed[splitId][rs[i]] = true;
+                _release(split.creator, split.token, encAmounts[splitId][rs[i]]);
+            }
+        }
         emit SplitCancelled(splitId);
+    }
+
+    function _release(address to, address token, euint64 amount) internal {
+        FHE.allowTransient(amount, address(vault));
+        vault.releaseFunds(to, token, amount);
     }
 
     // ─── Views ─────────────────────────────────────────────
@@ -230,12 +256,19 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
         return encAmounts[splitId][msg.sender];
     }
 
+    /// @notice Creator view of one recipient's encrypted amount (unseal with a permit)
+    function getRecipientAmount(uint256 splitId, address recipient) external view returns (euint64) {
+        if (splits[splitId].creator != msg.sender) revert Unauthorized();
+        if (!isRecipient[splitId][recipient]) revert InvalidInput();
+        return encAmounts[splitId][recipient];
+    }
+
     function getSplit(uint256 splitId) external view returns (
-        address creator, address token, uint256 totalDeposited,
+        address creator, address token,
         uint256 recipientCount, uint256 claimedCount, SplitStatus status, uint256 templateId
     ) {
         Split storage s = splits[splitId];
-        return (s.creator, s.token, s.totalDeposited, s.recipientCount, s.claimedCount, s.status, s.templateId);
+        return (s.creator, s.token, s.recipientCount, s.claimedCount, s.status, s.templateId);
     }
 
     function getRecipients(uint256 splitId) external view returns (address[] memory) {
