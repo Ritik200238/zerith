@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * the actual balance.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Lock,
@@ -48,6 +48,17 @@ import { PrivacyLens } from "@/components/shared/PrivacyLens";
 import { CONTRACTS, TOKEN_CONFIG, FHENIX_TESTNET } from "@/lib/constants";
 import { formatAmount, parseAmount } from "@/lib/format";
 
+/** The vault holds both test tokens: CDEX (what bidders pay with) and MOCK
+ *  (what the demo sales sell). Sellers need the lot in their vault. */
+const VAULT_TOKENS = [
+  { symbol: TOKEN_CONFIG.symbol, address: CONTRACTS.ConfidentialToken },
+  { symbol: "MOCK", address: CONTRACTS.MockToken },
+] as const;
+type VaultSymbol = (typeof VAULT_TOKENS)[number]["symbol"];
+
+const symbolFor = (address: string) =>
+  VAULT_TOKENS.find((t) => t.address.toLowerCase() === address.toLowerCase())?.symbol ?? "tokens";
+
 /** Human amount ("1.5") → 6-decimal token base units; throws a readable error. */
 function toUnits(input: string): bigint {
   const v = parseAmount(input);
@@ -78,7 +89,11 @@ export default function TreasuryPage() {
   const vault = useContract("SettlementVault");
   const por = useContract("ProofOfReserves");
   const porRead = useReadContract("ProofOfReserves");
-  const token = useContract("ConfidentialToken");
+  const cdex = useContract("ConfidentialToken");
+  const [sym, setSym] = useState<VaultSymbol>(VAULT_TOKENS[0].symbol);
+  const tokenAddr = VAULT_TOKENS.find((t) => t.symbol === sym)!.address;
+  // Both tokens are the same FHERC20 contract, so reuse the ABI at the other address.
+  const token = useMemo(() => (cdex ? (cdex.attach(tokenAddr) as typeof cdex) : null), [cdex, tokenAddr]);
 
   const vaultDeployed = CONTRACTS.SettlementVault !== "0x0000000000000000000000000000000000000000";
   const porDeployed = CONTRACTS.ProofOfReserves !== "0x0000000000000000000000000000000000000000";
@@ -115,16 +130,39 @@ export default function TreasuryPage() {
     "treasury-modal-title",
   );
 
+  /** Claim test tokens of the selected (non-CDEX) token; the faucet allows one claim per hour. */
+  const handleTestFaucet = useCallback(async () => {
+    if (!token || !account) return;
+    try {
+      const last = Number(await token.lastFaucetClaim(account));
+      if (last > 0 && Date.now() / 1000 < last + 3600) {
+        const mins = Math.ceil((last + 3600 - Date.now() / 1000) / 60);
+        toast.info(`Already claimed ${sym}`, `The test faucet allows one claim per hour. Try again in about ${mins} min.`);
+        return;
+      }
+      toast.info(`Claiming test ${sym}`, "Confirm in your wallet.");
+      await (await token.faucet()).wait();
+      toast.success(`1,000 ${sym} in your wallet`, "Deposit it into the vault to use it in a sale.");
+    } catch (err) {
+      toast.error("Faucet failed", humanizeTxError(err));
+    }
+  }, [token, account, sym, toast]);
+
   /* ─── Reads ─── */
   const fetchBalance = useCallback(async () => {
     if (!vault || !account) return;
     try {
-      const handle = await vault.getEncBalance(account, CONTRACTS.ConfidentialToken);
+      const handle = await vault.getEncBalance(account, tokenAddr);
       setEncBalanceHandle(handle.toString());
     } catch {
       setEncBalanceHandle(null);
     }
-  }, [vault, account]);
+  }, [vault, account, tokenAddr]);
+
+  // Switching token shows that token's (sealed) balance.
+  useEffect(() => {
+    setBalancePlaintext(null);
+  }, [tokenAddr]);
 
   const fetchClaims = useCallback(async () => {
     if (!porRead || !account) return;
@@ -217,14 +255,14 @@ export default function TreasuryPage() {
       if (!encrypted) throw new Error("Encryption failed");
 
       depositFlow.submitted();
-      const tx = await vault.deposit(CONTRACTS.ConfidentialToken, encrypted.handles[0], encrypted.signature);
+      const tx = await vault.deposit(tokenAddr, encrypted.handles[0], encrypted.signature);
       setTxState("confirming");
       setTxHash(tx.hash);
       depositFlow.confirmed(tx.hash);
       await tx.wait();
       setTxState("success");
       depositFlow.sealed();
-      toast.success("Deposited", `Your ${amount} ${TOKEN_CONFIG.symbol} is now in the vault (encrypted).`);
+      toast.success("Deposited", `Your ${amount} ${sym} is now in the vault (encrypted).`);
       setDepositAmount("");
       setDepositOpen(false);
       setBalancePlaintext(null);
@@ -233,7 +271,7 @@ export default function TreasuryPage() {
       depositFlow.failed(err);
       handleTxError(err);
     }
-  }, [vault, token, account, depositAmount, encrypt, toast, depositFlow]);
+  }, [vault, token, tokenAddr, sym, account, depositAmount, encrypt, toast, depositFlow]);
 
   const handleWithdraw = useCallback(async () => {
     if (!vault || !account) return;
@@ -253,7 +291,7 @@ export default function TreasuryPage() {
       if (!encrypted) throw new Error("Encryption failed");
 
       withdrawFlow.submitted();
-      const tx = await vault.withdraw(CONTRACTS.ConfidentialToken, encrypted.handles[0], encrypted.signature);
+      const tx = await vault.withdraw(tokenAddr, encrypted.handles[0], encrypted.signature);
       setTxState("confirming");
       setTxHash(tx.hash);
       withdrawFlow.confirmed(tx.hash);
@@ -262,7 +300,7 @@ export default function TreasuryPage() {
       withdrawFlow.sealed();
       toast.success(
         "Withdrawal confirmed on-chain",
-        `If your vault held at least ${amount} ${TOKEN_CONFIG.symbol}, it's back in your wallet. If it held less, nothing moved — the vault can't fail loudly without revealing your balance. Unseal your balance to check.`,
+        `If your vault held at least ${amount} ${sym}, it's back in your wallet. If it held less, nothing moved — the vault can't fail loudly without revealing your balance. Unseal your balance to check.`,
       );
       setWithdrawAmount("");
       setWithdrawOpen(false);
@@ -272,7 +310,7 @@ export default function TreasuryPage() {
       withdrawFlow.failed(err);
       handleTxError(err);
     }
-  }, [vault, account, withdrawAmount, encrypt, toast, withdrawFlow]);
+  }, [vault, tokenAddr, sym, account, withdrawAmount, encrypt, toast, withdrawFlow]);
 
   const handleRequestProof = useCallback(async () => {
     if (!por || !vault || !account) return;
@@ -287,7 +325,7 @@ export default function TreasuryPage() {
 
     try {
       // One transaction: the vault compares your encrypted balance to the threshold.
-      const tx = await por.requestProof(CONTRACTS.ConfidentialToken, toUnits(t));
+      const tx = await por.requestProof(tokenAddr, toUnits(t));
       setTxState("confirming");
       setTxHash(tx.hash);
       await tx.wait();
@@ -302,7 +340,7 @@ export default function TreasuryPage() {
     } catch (err: unknown) {
       handleTxError(err);
     }
-  }, [por, vault, account, thresholdInput, toast]);
+  }, [por, vault, tokenAddr, account, thresholdInput, toast]);
 
   const handleRevealClaim = useCallback(
     async (claimId: number, encResultHandle: string) => {
@@ -374,21 +412,44 @@ export default function TreasuryPage() {
 
       {/* SECTION 1 — ENCRYPTED BALANCE */}
       <section className="space-y-6">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <SectionLabel>ENCRYPTED BALANCE</SectionLabel>
-          <span className="mono text-textMuted">{TOKEN_CONFIG.symbol}</span>
+          <div className="flex items-center gap-2">
+            {VAULT_TOKENS.map((t) => (
+              <button
+                key={t.symbol}
+                type="button"
+                onClick={() => setSym(t.symbol)}
+                aria-pressed={sym === t.symbol}
+                className="mono px-3 py-1.5 text-xs"
+                style={{
+                  borderRadius: 999,
+                  border: `1px ${sym === t.symbol ? "solid" : "dashed"} var(--border-dash)`,
+                  background: sym === t.symbol ? "var(--text)" : "transparent",
+                  color: sym === t.symbol ? "var(--bg)" : "var(--text-muted)",
+                }}
+              >
+                {t.symbol}
+              </button>
+            ))}
+            {account && sym !== VAULT_TOKENS[0].symbol && (
+              <Button size="sm" variant="ghost" onClick={handleTestFaucet}>
+                Get 1,000 test {sym}
+              </Button>
+            )}
+          </div>
         </div>
 
         <Card>
           <div className="flex items-start justify-between gap-6 flex-wrap">
             <div className="space-y-2">
-              <div className="mono text-textMuted">Vault holdings · {TOKEN_CONFIG.symbol}</div>
+              <div className="mono text-textMuted">Vault holdings · {sym}</div>
               <div className="font-display text-5xl font-bold tracking-tight">
                 {balancePlaintext !== null ? (
                   <>
                     {formatAmount(balancePlaintext)}
                     <span className="text-textMuted text-2xl ml-2 font-body font-normal">
-                      {TOKEN_CONFIG.symbol}
+                      {sym}
                     </span>
                   </>
                 ) : (
@@ -433,7 +494,7 @@ export default function TreasuryPage() {
               <ArrowDownToLine className="w-5 h-5 text-text" />
               <h3 className="heading-sm">Deposit</h3>
               <p className="text-textSecondary text-sm">
-                Move {TOKEN_CONFIG.symbol} from your wallet into the encrypted vault.
+                Move {sym} from your wallet into the encrypted vault.
               </p>
               <Button size="sm" onClick={() => setDepositOpen(true)}>
                 Deposit
@@ -446,7 +507,7 @@ export default function TreasuryPage() {
               <ArrowUpFromLine className="w-5 h-5 text-text" />
               <h3 className="heading-sm">Withdraw</h3>
               <p className="text-textSecondary text-sm">
-                Move {TOKEN_CONFIG.symbol} from the vault back to your wallet. Zero-replaced if
+                Move {sym} from the vault back to your wallet. Zero-replaced if
                 insufficient — no leak.
               </p>
               <Button size="sm" variant="outline" onClick={() => setWithdrawOpen(true)}>
@@ -523,7 +584,7 @@ export default function TreasuryPage() {
                 onReveal={(handle) => handleRevealClaim(c.id, handle)}
                 porRead={porRead}
                 formatTs={formatTs}
-                tokenSymbol={TOKEN_CONFIG.symbol}
+                tokenSymbol={symbolFor(c.token)}
                 explorerUrl={explorerUrl}
               />
             ))}
@@ -552,7 +613,7 @@ export default function TreasuryPage() {
               label: "Vault balance",
               meValue:
                 balancePlaintext !== null
-                  ? `${balancePlaintext} ${TOKEN_CONFIG.symbol}`
+                  ? `${balancePlaintext} ${sym}`
                   : "Unseal above to view",
               counterpartyValue: "sealed (use Proof of Reserves to attest a threshold)",
               observerValue: encBalanceHandle
@@ -613,7 +674,7 @@ export default function TreasuryPage() {
         <Modal title="Deposit to vault" subtitle="Move tokens from wallet into encrypted vault." onClose={() => setDepositOpen(false)} {...modalProps}>
           <div className="space-y-4">
             <label className="block">
-              <div className="mono text-textMuted mb-2">AMOUNT · {TOKEN_CONFIG.symbol}</div>
+              <div className="mono text-textMuted mb-2">AMOUNT · {sym}</div>
               <input
                 type="number"
                 step="any"
@@ -647,7 +708,7 @@ export default function TreasuryPage() {
         <Modal title="Withdraw from vault" subtitle="Move tokens out. Zero-replaced if insufficient." onClose={() => setWithdrawOpen(false)} {...modalProps}>
           <div className="space-y-4">
             <label className="block">
-              <div className="mono text-textMuted mb-2">AMOUNT · {TOKEN_CONFIG.symbol}</div>
+              <div className="mono text-textMuted mb-2">AMOUNT · {sym}</div>
               <input
                 type="number"
                 step="any"
@@ -681,7 +742,7 @@ export default function TreasuryPage() {
         <Modal title="Generate proof of reserves" subtitle="Publicly attest you hold at least N tokens — without revealing how much you actually hold." onClose={() => setPorOpen(false)} {...modalProps}>
           <div className="space-y-4">
             <label className="block">
-              <div className="mono text-textMuted mb-2">THRESHOLD · {TOKEN_CONFIG.symbol}</div>
+              <div className="mono text-textMuted mb-2">THRESHOLD · {sym}</div>
               <input
                 type="number"
                 step="any"
