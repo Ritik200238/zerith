@@ -28,6 +28,7 @@ import { useEncrypt } from "@/hooks/useEncrypt";
 import { useUnseal } from "@/hooks/useUnseal";
 import { useContract, useReadContract } from "@/hooks/useContract";
 import { useDecryptForTx } from "@/hooks/useDecryptForTx";
+import { humanizeTxError } from "@/hooks/useTxFlow";
 import { useBlockPoll, useAccountChangeReset } from "@/hooks/useBlockPoll";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
@@ -116,6 +117,16 @@ const TOKEN_OPTIONS = [
 function tokenSymbol(addr: string): string {
   const hit = TOKEN_OPTIONS.find((t) => t.address.toLowerCase() === addr.toLowerCase());
   return hit ? hit.symbol : `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
+// FheTypes.Uint128 in @cofhe/sdk — bids and reserves are euint128.
+const FHE_UINT128 = 6;
+
+/** Human amount ("1.5") → token base units; throws a readable error on bad input. */
+function toUnits(input: string, what: string): bigint {
+  const v = parseAmount(input);
+  if (v === null || v === BigInt(0)) throw new Error(`Enter a valid ${what} amount (e.g. 1000 or 12.5).`);
+  return v;
 }
 
 function shortAddr(addr: string): string {
@@ -341,7 +352,12 @@ export default function AuctionsPage() {
       });
 
       list.reverse(); // newest first
-      setAuctions(list);
+      // Block polling rebuilds the list; keep any bid the user already unsealed
+      // so it doesn't vanish on the next block.
+      setAuctions((prev) => {
+        const unsealed = new Map(prev.map((a) => [a.id, a.myBidUnsealed]));
+        return list.map((a) => ({ ...a, myBidUnsealed: unsealed.get(a.id) ?? null }));
+      });
     } catch {
       // Don't wipe a list we already have — a transient failure shouldn't make
       // existing auctions blink out. Only flag the error; the render decides.
@@ -366,17 +382,11 @@ export default function AuctionsPage() {
   /* ---------------------------------------------------------------- */
 
   function handleTxError(err: unknown) {
-    const isRejection =
-      err instanceof Error && err.message.includes("user rejected");
-    const message = isRejection
-      ? "You rejected the transaction in your wallet"
-      : err instanceof Error
-        ? err.message.slice(0, 200)
-        : "Transaction failed";
+    const message = humanizeTxError(err);
     setTxState("error");
     setTxError(message);
     // Audit fix F7: replace silent inline-only errors with persistent toast
-    toast.error(isRejection ? "Transaction cancelled" : "Transaction failed", message);
+    toast.error(message.startsWith("You cancelled") ? "Transaction cancelled" : "Transaction failed", message);
   }
 
   /* ---------------------------------------------------------------- */
@@ -388,7 +398,7 @@ export default function AuctionsPage() {
       if (!auctionContract || !account) return;
       try {
         const hash = await auctionContract.getMyBid(auction.id);
-        const val  = await unseal(BigInt(hash), 5); // Uint128
+        const val  = await unseal(BigInt(hash), FHE_UINT128);
         if (val !== null) {
           setAuctions((prev) =>
             prev.map((a) =>
@@ -428,12 +438,12 @@ export default function AuctionsPage() {
       if (cBlindFloor) {
         // Encrypt the reserve client-side; the value NEVER decrypts on-chain.
         const { Encryptable } = await import("@cofhe/sdk");
-        const enc = await encrypt([Encryptable.uint128(BigInt(cReserve))]);
+        const enc = await encrypt([Encryptable.uint128(toUnits(cReserve, "reserve"))]);
         if (!enc) throw new Error("Reserve encryption failed");
         tx = await auctionContract.createBlindAuction(
           cToken,
           cPayToken,
-          BigInt(cAmount),
+          toUnits(cAmount, "lot size"),
           BigInt(cDuration),
           BigInt(cSnipe),
           enc[0],
@@ -442,7 +452,7 @@ export default function AuctionsPage() {
         tx = await auctionContract.createAuction(
           cToken,
           cPayToken,
-          BigInt(cAmount),
+          toUnits(cAmount, "lot size"),
           BigInt(cDuration),
           BigInt(cSnipe),
         );
@@ -482,7 +492,7 @@ export default function AuctionsPage() {
 
     try {
       const { Encryptable } = await import("@cofhe/sdk");
-      const enc = await encrypt([Encryptable.uint128(BigInt(bidAmount))]);
+      const enc = await encrypt([Encryptable.uint128(toUnits(bidAmount, "bid"))]);
       if (!enc) throw new Error("Encryption failed");
 
       setBidFlowStep("submit");
@@ -499,12 +509,7 @@ export default function AuctionsPage() {
       setSelectedAuction(null);
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error && err.message.includes("user rejected")
-          ? "You rejected the transaction in your wallet"
-          : err instanceof Error
-            ? err.message.slice(0, 240)
-            : "Transaction failed";
+      const message = humanizeTxError(err);
       setBidFlowStep("error");
       setBidFlowError(message);
       handleTxError(err);
@@ -619,7 +624,7 @@ export default function AuctionsPage() {
         // 4. Show signature drawer (uses bid proof — most informative)
         setDrawerProof({
           ctHash: bidHandle,
-          decryptedValue: `${formatAmount(bidProof.decryptedValue, 0)} (winning bid)`,
+          decryptedValue: `${formatAmount(bidProof.decryptedValue)} (winning bid)`,
           signature: bidProof.signature,
           txHash: tx.hash,
           chainId: FHENIX_TESTNET.chainId,
@@ -634,7 +639,7 @@ export default function AuctionsPage() {
               ? "Reserve MET — auction reveal verified"
               : "Reserve NOT MET — auction closes, reserve stays sealed"
             : "Auction reveal verified",
-          `Winner: ${shortAddrUtil(bidderAddr)} · Bid: ${formatAmount(bidProof.decryptedValue, 0)}`,
+          `Winner: ${shortAddrUtil(bidderAddr)} · Bid: ${formatAmount(bidProof.decryptedValue)}`,
           {
             href: `${FHENIX_TESTNET.blockExplorer}/tx/${tx.hash}`,
             hrefLabel: "View on Etherscan",
@@ -768,15 +773,15 @@ export default function AuctionsPage() {
               rows={[
                 {
                   label: "Auctioned token + amount",
-                  meValue: sample ? `${formatAmount(sample.amount, 0)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
-                  counterpartyValue: sample ? `${formatAmount(sample.amount, 0)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
-                  observerValue: sample ? `${formatAmount(sample.amount, 0)} ${tokenSymbol(sample.token)}` : "1000 CDEX",
+                  meValue: sample ? `${formatAmount(sample.amount)} ${tokenSymbol(sample.token)}` : "No auctions yet",
+                  counterpartyValue: sample ? `${formatAmount(sample.amount)} ${tokenSymbol(sample.token)}` : "No auctions yet",
+                  observerValue: sample ? `${formatAmount(sample.amount)} ${tokenSymbol(sample.token)}` : "No auctions yet",
                   encrypted: false,
                 },
                 {
                   label: "Your bid amount",
                   meValue: sample?.myBidUnsealed
-                    ? `${sample.myBidUnsealed} ${tokenSymbol(sample.paymentToken)}`
+                    ? `${formatAmount(sample.myBidUnsealed)} ${tokenSymbol(sample.paymentToken)}`
                     : "Unseal your bid to view",
                   counterpartyValue: "sealed (other bidders never see your bid)",
                   observerValue: "sealed (only the winning amount is published)",
@@ -990,7 +995,7 @@ export default function AuctionsPage() {
                         <div>
                           <p className="text-xs text-[var(--text-muted)]">Selling</p>
                           <p className="text-lg font-bold text-[var(--text)] break-words">
-                            {formatAmount(auction.amount, 0)}{" "}
+                            {formatAmount(auction.amount)}{" "}
                             <span className="text-sm font-medium text-[var(--text)]">
                               {tokenSymbol(auction.token)}
                             </span>
@@ -1034,7 +1039,7 @@ export default function AuctionsPage() {
                               {shortAddr(auction.revealedBidder)}
                             </p>
                             <p className="text-sm text-[var(--text)] font-semibold break-words">
-                              Bid: {formatAmount(auction.revealedBid, 0)}
+                              Bid: {formatAmount(auction.revealedBid)}
                             </p>
                           </div>
                         )}
@@ -1182,6 +1187,8 @@ export default function AuctionsPage() {
                 <label className="text-xs text-[var(--text-muted)] font-medium">Amount</label>
                 <input
                   type="number"
+                  step="any"
+                  min="0"
                   value={cAmount}
                   onChange={(e) => setCAmount(e.target.value)}
                   placeholder="0"
@@ -1267,6 +1274,8 @@ export default function AuctionsPage() {
                     </label>
                     <input
                       type="number"
+                      step="any"
+                      min="0"
                       value={cReserve}
                       onChange={(e) => setCReserve(e.target.value)}
                       placeholder="e.g. 10000"
@@ -1371,7 +1380,7 @@ export default function AuctionsPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-muted)]">Selling</span>
                   <span className="text-[var(--text)] font-medium">
-                    {formatAmount(selectedAuction.amount, 0)} {tokenSymbol(selectedAuction.token)}
+                    {formatAmount(selectedAuction.amount)} {tokenSymbol(selectedAuction.token)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -1396,6 +1405,8 @@ export default function AuctionsPage() {
                 </label>
                 <input
                   type="number"
+                  step="any"
+                  min="0"
                   value={bidAmount}
                   onChange={(e) => setBidAmount(e.target.value)}
                   placeholder="Enter bid amount"
@@ -1544,7 +1555,7 @@ export default function AuctionsPage() {
                 <div className="flex justify-between text-sm">
                   <span className="text-[var(--text-muted)]">Selling</span>
                   <span className="text-[var(--text)] font-medium">
-                    {formatAmount(selectedAuction.amount, 0)} {tokenSymbol(selectedAuction.token)}
+                    {formatAmount(selectedAuction.amount)} {tokenSymbol(selectedAuction.token)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -1565,7 +1576,7 @@ export default function AuctionsPage() {
                   </p>
                   {selectedAuction.myBidUnsealed !== null ? (
                     <p className="text-lg font-bold text-[var(--text)] font-mono">
-                      {selectedAuction.myBidUnsealed}
+                      {formatAmount(selectedAuction.myBidUnsealed)} {tokenSymbol(selectedAuction.paymentToken)}
                     </p>
                   ) : (
                     <button
