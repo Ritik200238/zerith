@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {FHE, euint64, InEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {FHE, euint64, InEuint64, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -14,11 +14,18 @@ import {FHEConstants} from "../libraries/FHEConstants.sol";
 ///         tokens here. The vault holds encrypted balance ledgers and executes transfers
 ///         on behalf of authorized feature contracts.
 /// @dev Single custodian pattern reduces ACL surface area. Feature contracts never hold tokens.
+/// @dev Escrow: a feature contract can lock a user's funds when they commit (a bid, a
+///      payroll split) and release them later. Locked funds leave the user's spendable
+///      balance and sit in a per-settler pool, so settlement can never pay out more than
+///      was actually committed — the fix for non-atomic, zero-replaced settlement legs.
 contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
     /// @notice Encrypted balance ledger: user => token => encrypted balance
     /// @dev euint64 matches FHERC20 standard. Feature contracts compute price*amount
     ///      as temporary euint128 variables, but settlement amounts always fit euint64.
     mapping(address => mapping(address => euint64)) private encBalances;
+
+    /// @notice Escrowed funds held for a settler contract: settler => token => encrypted total
+    mapping(address => mapping(address => euint64)) private escrowed;
 
     /// @notice Authorized settler contracts (feature contracts that can call settleTrade)
     mapping(address => bool) public authorizedSettlers;
@@ -32,6 +39,8 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
     event Deposited(address indexed user, address indexed token);
     event Withdrawn(address indexed user, address indexed token);
     event TradeSettled(address indexed from, address indexed to, address indexed token);
+    event FundsLocked(address indexed settler, address indexed user, address indexed token);
+    event FundsReleased(address indexed settler, address indexed to, address indexed token);
     event SettlerAuthorized(address indexed settler);
     event SettlerRevoked(address indexed settler);
     event TokenWhitelisted(address indexed token);
@@ -82,11 +91,12 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
         // SealedAuction.settle() lines 375-380.
         FHE.allowTransient(amount, token);
 
-        // Transfer FHERC20 from user to vault
-        IFHERC20(token).confidentialTransferFrom(msg.sender, address(this), amount);
+        // Transfer FHERC20 from user to vault. FHERC20 zero-replaces a transfer the
+        // sender can't cover, so credit only what actually arrived — never `amount`.
+        euint64 received = IFHERC20(token).confidentialTransferFrom(msg.sender, address(this), amount);
 
         // Credit user's vault balance
-        encBalances[msg.sender][token] = FHE.add(encBalances[msg.sender][token], amount);
+        encBalances[msg.sender][token] = FHE.add(encBalances[msg.sender][token], received);
 
         // ACL: vault can use this balance in future txns, user can unseal
         FHE.allowThis(encBalances[msg.sender][token]);
@@ -113,15 +123,14 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
             ZERO_64
         );
 
-        // Debit user's vault balance
-        encBalances[msg.sender][token] = FHE.sub(encBalances[msg.sender][token], withdrawn);
-
         // Grant transient ACL so the token contract can read `withdrawn`
         // inside its confidentialTransfer call.
         FHE.allowTransient(withdrawn, token);
 
-        // Transfer FHERC20 from vault to user
-        IFHERC20(token).confidentialTransfer(msg.sender, withdrawn);
+        // Transfer FHERC20 from vault to user, then debit exactly what was sent
+        // (sent <= withdrawn <= balance, so the ledger can never underflow).
+        euint64 sent = IFHERC20(token).confidentialTransfer(msg.sender, withdrawn);
+        encBalances[msg.sender][token] = FHE.sub(encBalances[msg.sender][token], sent);
 
         // ACL: vault can use updated balance, user can unseal
         FHE.allowThis(encBalances[msg.sender][token]);
@@ -192,6 +201,75 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
         FHE.allow(encBalances[to][token], to);
 
         emit TradeSettled(from, to, token);
+    }
+
+    // ─── Escrow (Feature Contracts Only) ────────────────────
+
+    /// @notice Move up to `amount` of `user`'s balance into the caller's escrow pool.
+    /// @dev All-or-nothing: locks `amount` if the user can cover it, otherwise 0.
+    ///      Never reverts on the encrypted condition. The caller must grant this vault
+    ///      transient access to `amount`. Returns the handle of what was locked; the
+    ///      caller (and only the caller) may use it.
+    function lockFunds(address user, address token, euint64 amount)
+        external
+        onlyAuthorizedSettler
+        whenNotPaused
+        nonReentrant
+        returns (euint64 locked)
+    {
+        if (!supportedTokens[token]) revert InvalidInput();
+        if (user == address(0)) revert InvalidInput();
+
+        locked = FHE.select(FHE.lte(amount, encBalances[user][token]), amount, ZERO_64);
+        encBalances[user][token] = FHE.sub(encBalances[user][token], locked);
+        escrowed[msg.sender][token] = FHE.add(escrowed[msg.sender][token], locked);
+
+        FHE.allowThis(encBalances[user][token]);
+        FHE.allow(encBalances[user][token], user);
+        FHE.allowThis(escrowed[msg.sender][token]);
+        FHE.allowThis(locked);
+        FHE.allow(locked, msg.sender);
+
+        emit FundsLocked(msg.sender, user, token);
+    }
+
+    /// @notice Pay `amount` out of the caller's escrow pool to `to`'s vault balance.
+    /// @dev Capped at the caller's pool, so a settler can only ever pay out funds it
+    ///      locked — never other settlers' escrow or users' spendable balances.
+    function releaseFunds(address to, address token, euint64 amount)
+        external
+        onlyAuthorizedSettler
+        whenNotPaused
+        nonReentrant
+    {
+        if (!supportedTokens[token]) revert InvalidInput();
+        if (to == address(0)) revert InvalidInput();
+
+        euint64 pool = escrowed[msg.sender][token];
+        euint64 released = FHE.select(FHE.lte(amount, pool), amount, ZERO_64);
+        escrowed[msg.sender][token] = FHE.sub(pool, released);
+        encBalances[to][token] = FHE.add(encBalances[to][token], released);
+
+        FHE.allowThis(escrowed[msg.sender][token]);
+        FHE.allowThis(encBalances[to][token]);
+        FHE.allow(encBalances[to][token], to);
+
+        emit FundsReleased(msg.sender, to, token);
+    }
+
+    /// @notice Encrypted "balance >= threshold" for a user, for proof-of-reserves style
+    ///         consumers. Returns an ebool the caller may use; the balance stays sealed.
+    /// @dev Restricted to authorized settlers, which are admin-vetted contracts that
+    ///      only ever pass msg.sender as `user`.
+    function balanceAtLeast(address user, address token, uint64 threshold)
+        external
+        onlyAuthorizedSettler
+        returns (ebool meets)
+    {
+        if (!supportedTokens[token]) revert InvalidInput();
+        meets = FHE.gte(encBalances[user][token], FHE.asEuint64(threshold));
+        FHE.allowThis(meets);
+        FHE.allow(meets, msg.sender);
     }
 
     // ─── Admin Operations ───────────────────────────────────
