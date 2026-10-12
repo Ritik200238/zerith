@@ -17,7 +17,7 @@ export function PausedFeature({ name, summary }: { name: string; summary: string
         className="font-display font-bold tracking-tight leading-[1.05]"
         style={{ fontSize: "clamp(32px, 4.4vw, 52px)", letterSpacing: "-0.03em" }}
       >
-        {name} is paused.
+        Paused: {name}
       </h1>
       <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.65 }}>{summary}</p>
 

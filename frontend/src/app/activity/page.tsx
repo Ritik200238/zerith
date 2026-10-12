@@ -164,7 +164,7 @@ export default function ActivityPage() {
           timeKind: "closes",
           href: "/auctions",
           primary: `Bid on auction #${i}`,
-          secondary: `Seller ${shortAddr(a[0])} · amount ${formatAmount(a[3].toString())} ${shortAddr(a[1]).slice(-4)}`,
+          secondary: `Seller ${shortAddr(a[0])} · selling ${formatAmount(a[3].toString())} ${a[1].toLowerCase() === CONTRACTS.MockToken.toLowerCase() ? "MOCK" : a[1].toLowerCase() === CONTRACTS.ConfidentialToken.toLowerCase() ? TOKEN_CONFIG.symbol : shortAddr(a[1])}`,
           status:
             Number(a[6]) === 0 ? "OPEN" :
             Number(a[6]) === 1 ? "AWAITING REVEAL" :
