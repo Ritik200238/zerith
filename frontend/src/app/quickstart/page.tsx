@@ -551,7 +551,7 @@ export default function QuickstartPage() {
                 ) : (
                   <Coins size={13} />
                 )}
-                Claim {TOKEN_CONFIG.faucetAmount} {TOKEN_CONFIG.symbol}
+                Claim tokens & deposit {QUICKSTART_DEPOSIT} {TOKEN_CONFIG.symbol}
               </button>
             )}
           </Step>
@@ -603,7 +603,7 @@ export default function QuickstartPage() {
             active={activeStep === 4}
             body={
               progress.step4Done && progress.step4UnsealedAmount !== null
-                ? `You see ${progress.step4UnsealedAmount} ${TOKEN_CONFIG.symbol}. Burner #2 calling getMyBid would see only their own bid handle. The chain refuses cross-account decryption.`
+                ? `You see ${formatAmount(progress.step4UnsealedAmount)} ${TOKEN_CONFIG.symbol} — the amount actually locked for your bid. Any other wallet asking for it is refused by the Threshold Network.`
                 : "We'll fetch your encrypted bid handle from the contract and decrypt it locally with your permit signature. Burner #2 doing the same call sees their bid, not yours — the threshold network enforces it."
             }
           >
