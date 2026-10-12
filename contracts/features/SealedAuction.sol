@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {FHE, euint64, euint128, InEuint128, eaddress, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {FHE, euint64, InEuint64, eaddress, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ISettlementVault} from "../interfaces/ISettlementVault.sol";
 import {IPlatformRegistry} from "../interfaces/IPlatformRegistry.sol";
@@ -11,40 +11,46 @@ interface IAuctionClaim {
     function mint(address winner, address sourceContract, uint256 sourceId, string calldata claimType) external returns (uint256);
 }
 
-/// @title SealedAuction — Sealed-bid token auctions with anti-snipe timer
-/// @notice Seller lists tokens, bidders submit encrypted bids. FHE.gt() + FHE.max()
-///         find the highest bid without revealing any losing bids. Anti-snipe extends
-///         deadline on late bids (amount stays hidden).
-/// @notice BLIND FLOOR AUCTION (createBlindAuction): seller's encrypted reserve price
-///         is NEVER decrypted, ever — not at settlement, not after. Contract computes
-///         FHE.gte(highestBid, reserve) → publishes only the resulting boolean via
-///         Threshold Network. Bidders can never reverse-engineer the floor.
-///         A new game-theoretic equilibrium: "strategy-proof under permanent
-///         information asymmetry." Only possible because of FHE.
-/// @dev Async 2-step flow: closeAuction → wait → revealWinner(Blind) → settleAuction
+/// @title SealedAuction — escrowed sealed-bid block sales
+/// @notice A seller sells a public lot to the highest sealed bid. Every bid locks the
+///         bidder's funds in the vault, and the lot is locked from the seller, so the
+///         sale settles atomically from escrow: the winner always pays exactly the
+///         winning bid and always receives the lot. Losing bids are refunded as
+///         ciphertext and are never decrypted — not at close, not after.
+/// @notice BLIND FLOOR (createBlindAuction): the seller's reserve is encrypted and is
+///         never decrypted. At close the contract publishes only whether the sale went
+///         through; if the reserve wasn't met, neither the reserve nor any bid is revealed.
+/// @dev Lifecycle:
+///      createAuction → PENDING_LOT ──confirmLot──▶ OPEN (lot locked) or CANCELLED (unfunded)
+///      OPEN ──bids──▶ deadline ──closeAuction (anyone)──▶ CLOSED
+///      CLOSED ──reveal (anyone, TN-signed)──▶ REVEALED (sale) or NO_SALE (reserve not met)
+///      REVEALED ──settleAuction (anyone)──▶ SETTLED
+///      Losers (and everyone on NO_SALE) pull refunds with claimRefund.
 contract SealedAuction is ReentrancyGuard, FHEConstants {
-    enum AuctionStatus { OPEN, CLOSED, REVEALED, SETTLED, CANCELLED, RESERVE_NOT_MET }
+    // Order kept compatible with v1 indices 0–5 for the frontend.
+    enum AuctionStatus { OPEN, CLOSED, REVEALED, SETTLED, CANCELLED, NO_SALE, PENDING_LOT }
 
     struct Auction {
         address seller;
-        address token;           // Token being auctioned
+        address token;           // Token being sold (the lot)
         address paymentToken;    // Token bidders pay with
-        uint256 amount;          // Plaintext: what's for sale (public for discoverability)
-        uint256 deadline;        // Plaintext: public deadline
-        uint256 originalDeadline;
-        uint256 bidCount;        // Plaintext: number of bids (not amounts)
-        euint128 highestBid;     // ENCRYPTED until reveal
-        eaddress highestBidder;  // ENCRYPTED until reveal
-        uint128 revealedBid;     // Set after async decrypt
-        address revealedBidder;  // Set after async decrypt
+        uint256 amount;          // Plaintext lot size (public for discoverability)
+        uint256 duration;        // Bidding window, starts when the lot is confirmed
+        uint256 deadline;        // Plaintext public deadline (0 until OPEN)
+        uint256 bidCount;        // Plaintext number of bids (never amounts)
+        euint64 highestBid;      // ENCRYPTED: highest amount actually locked
+        eaddress highestBidder;  // ENCRYPTED
+        euint64 lotLocked;       // ENCRYPTED: lot locked from the seller (full or 0)
+        ebool lotFunded;         // ENCRYPTED until confirmLot publishes it
+        euint64 encWinningBid;   // Set at close: winning bid if the sale goes through, else 0
+        eaddress encWinner;      // Set at close: winner if the sale goes through, else 0x0
+        ebool encSaleOk;         // Set at close: true unless a Blind Floor reserve wasn't met
+        uint64 revealedBid;
+        address revealedBidder;
         AuctionStatus status;
-        uint256 snipeExtension;  // Seconds to extend on late bids
-
-        // Blind Floor extensions — only meaningful when hasReserve == true
-        bool hasReserve;            // true if this is a Blind Floor auction
-        euint128 encReserve;        // ENCRYPTED — NEVER decrypted, ever
-        euint64 encReserveMet;      // ENCRYPTED 0/1 — computed at close, decrypted at reveal
-        bool revealedReserveMet;    // Plaintext result of the boolean reveal
+        uint256 snipeExtension;
+        bool hasReserve;
+        euint64 encReserve;      // Blind Floor: NEVER decrypted
     }
 
     ISettlementVault public vault;
@@ -52,18 +58,17 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
     IAuctionClaim public claimNFT;
 
     uint256 public constant PLATFORM_FEE_BPS = 200; // 2%
+    uint256 public constant DEFAULT_SNIPE_WINDOW = 60;     // last 60 seconds
+    uint256 public constant DEFAULT_SNIPE_EXTENSION = 120; // extend by 2 minutes
+    uint256 public constant MAX_SNIPE_EXTENSION = 1 hours;
+    uint256 public constant MIN_DURATION = 300;            // 5 minutes
+    uint256 public constant MAX_DURATION = 90 days;
 
     mapping(uint256 => Auction) public auctions;
-    mapping(uint256 => mapping(address => euint128)) private bids;
+    mapping(uint256 => mapping(address => euint64)) private bids; // amount actually locked
     mapping(uint256 => mapping(address => bool)) public hasBid;
+    mapping(uint256 => mapping(address => bool)) public refunded;
     uint256 public nextAuctionId;
-
-    // Encrypted 1 (sentinel) used by Blind Floor to convert ebool → euint64 via FHE.select
-    euint64 internal ONE_64_INT;
-
-    uint256 public constant DEFAULT_SNIPE_WINDOW = 60;      // Last 60 seconds
-    uint256 public constant DEFAULT_SNIPE_EXTENSION = 120;   // Extend by 2 minutes
-    uint256 public constant MIN_DURATION = 300;               // 5 minutes minimum
 
     error Unauthorized();
     error InvalidInput();
@@ -71,13 +76,15 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
     error Expired();
     error Paused();
 
-    event AuctionCreated(uint256 indexed auctionId, address indexed seller, address token, uint256 amount, uint256 deadline);
+    event AuctionCreated(uint256 indexed auctionId, address indexed seller, address token, uint256 amount, uint256 duration);
+    event LotConfirmed(uint256 indexed auctionId, bool funded, uint256 deadline);
     event BidPlaced(uint256 indexed auctionId, address indexed bidder, uint256 newDeadline);
     event AuctionClosed(uint256 indexed auctionId);
-    event WinnerRevealed(uint256 indexed auctionId, address winner, uint128 winningBid);
+    event WinnerRevealed(uint256 indexed auctionId, address winner, uint64 winningBid);
+    event NoSale(uint256 indexed auctionId);
     event AuctionSettled(uint256 indexed auctionId);
     event AuctionCancelled(uint256 indexed auctionId);
-    event TradeCompleted(bytes32 indexed partyAHash, bytes32 indexed partyBHash, uint256 auctionId);
+    event RefundClaimed(uint256 indexed auctionId, address indexed bidder);
 
     modifier whenNotPaused() {
         if (registry.paused()) revert Paused();
@@ -90,340 +97,293 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         registry = IPlatformRegistry(_registry);
         if (_claimNFT != address(0)) claimNFT = IAuctionClaim(_claimNFT);
         _initFHEConstants();
-        ONE_64_INT = FHE.asEuint64(1);
-        FHE.allowThis(ONE_64_INT);
     }
 
-    /// @notice Seller creates a new auction
-    /// @param token Token being auctioned
-    /// @param paymentToken Token bidders pay with
-    /// @param amount Amount of tokens for sale (plaintext)
-    /// @param duration Auction duration in seconds
-    /// @param snipeExtension Seconds to extend on late bids (0 = use default)
+    // ─── Create ────────────────────────────────────────────
+
+    /// @notice Create a sealed-bid auction. The lot is locked from the seller's vault
+    ///         balance now; bidding opens once confirmLot proves it was fully locked.
     function createAuction(
         address token,
         address paymentToken,
         uint256 amount,
         uint256 duration,
         uint256 snipeExtension
-    ) external whenNotPaused returns (uint256 auctionId) {
-        if (token == paymentToken) revert InvalidInput();
-        if (amount == 0) revert InvalidInput();
-        if (duration < MIN_DURATION) revert InvalidInput();
-
-        auctionId = nextAuctionId++;
-        uint256 deadline = block.timestamp + duration;
-        uint256 ext = snipeExtension > 0 ? snipeExtension : DEFAULT_SNIPE_EXTENSION;
-
-        // Initialize encrypted highest bid to 0 and bidder to zero address
-        euint128 initBid = FHE.asEuint128(0);
-        eaddress initBidder = FHE.asEaddress(address(0));
-        FHE.allowThis(initBid);
-        FHE.allowThis(initBidder);
-
-        auctions[auctionId] = Auction({
-            seller: msg.sender,
-            token: token,
-            paymentToken: paymentToken,
-            amount: amount,
-            deadline: deadline,
-            originalDeadline: deadline,
-            bidCount: 0,
-            highestBid: initBid,
-            highestBidder: initBidder,
-            revealedBid: 0,
-            revealedBidder: address(0),
-            status: AuctionStatus.OPEN,
-            snipeExtension: ext,
-            // Blind Floor fields off by default for standard auctions
-            hasReserve: false,
-            encReserve: initBid,         // unused; same handle as encrypted zero
-            encReserveMet: ZERO_64,
-            revealedReserveMet: false
-        });
-
-        emit AuctionCreated(auctionId, msg.sender, token, amount, deadline);
+    ) external whenNotPaused nonReentrant returns (uint256 auctionId) {
+        auctionId = _create(token, paymentToken, amount, duration, snipeExtension);
     }
 
-    /// @notice Create a Blind Floor auction — encrypted reserve price that NEVER decrypts.
-    /// @dev Innovation: bidders cannot reverse-engineer the floor (it's not just hidden
-    ///      during the auction, it's never revealed). Contract uses FHE.gte() to compare
-    ///      winning bid against the encrypted reserve and publishes only the boolean
-    ///      outcome via Threshold Network. The reserve handle itself is allowThis'd to
-    ///      this contract and nothing else — pure information asymmetry.
-    /// @param token Token being auctioned
-    /// @param paymentToken Token bidders pay with
-    /// @param amount Amount of tokens for sale (plaintext)
-    /// @param duration Auction duration in seconds
-    /// @param snipeExtension Seconds to extend on late bids (0 = use default)
-    /// @param encReserveInput Encrypted reserve price (uint128). NEVER decrypted.
+    /// @notice Create a Blind Floor auction with an encrypted reserve that never decrypts.
     function createBlindAuction(
         address token,
         address paymentToken,
         uint256 amount,
         uint256 duration,
         uint256 snipeExtension,
-        InEuint128 calldata encReserveInput
-    ) external whenNotPaused returns (uint256 auctionId) {
+        InEuint64 calldata encReserveInput
+    ) external whenNotPaused nonReentrant returns (uint256 auctionId) {
+        auctionId = _create(token, paymentToken, amount, duration, snipeExtension);
+        Auction storage a = auctions[auctionId];
+        euint64 reserve = FHE.asEuint64(encReserveInput);
+        FHE.allowThis(reserve); // never allowGlobal'd — sealed forever
+        a.hasReserve = true;
+        a.encReserve = reserve;
+    }
+
+    function _create(
+        address token,
+        address paymentToken,
+        uint256 amount,
+        uint256 duration,
+        uint256 snipeExtension
+    ) internal returns (uint256 auctionId) {
         if (token == paymentToken) revert InvalidInput();
-        if (amount == 0) revert InvalidInput();
-        if (duration < MIN_DURATION) revert InvalidInput();
+        if (amount == 0 || amount > type(uint64).max) revert InvalidInput();
+        if (duration < MIN_DURATION || duration > MAX_DURATION) revert InvalidInput();
+        if (snipeExtension > MAX_SNIPE_EXTENSION) revert InvalidInput();
 
         auctionId = nextAuctionId++;
-        uint256 deadline = block.timestamp + duration;
-        uint256 ext = snipeExtension > 0 ? snipeExtension : DEFAULT_SNIPE_EXTENSION;
+        Auction storage a = auctions[auctionId];
+        a.seller = msg.sender;
+        a.token = token;
+        a.paymentToken = paymentToken;
+        a.amount = amount;
+        a.duration = duration;
+        a.snipeExtension = snipeExtension > 0 ? snipeExtension : DEFAULT_SNIPE_EXTENSION;
+        a.status = AuctionStatus.PENDING_LOT;
 
-        euint128 initBid = FHE.asEuint128(0);
-        eaddress initBidder = FHE.asEaddress(address(0));
-        euint128 encReserve = FHE.asEuint128(encReserveInput);
-        FHE.allowThis(initBid);
-        FHE.allowThis(initBidder);
-        FHE.allowThis(encReserve);
-        // Reserve is NEVER FHE.allowGlobal'd — it stays sealed forever.
+        // Lock the lot from the seller. The vault locks the full lot or nothing.
+        euint64 lot = FHE.asEuint64(uint64(amount));
+        FHE.allowThis(lot);
+        FHE.allowTransient(lot, address(vault));
+        euint64 locked = vault.lockFunds(msg.sender, token, lot);
+        FHE.allowThis(locked);
+        a.lotLocked = locked;
 
-        auctions[auctionId] = Auction({
-            seller: msg.sender,
-            token: token,
-            paymentToken: paymentToken,
-            amount: amount,
-            deadline: deadline,
-            originalDeadline: deadline,
-            bidCount: 0,
-            highestBid: initBid,
-            highestBidder: initBidder,
-            revealedBid: 0,
-            revealedBidder: address(0),
-            status: AuctionStatus.OPEN,
-            snipeExtension: ext,
-            hasReserve: true,
-            encReserve: encReserve,
-            encReserveMet: ZERO_64,
-            revealedReserveMet: false
-        });
+        // Whether the seller actually had the lot is published before bidding opens,
+        // so bidders never lock funds against an unfunded sale.
+        ebool funded = FHE.eq(locked, lot);
+        FHE.allowThis(funded);
+        FHE.allowGlobal(funded);
+        a.lotFunded = funded;
 
-        emit AuctionCreated(auctionId, msg.sender, token, amount, deadline);
+        a.highestBid = ZERO_64;
+        a.highestBidder = FHE.asEaddress(address(0));
+        FHE.allowThis(a.highestBidder);
+
+        emit AuctionCreated(auctionId, msg.sender, token, amount, duration);
     }
 
-    /// @notice Submit an encrypted bid on an auction
-    /// @dev FHE ops: gt(1), max(1), select(1) = 3 ops per bid
-    /// @dev Anti-snipe: if bid is in last SNIPE_WINDOW seconds, extends deadline
-    function bid(uint256 auctionId, InEuint128 calldata encBidAmount)
+    /// @notice Publish whether the lot was locked (TN-signed). Anyone can call.
+    ///         Funded → bidding opens for `duration`. Unfunded → cancelled.
+    function confirmLot(uint256 auctionId, bool funded, bytes calldata signature) external whenNotPaused {
+        Auction storage a = auctions[auctionId];
+        if (a.seller == address(0)) revert InvalidInput();
+        if (a.status != AuctionStatus.PENDING_LOT) revert InvalidState();
+
+        FHE.publishDecryptResult(a.lotFunded, funded, signature);
+
+        if (funded) {
+            a.deadline = block.timestamp + a.duration;
+            a.status = AuctionStatus.OPEN;
+        } else {
+            a.status = AuctionStatus.CANCELLED; // nothing was locked
+        }
+        emit LotConfirmed(auctionId, funded, a.deadline);
+    }
+
+    // ─── Bid ───────────────────────────────────────────────
+
+    /// @notice Place an encrypted bid. The bid amount is locked from the bidder's vault
+    ///         balance; if the balance can't cover it, 0 is locked and the bid can't win.
+    ///         The bidder can unseal their own bid to see what was actually locked.
+    function bid(uint256 auctionId, InEuint64 calldata encBidAmount)
         external
         whenNotPaused
+        nonReentrant
     {
-        Auction storage auction = auctions[auctionId];
-        if (auction.status != AuctionStatus.OPEN) revert InvalidState();
-        if (block.timestamp >= auction.deadline) revert Expired();
-        if (auction.seller == msg.sender) revert InvalidInput();
+        Auction storage a = auctions[auctionId];
+        if (a.status != AuctionStatus.OPEN) revert InvalidState();
+        if (block.timestamp >= a.deadline) revert Expired();
+        if (a.seller == msg.sender) revert InvalidInput();
         if (hasBid[auctionId][msg.sender]) revert InvalidState();
 
-        euint128 newBid = FHE.asEuint128(encBidAmount);
+        euint64 requested = FHE.asEuint64(encBidAmount);
+        FHE.allowTransient(requested, address(vault));
+        euint64 locked = vault.lockFunds(msg.sender, a.paymentToken, requested);
 
-        // Core FHE: compare new bid against current highest
-        ebool isHigher = FHE.gt(newBid, auction.highestBid);
+        // Compare what was actually locked, never the raw request.
+        ebool isHigher = FHE.gt(locked, a.highestBid);
+        a.highestBid = FHE.max(locked, a.highestBid);
+        a.highestBidder = FHE.select(isHigher, FHE.asEaddress(msg.sender), a.highestBidder);
+        FHE.allowThis(a.highestBid);
+        FHE.allowThis(a.highestBidder);
 
-        // Update highest bid and bidder using encrypted conditional logic
-        auction.highestBid = FHE.max(newBid, auction.highestBid);
-        auction.highestBidder = FHE.select(isHigher, FHE.asEaddress(msg.sender), auction.highestBidder);
-
-        // ACL: contract needs persistent access for future comparisons
-        FHE.allowThis(auction.highestBid);
-        FHE.allowThis(auction.highestBidder);
-
-        // Store individual bid (bidder can unseal their own bid later)
-        bids[auctionId][msg.sender] = newBid;
-        FHE.allowThis(newBid);
-        FHE.allowSender(newBid);
+        bids[auctionId][msg.sender] = locked;
+        FHE.allowThis(locked);
+        FHE.allowSender(locked);
 
         hasBid[auctionId][msg.sender] = true;
-        auction.bidCount++;
+        a.bidCount++;
 
-        // Anti-snipe: extend deadline if bid is in the last SNIPE_WINDOW seconds
-        // Note: this reveals that A bid was placed (timing metadata), but NOT the amount
-        uint256 newDeadline = auction.deadline;
-        if (block.timestamp > auction.deadline - DEFAULT_SNIPE_WINDOW) {
-            newDeadline = block.timestamp + auction.snipeExtension;
-            auction.deadline = newDeadline;
+        // Anti-snipe: a late bid extends the deadline (reveals that a bid happened, not its size)
+        if (block.timestamp > a.deadline - DEFAULT_SNIPE_WINDOW) {
+            a.deadline = block.timestamp + a.snipeExtension;
         }
 
-        emit BidPlaced(auctionId, msg.sender, newDeadline);
+        emit BidPlaced(auctionId, msg.sender, a.deadline);
     }
 
-    /// @notice Seller closes the auction and marks winner data publicly decryptable.
-    /// @dev Threshold-Network-v2 reveal: contract calls FHE.allowGlobal so any party
-    ///      can call client.decryptForTx() off-chain to obtain (value, signature),
-    ///      then submits to publishReveal() for on-chain verification.
-    function closeAuction(uint256 auctionId) external {
-        Auction storage auction = auctions[auctionId];
-        if (auction.seller != msg.sender) revert Unauthorized();
-        if (auction.status != AuctionStatus.OPEN) revert InvalidState();
-        if (block.timestamp < auction.deadline) revert InvalidState();
-        if (auction.bidCount == 0) revert InvalidState();
+    // ─── Close & reveal ────────────────────────────────────
 
-        // Mark winning bid and bidder as publicly decryptable via Threshold Network.
-        FHE.allowGlobal(auction.highestBid);
-        FHE.allowGlobal(auction.highestBidder);
+    /// @notice Close an auction after its deadline. Anyone can call, so a seller can't
+    ///         stall a finished auction. With no bids, the lot is returned and it's cancelled.
+    function closeAuction(uint256 auctionId) external whenNotPaused nonReentrant {
+        Auction storage a = auctions[auctionId];
+        if (a.status != AuctionStatus.OPEN) revert InvalidState();
+        if (block.timestamp < a.deadline) revert InvalidState();
 
-        // BLIND FLOOR: compute encrypted "reserve met" boolean and mark IT decryptable.
-        // The reserve itself stays sealed forever — only the yes/no outcome is revealed.
-        if (auction.hasReserve) {
-            ebool met = FHE.gte(auction.highestBid, auction.encReserve);
-            euint64 metAsInt = FHE.select(met, ONE_64_INT, ZERO_64);
-            auction.encReserveMet = metAsInt;
-            FHE.allowThis(metAsInt);
-            FHE.allowGlobal(metAsInt);
-        }
-
-        auction.status = AuctionStatus.CLOSED;
-        emit AuctionClosed(auctionId);
-    }
-
-    /// @notice Publish the verified reveal of the winning bid + bidder.
-    /// @dev Caller obtains (value, signature) pairs off-chain via @cofhe/sdk's
-    ///      client.decryptForTx(handle).withoutPermit().execute(). Anyone can submit —
-    ///      FHE.publishDecryptResult validates the Threshold Network signature on-chain.
-    function revealWinner(
-        uint256 auctionId,
-        uint128 bidValue,
-        bytes calldata bidSignature,
-        address bidderValue,
-        bytes calldata bidderSignature
-    )
-        external
-        returns (uint128 winningBid, address winner)
-    {
-        Auction storage auction = auctions[auctionId];
-        if (auction.status != AuctionStatus.CLOSED) revert InvalidState();
-        // Blind Floor auctions must use revealWinnerBlind so the reserve outcome is
-        // settled atomically with the winner reveal.
-        if (auction.hasReserve) revert InvalidState();
-
-        FHE.publishDecryptResult(auction.highestBid, bidValue, bidSignature);
-        FHE.publishDecryptResult(auction.highestBidder, bidderValue, bidderSignature);
-
-        auction.revealedBid = bidValue;
-        auction.revealedBidder = bidderValue;
-        auction.status = AuctionStatus.REVEALED;
-
-        emit WinnerRevealed(auctionId, bidderValue, bidValue);
-        return (bidValue, bidderValue);
-    }
-
-    /// @notice Reveal the winner of a Blind Floor auction with the reserve-met boolean.
-    /// @dev Three TN-signed reveals: bid value, bidder address, and reserveMet (0/1).
-    ///      The encrypted reserve itself is NEVER published — only its comparison outcome.
-    function revealWinnerBlind(
-        uint256 auctionId,
-        uint128 bidValue,
-        bytes calldata bidSignature,
-        address bidderValue,
-        bytes calldata bidderSignature,
-        uint64 reserveMetValue,
-        bytes calldata reserveMetSignature
-    )
-        external
-        returns (uint128 winningBid, address winner, bool reserveMet)
-    {
-        Auction storage auction = auctions[auctionId];
-        if (auction.status != AuctionStatus.CLOSED) revert InvalidState();
-        if (!auction.hasReserve) revert InvalidState();
-        if (reserveMetValue > 1) revert InvalidInput();
-
-        FHE.publishDecryptResult(auction.highestBid, bidValue, bidSignature);
-        FHE.publishDecryptResult(auction.highestBidder, bidderValue, bidderSignature);
-        FHE.publishDecryptResult(auction.encReserveMet, reserveMetValue, reserveMetSignature);
-
-        auction.revealedBid = bidValue;
-        auction.revealedBidder = bidderValue;
-        auction.revealedReserveMet = reserveMetValue == 1;
-        auction.status = AuctionStatus.REVEALED;
-
-        emit WinnerRevealed(auctionId, bidderValue, bidValue);
-        return (bidValue, bidderValue, auction.revealedReserveMet);
-    }
-
-    /// @notice Settle the auction — transfer tokens to winner, payment to seller (minus fee)
-    /// @dev Uses plaintext revealed values. Settlement via vault. Mints Claim NFT to winner.
-    function settleAuction(uint256 auctionId) external nonReentrant {
-        Auction storage auction = auctions[auctionId];
-        if (auction.status != AuctionStatus.REVEALED) revert InvalidState();
-
-        // BLIND FLOOR: if the encrypted reserve was not met, no settlement happens.
-        // The reserve value is still secret — only the boolean outcome was revealed.
-        if (auction.hasReserve && !auction.revealedReserveMet) {
-            auction.status = AuctionStatus.RESERVE_NOT_MET;
+        if (a.bidCount == 0) {
+            a.status = AuctionStatus.CANCELLED;
+            _release(a.seller, a.token, a.lotLocked);
             emit AuctionCancelled(auctionId);
             return;
         }
 
-        address winner = auction.revealedBidder;
-        if (winner == address(0)) revert InvalidState();
+        // A sale goes through unless a Blind Floor reserve wasn't met. If it doesn't,
+        // the published winner and bid are zeroed, so nothing about any bid leaks.
+        ebool ok = a.hasReserve ? FHE.gte(a.highestBid, a.encReserve) : FHE.asEbool(true);
+        a.encSaleOk = ok;
+        a.encWinningBid = FHE.select(ok, a.highestBid, ZERO_64);
+        a.encWinner = FHE.select(ok, a.highestBidder, FHE.asEaddress(address(0)));
 
-        // Compute fee
-        uint256 fee = (uint256(auction.revealedBid) * PLATFORM_FEE_BPS) / 10000;
-        uint256 sellerReceives = uint256(auction.revealedBid) - fee;
+        FHE.allowThis(a.encSaleOk);
+        FHE.allowThis(a.encWinningBid);
+        FHE.allowThis(a.encWinner);
+        FHE.allowGlobal(a.encSaleOk);
+        FHE.allowGlobal(a.encWinningBid);
+        FHE.allowGlobal(a.encWinner);
 
-        // Encrypt the settlement amounts for vault
-        euint64 auctionAmount = FHE.asEuint64(uint64(auction.amount));
-        euint64 paymentToSeller = FHE.asEuint64(uint64(sellerReceives));
-        euint64 feeAmount = FHE.asEuint64(uint64(fee));
+        a.status = AuctionStatus.CLOSED;
+        emit AuctionClosed(auctionId);
+    }
 
-        // Allow vault to access these amounts
-        FHE.allowThis(auctionAmount);
-        FHE.allowThis(paymentToSeller);
-        FHE.allowThis(feeAmount);
-        FHE.allowTransient(auctionAmount, address(vault));
-        FHE.allow(auctionAmount, address(vault));
-        FHE.allowTransient(paymentToSeller, address(vault));
-        FHE.allow(paymentToSeller, address(vault));
-        FHE.allowTransient(feeAmount, address(vault));
-        FHE.allow(feeAmount, address(vault));
+    /// @notice Publish the TN-signed outcome. Anyone can call.
+    /// @dev Caller gets (value, signature) for each handle from getRevealHandles via
+    ///      the cofhe sdk: client.decryptForTx(handle).withoutPermit().execute().
+    function reveal(
+        uint256 auctionId,
+        bool saleOk,
+        bytes calldata saleOkSignature,
+        uint64 bidValue,
+        bytes calldata bidSignature,
+        address bidderValue,
+        bytes calldata bidderSignature
+    ) external whenNotPaused nonReentrant {
+        Auction storage a = auctions[auctionId];
+        if (a.status != AuctionStatus.CLOSED) revert InvalidState();
 
-        // Transfer auctioned tokens: seller → winner
-        vault.settleTrade(auction.seller, winner, auction.token, auctionAmount);
+        FHE.publishDecryptResult(a.encSaleOk, saleOk, saleOkSignature);
+        FHE.publishDecryptResult(a.encWinningBid, bidValue, bidSignature);
+        FHE.publishDecryptResult(a.encWinner, bidderValue, bidderSignature);
 
-        // Transfer payment: winner → seller (minus fee)
-        vault.settleTrade(winner, auction.seller, auction.paymentToken, paymentToSeller);
-
-        // Transfer fee: winner → fee collector
-        if (fee > 0) {
-            vault.settleTrade(winner, registry.feeCollector(), auction.paymentToken, feeAmount);
+        if (!saleOk) {
+            a.status = AuctionStatus.NO_SALE;
+            _release(a.seller, a.token, a.lotLocked);
+            emit NoSale(auctionId);
+            return;
         }
 
-        // Mint Claim NFT to winner
+        a.revealedBid = bidValue;
+        a.revealedBidder = bidderValue;
+        a.status = AuctionStatus.REVEALED;
+        emit WinnerRevealed(auctionId, bidderValue, bidValue);
+    }
+
+    // ─── Settle & refunds ──────────────────────────────────
+
+    /// @notice Settle from escrow. Anyone can call. The winner's locked bid pays the
+    ///         seller (minus the platform fee) and the locked lot goes to the winner.
+    function settleAuction(uint256 auctionId) external whenNotPaused nonReentrant {
+        Auction storage a = auctions[auctionId];
+        if (a.status != AuctionStatus.REVEALED) revert InvalidState();
+        address winner = a.revealedBidder;
+        if (winner == address(0)) revert InvalidState();
+
+        a.status = AuctionStatus.SETTLED;
+        refunded[auctionId][winner] = true; // the winner's escrow is spent below
+
+        uint256 fee = (uint256(a.revealedBid) * PLATFORM_FEE_BPS) / 10000;
+        uint256 sellerReceives = uint256(a.revealedBid) - fee;
+
+        _release(winner, a.token, a.lotLocked);
+        _release(a.seller, a.paymentToken, _plain(sellerReceives));
+        if (fee > 0) {
+            _release(registry.feeCollector(), a.paymentToken, _plain(fee));
+        }
+
         if (address(claimNFT) != address(0)) {
             claimNFT.mint(winner, address(this), auctionId, "AUCTION");
         }
 
-        auction.status = AuctionStatus.SETTLED;
-
-        bytes32 salt = keccak256(abi.encodePacked(block.number, block.prevrandao));
-        emit TradeCompleted(
-            keccak256(abi.encodePacked(auction.seller, salt)),
-            keccak256(abi.encodePacked(winner, salt)),
-            auctionId
-        );
         emit AuctionSettled(auctionId);
     }
 
-    /// @notice Cancel auction if no bids placed (seller only)
-    function cancelAuction(uint256 auctionId) external {
-        Auction storage auction = auctions[auctionId];
-        if (auction.seller != msg.sender) revert Unauthorized();
-        if (auction.status != AuctionStatus.OPEN) revert InvalidState();
-        if (auction.bidCount != 0) revert InvalidState();
+    /// @notice Return a non-winning bidder's locked funds, as ciphertext. The amount is
+    ///         never decrypted. Available after settlement, or after a no-sale.
+    function claimRefund(uint256 auctionId) external whenNotPaused nonReentrant {
+        Auction storage a = auctions[auctionId];
+        if (a.status != AuctionStatus.SETTLED && a.status != AuctionStatus.NO_SALE) revert InvalidState();
+        if (!hasBid[auctionId][msg.sender]) revert Unauthorized();
+        if (refunded[auctionId][msg.sender]) revert InvalidState();
 
-        auction.status = AuctionStatus.CANCELLED;
+        refunded[auctionId][msg.sender] = true;
+        _release(msg.sender, a.paymentToken, bids[auctionId][msg.sender]);
+        emit RefundClaimed(auctionId, msg.sender);
+    }
+
+    /// @notice Seller cancels before any bids. The lot (if it was locked) is returned.
+    function cancelAuction(uint256 auctionId) external nonReentrant {
+        Auction storage a = auctions[auctionId];
+        if (a.seller != msg.sender) revert Unauthorized();
+        if (a.status != AuctionStatus.OPEN && a.status != AuctionStatus.PENDING_LOT) revert InvalidState();
+        if (a.bidCount != 0) revert InvalidState();
+
+        a.status = AuctionStatus.CANCELLED;
+        _release(a.seller, a.token, a.lotLocked);
         emit AuctionCancelled(auctionId);
     }
 
-    /// @notice Bidder views their own bid handle (for unsealing)
-    function getMyBid(uint256 auctionId) external view returns (euint128) {
+    function _plain(uint256 value) internal returns (euint64 v) {
+        v = FHE.asEuint64(uint64(value));
+        FHE.allowThis(v);
+    }
+
+    function _release(address to, address token, euint64 amount) internal {
+        FHE.allowTransient(amount, address(vault));
+        vault.releaseFunds(to, token, amount);
+    }
+
+    // ─── Views ─────────────────────────────────────────────
+
+    /// @notice Bidder's own bid handle: the amount actually locked (unseal with a permit)
+    function getMyBid(uint256 auctionId) external view returns (euint64) {
         if (!hasBid[auctionId][msg.sender]) revert InvalidState();
         return bids[auctionId][msg.sender];
     }
 
-    /// @notice Get auction details (preserves original tuple shape for frontend compat)
+    /// @notice Handle to decrypt (publicly) and pass to confirmLot
+    function getLotFundedHandle(uint256 auctionId) external view returns (ebool) {
+        return auctions[auctionId].lotFunded;
+    }
+
+    /// @notice Handles to decrypt (publicly) and pass to reveal, in reveal()'s order
+    function getRevealHandles(uint256 auctionId) external view returns (ebool saleOk, euint64 winningBid, eaddress winner) {
+        Auction storage a = auctions[auctionId];
+        return (a.encSaleOk, a.encWinningBid, a.encWinner);
+    }
+
+    /// @notice Auction summary (same tuple shape as v1 for frontend compatibility)
     function getAuction(uint256 auctionId) external view returns (
         address seller,
         address token,
@@ -432,7 +392,7 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         uint256 deadline,
         uint256 bidCount,
         AuctionStatus status,
-        uint128 revealedBid,
+        uint64 revealedBid,
         address revealedBidder
     ) {
         Auction storage a = auctions[auctionId];
@@ -440,23 +400,21 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
                 a.bidCount, a.status, a.revealedBid, a.revealedBidder);
     }
 
-    /// @notice Blind Floor view: returns whether this is a blind auction and (post-reveal)
-    ///         whether the reserve was met. Encrypted reserve handle stays sealed forever.
+    /// @notice Blind Floor view. The reserve handle itself is never exposed.
     function getBlindStatus(uint256 auctionId) external view returns (
         bool hasReserve,
         bool revealedReserveMet,
-        euint64 encReserveMetHandle
+        ebool encSaleOkHandle
     ) {
         Auction storage a = auctions[auctionId];
-        return (a.hasReserve, a.revealedReserveMet, a.encReserveMet);
+        bool met = a.status == AuctionStatus.REVEALED || a.status == AuctionStatus.SETTLED;
+        return (a.hasReserve, a.hasReserve && met, a.encSaleOk);
     }
 
-    /// @notice Check if any auctions exist
     function hasAuctions() external view returns (bool) {
         return nextAuctionId > 0;
     }
 
-    /// @notice Total auctions ever created (audit fix: frontend ABI expected this)
     function getAuctionCount() external view returns (uint256) {
         return nextAuctionId;
     }
