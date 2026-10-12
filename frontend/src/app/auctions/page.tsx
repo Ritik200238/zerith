@@ -160,6 +160,7 @@ function useCountdown(deadline: number): string {
   const h = Math.floor(diff / 3600);
   const m = Math.floor((diff % 3600) / 60);
   const s = diff % 60;
+  if (h >= 48) return `${Math.floor(h / 24)}d ${h % 24}h`;
   if (h > 0) return `${h}h ${m}m ${s}s`;
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
@@ -1093,7 +1094,7 @@ export default function AuctionsPage() {
                               {shortAddr(auction.revealedBidder)}
                             </p>
                             <p className="text-sm text-[var(--text)] font-semibold break-words">
-                              Bid: {formatAmount(auction.revealedBid)}
+                              Bid: {formatAmount(auction.revealedBid)} {tokenSymbol(auction.paymentToken)}
                             </p>
                           </div>
                         )}
