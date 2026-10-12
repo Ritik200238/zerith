@@ -592,6 +592,10 @@ export default function AuctionsPage() {
 
   const guardedAction = useCallback(
     async (key: string, fn: () => Promise<void>) => {
+      if (!account) {
+        toast.info("Connect a wallet first", "Use the header to connect, or try a one-click test wallet.");
+        return;
+      }
       if (busyRef.current.has(key)) return;
       busyRef.current.add(key);
       setTxState("signing");
@@ -606,7 +610,7 @@ export default function AuctionsPage() {
         busyRef.current.delete(key);
       }
     },
-    [],
+    [account, toast],
   );
 
   const handleClose = useCallback(
@@ -896,11 +900,11 @@ export default function AuctionsPage() {
             — Wallet required
           </div>
           <h2 className="font-display text-2xl font-semibold" style={{ letterSpacing: "-0.02em" }}>
-            Connect your wallet
+            Connect a wallet to take part
           </h2>
           <p style={{ color: "var(--text-secondary)", maxWidth: 480, margin: "0 auto" }}>
-            Create auctions, place sealed bids, and discover winners — all with
-            fully encrypted bid amounts via FHE.
+            You can browse the sales below without one. To bid or sell, connect a wallet
+            or use a one-click test wallet from the header.
           </p>
         </div>
       )}
@@ -961,7 +965,7 @@ export default function AuctionsPage() {
       <EncryptionProgress stage={stage} visible={encrypting} />
 
       {/* ---------- toolbar ---------- */}
-      {account && (
+      {deployed && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-[var(--text-muted)]">
             {auctions.length} auction{auctions.length !== 1 ? "s" : ""}
@@ -978,7 +982,8 @@ export default function AuctionsPage() {
       )}
 
       {/* ================= AUCTION GRID ================= */}
-      {account && (
+      {/* Sales are public on-chain, so anyone can browse them; actions need a wallet. */}
+      {deployed && (
         <>
           {loading && auctions.length === 0 ? (
             <div className="flex items-center justify-center py-20">
@@ -1106,6 +1111,10 @@ export default function AuctionsPage() {
                       {auction.status === 0 && !ended && !mine && (
                         <button
                           onClick={() => {
+                            if (!account) {
+                              toast.info("Connect a wallet to bid", "Use the header to connect, or try a one-click test wallet.");
+                              return;
+                            }
                             setSelectedAuction(auction);
                             setBidAmount("");
                             setModalView("bid");
