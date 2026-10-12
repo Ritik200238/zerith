@@ -198,7 +198,10 @@ export default function TreasuryPage() {
       const isOp = await (token as unknown as { isOperator: (owner: string, op: string) => Promise<boolean> })
         .isOperator(account, CONTRACTS.SettlementVault);
       if (!isOp) {
-        toast.info("Authorizing vault", "One-time approval for the vault to move tokens on your behalf.");
+        toast.info(
+          "One quick approval first",
+          "Before your first deposit, your wallet asks you to let the vault move tokens for you. This time you'll sign twice — approve, then deposit. After that, deposits are a single signature.",
+        );
         // Max uint48 expiration → effectively forever for testnet usage.
         const MAX_UINT48 = "281474976710655"; // 2**48 - 1
         const approveTx = await (token as unknown as { setOperator: (op: string, exp: string) => Promise<{ wait: () => Promise<unknown> }> })
@@ -255,8 +258,8 @@ export default function TreasuryPage() {
       setTxState("success");
       withdrawFlow.sealed();
       toast.success(
-        "Withdrawal submitted",
-        `Up to ${amount} ${TOKEN_CONFIG.symbol} will leave the vault (zero-replaced if balance insufficient — no leak).`,
+        "Withdrawal confirmed on-chain",
+        `If your vault held at least ${amount} ${TOKEN_CONFIG.symbol}, it's back in your wallet. If it held less, nothing moved — the vault can't fail loudly without revealing your balance. Unseal your balance to check.`,
       );
       setWithdrawAmount("");
       setWithdrawOpen(false);
