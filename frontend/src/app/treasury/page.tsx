@@ -40,13 +40,21 @@ import { Card } from "@/components/shared/Card";
 import { SectionLabel } from "@/components/shared/SectionLabel";
 import { TransactionStatus, type TxState } from "@/components/shared/TransactionStatus";
 import { TxFlowDrawer } from "@/components/shared/TxFlowDrawer";
-import { useTxFlow } from "@/hooks/useTxFlow";
+import { useTxFlow, humanizeTxError } from "@/hooks/useTxFlow";
 import { EncryptionProgress } from "@/components/shared/EncryptionProgress";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 import { ComingSoonBanner } from "@/components/shared/ComingSoonBanner";
 import { PrivacyLens } from "@/components/shared/PrivacyLens";
 import { CONTRACTS, TOKEN_CONFIG, FHENIX_TESTNET } from "@/lib/constants";
-import { formatAmount } from "@/lib/format";
+import { formatAmount, parseAmount } from "@/lib/format";
+
+/** Human amount ("1.5") → 6-decimal token base units; throws a readable error. */
+function toUnits(input: string): bigint {
+  const v = parseAmount(input);
+  if (v === null || v === BigInt(0)) throw new Error("Enter a valid amount, like 100 or 12.5.");
+  if (v > BigInt("18446744073709551615")) throw new Error("That amount is too large for the vault.");
+  return v;
+}
 
 type ClaimStatus = 0 | 1 | 2; // PENDING | VERIFIED_TRUE | VERIFIED_FALSE
 
@@ -160,15 +168,10 @@ export default function TreasuryPage() {
 
   /* ─── Actions ─── */
   function handleTxError(err: unknown) {
-    const isRejection = err instanceof Error && err.message.includes("user rejected");
-    const message = isRejection
-      ? "You rejected the transaction in your wallet"
-      : err instanceof Error
-        ? err.message.slice(0, 200)
-        : "Transaction failed";
+    const message = humanizeTxError(err);
     setTxState("error");
     setTxError(message);
-    toast.error(isRejection ? "Transaction cancelled" : "Transaction failed", message);
+    toast.error(message.startsWith("You cancelled") ? "Transaction cancelled" : "Transaction failed", message);
   }
 
   const handleUnsealBalance = useCallback(async () => {
@@ -210,7 +213,7 @@ export default function TreasuryPage() {
       }
 
       const { Encryptable } = await import("@cofhe/sdk");
-      const encrypted = await encrypt([Encryptable.uint64(BigInt(amount))]);
+      const encrypted = await encrypt([Encryptable.uint64(toUnits(amount))]);
       if (!encrypted) throw new Error("Encryption failed");
 
       depositFlow.submitted();
@@ -246,7 +249,7 @@ export default function TreasuryPage() {
 
     try {
       const { Encryptable } = await import("@cofhe/sdk");
-      const encrypted = await encrypt([Encryptable.uint64(BigInt(amount))]);
+      const encrypted = await encrypt([Encryptable.uint64(toUnits(amount))]);
       if (!encrypted) throw new Error("Encryption failed");
 
       withdrawFlow.submitted();
@@ -292,7 +295,7 @@ export default function TreasuryPage() {
       await delegateTx.wait();
 
       // Step 2: request proof
-      const tx = await por.requestProof(CONTRACTS.ConfidentialToken, BigInt(t));
+      const tx = await por.requestProof(CONTRACTS.ConfidentialToken, toUnits(t));
       setTxState("confirming");
       setTxHash(tx.hash);
       await tx.wait();
@@ -391,7 +394,7 @@ export default function TreasuryPage() {
               <div className="font-display text-5xl font-bold tracking-tight">
                 {balancePlaintext !== null ? (
                   <>
-                    {formatAmount(BigInt(balancePlaintext), 0)}
+                    {formatAmount(balancePlaintext)}
                     <span className="text-textMuted text-2xl ml-2 font-body font-normal">
                       {TOKEN_CONFIG.symbol}
                     </span>
@@ -621,6 +624,7 @@ export default function TreasuryPage() {
               <div className="mono text-textMuted mb-2">AMOUNT · {TOKEN_CONFIG.symbol}</div>
               <input
                 type="number"
+                step="any"
                 inputMode="decimal"
                 min="0"
                 value={depositAmount}
@@ -654,6 +658,7 @@ export default function TreasuryPage() {
               <div className="mono text-textMuted mb-2">AMOUNT · {TOKEN_CONFIG.symbol}</div>
               <input
                 type="number"
+                step="any"
                 inputMode="decimal"
                 min="0"
                 value={withdrawAmount}
@@ -687,6 +692,7 @@ export default function TreasuryPage() {
               <div className="mono text-textMuted mb-2">THRESHOLD · {TOKEN_CONFIG.symbol}</div>
               <input
                 type="number"
+                step="any"
                 inputMode="decimal"
                 min="1"
                 value={thresholdInput}
