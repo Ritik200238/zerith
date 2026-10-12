@@ -16,7 +16,7 @@ const toAddr = (v: unknown) =>
 
 async function publicDecrypt(signer: HardhatEthersSigner, handle: string | bigint) {
   const client = await hre.cofhe.createClientWithBatteries(signer);
-  return client.decryptForTx(BigInt(handle)).withoutPermit().execute();
+  return client.decryptForTx(BigInt(handle)).withoutACP().execute();
 }
 
 async function increaseTime(seconds: number) {
@@ -46,7 +46,7 @@ describe("SealedAuction (escrowed)", function () {
   async function fund(signer: HardhatEthersSigner, token: ConfidentialToken, amount: bigint) {
     await token.connect(deployer).adminMint(signer.address, amount);
     await token.connect(signer).setOperator(await vault.getAddress(), UNTIL);
-    await vault.connect(signer).deposit(await token.getAddress(), await encryptUint64(signer, amount));
+    await vault.connect(signer).deposit(await token.getAddress(), ...(await encryptUint64(signer, amount, vault)));
   }
 
   const vaultBal = async (who: HardhatEthersSigner, token: string) =>
@@ -57,7 +57,7 @@ describe("SealedAuction (escrowed)", function () {
     if (opts.blindReserve !== undefined) {
       await auction
         .connect(seller)
-        .createBlindAuction(LOT_ADDR, PAY_ADDR, LOT, DURATION, 0, await encryptUint64(seller, opts.blindReserve));
+        .createBlindAuction(LOT_ADDR, PAY_ADDR, LOT, DURATION, 0, ...(await encryptUint64(seller, opts.blindReserve, auction)));
     } else {
       await auction.connect(seller).createAuction(LOT_ADDR, PAY_ADDR, LOT, DURATION, 0);
     }
@@ -67,7 +67,7 @@ describe("SealedAuction (escrowed)", function () {
   }
 
   async function bid(signer: HardhatEthersSigner, id: bigint, amount: bigint) {
-    await auction.connect(signer).bid(id, await encryptUint64(signer, amount));
+    await auction.connect(signer).bid(id, ...(await encryptUint64(signer, amount, auction)));
   }
 
   async function closeAndReveal(id: bigint) {

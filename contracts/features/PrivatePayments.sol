@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {FHE, euint64, InEuint64, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {FHE, euint64, externalEuint64, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ISettlementVault} from "../interfaces/ISettlementVault.sol";
 import {IPlatformRegistry} from "../interfaces/IPlatformRegistry.sol";
@@ -121,33 +121,36 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
     function createSplit(
         address token,
         address[] calldata _recipients,
-        InEuint64[] calldata encAmountsInput
+        externalEuint64[] calldata encAmounts_,
+        bytes calldata signature
     ) external whenNotPaused nonReentrant returns (uint256 splitId) {
-        splitId = _createSplitInternal(token, _recipients, encAmountsInput, 0);
+        splitId = _createSplitInternal(token, _recipients, encAmounts_, signature, 0);
     }
 
     /// @notice Create and fund a split from a saved template (recurring use)
     function createSplitFromTemplate(
         uint256 templateId,
         address token,
-        InEuint64[] calldata encAmountsInput
+        externalEuint64[] calldata encAmounts_,
+        bytes calldata signature
     ) external whenNotPaused nonReentrant returns (uint256 splitId) {
         Template storage tmpl = templates[templateId];
         if (tmpl.creator != msg.sender) revert Unauthorized();
         if (!tmpl.active) revert InvalidState();
-        if (tmpl.recipients.length != encAmountsInput.length) revert InvalidInput();
+        if (tmpl.recipients.length != encAmounts_.length) revert InvalidInput();
 
-        splitId = _createSplitInternal(token, tmpl.recipients, encAmountsInput, templateId);
+        splitId = _createSplitInternal(token, tmpl.recipients, encAmounts_, signature, templateId);
     }
 
     function _createSplitInternal(
         address token,
         address[] memory _recipients,
-        InEuint64[] calldata encAmountsInput,
+        externalEuint64[] calldata encAmounts_,
+        bytes calldata signature,
         uint256 templateId
     ) internal returns (uint256 splitId) {
         if (_recipients.length == 0 || _recipients.length > MAX_RECIPIENTS) revert InvalidInput();
-        if (_recipients.length != encAmountsInput.length) revert InvalidInput();
+        if (_recipients.length != encAmounts_.length) revert InvalidInput();
 
         splitId = nextSplitId++;
         splits[splitId] = Split({
@@ -162,7 +165,8 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
 
         // Sum the encrypted amounts, tracking uint64 overflow so a wrapped total can
         // never lock less than the recipients are later paid.
-        euint64[] memory amounts = new euint64[](_recipients.length);
+        // One batch signature covers every amount (CoFHE 1.0 input verification).
+        euint64[] memory amounts = FHE.asEuint64s(encAmounts_, signature);
         euint64 total = ZERO_64;
         ebool noOverflow = FHE.asEbool(true);
         for (uint256 i = 0; i < _recipients.length; i++) {
@@ -171,7 +175,6 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
             if (isRecipient[splitId][recipient]) revert InvalidInput(); // no duplicates
             isRecipient[splitId][recipient] = true;
 
-            amounts[i] = FHE.asEuint64(encAmountsInput[i]);
             euint64 next = FHE.add(total, amounts[i]);
             noOverflow = FHE.and(noOverflow, FHE.gte(next, total));
             total = next;
@@ -179,8 +182,10 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
 
         // Lock the whole split from the creator: all of it, or nothing.
         euint64 toLock = FHE.select(noOverflow, total, ZERO_64);
-        FHE.allowTransient(toLock, address(vault));
-        euint64 locked = vault.lockFunds(msg.sender, token, toLock);
+        euint64 locked = FHE.receiveEuint64FromCall(
+            vault.lockFunds(msg.sender, token, FHE.shareEuint64(toLock, address(vault))),
+            address(vault)
+        );
         ebool funded = FHE.and(noOverflow, FHE.eq(locked, total));
 
         for (uint256 i = 0; i < _recipients.length; i++) {
@@ -245,8 +250,7 @@ contract PrivatePayments is ReentrancyGuard, FHEConstants {
     }
 
     function _release(address to, address token, euint64 amount) internal {
-        FHE.allowTransient(amount, address(vault));
-        vault.releaseFunds(to, token, amount);
+        vault.releaseFunds(to, token, FHE.shareEuint64(amount, address(vault)));
     }
 
     // ─── Views ─────────────────────────────────────────────

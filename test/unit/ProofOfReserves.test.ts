@@ -173,7 +173,7 @@ describe("ProofOfReserves", function () {
     async function fund(who: HardhatEthersSigner, amount: bigint) {
       await token.connect(deployer).adminMint(who.address, amount);
       await token.connect(who).setOperator(await vault.getAddress(), UNTIL);
-      await vault.connect(who).deposit(await token.getAddress(), await encryptUint64(who, amount));
+      await vault.connect(who).deposit(await token.getAddress(), ...(await encryptUint64(who, amount, vault)));
     }
 
     async function prove(who: HardhatEthersSigner, threshold: bigint) {
@@ -181,7 +181,7 @@ describe("ProofOfReserves", function () {
       await por.connect(who).requestProof(await token.getAddress(), threshold);
       const c = await por.claims(id);
       const client = await hre.cofhe.createClientWithBatteries(other);
-      const r = await client.decryptForTx(BigInt(c.encResult)).withoutPermit().execute();
+      const r = await client.decryptForTx(BigInt(c.encResult)).withoutACP().execute();
       await por.connect(other).revealProof(id, r.decryptedValue, r.signature);
       return (await por.getClaim(id)).status;
     }
@@ -199,7 +199,7 @@ describe("ProofOfReserves", function () {
     it("can't be faked with a deposit of tokens the prover doesn't hold", async function () {
       // prover holds no tokens; the vault credits 0, so the proof fails
       await token.connect(prover).setOperator(await vault.getAddress(), UNTIL);
-      await vault.connect(prover).deposit(await token.getAddress(), await encryptUint64(prover, 1_000_000n));
+      await vault.connect(prover).deposit(await token.getAddress(), ...(await encryptUint64(prover, 1_000_000n, vault)));
       expect(await prove(prover, 1n)).to.equal(2n);
     });
 
@@ -220,7 +220,7 @@ describe("ProofOfReserves", function () {
       await por.connect(prover).requestProof(await token.getAddress(), 100n);
       const c = await por.claims(0);
       const client = await hre.cofhe.createClientWithBatteries(other);
-      const r = await client.decryptForTx(BigInt(c.encResult)).withoutPermit().execute();
+      const r = await client.decryptForTx(BigInt(c.encResult)).withoutACP().execute();
       await expect(por.revealProof(0, 1n, r.signature)).to.be.reverted;
     });
   });

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {FHERC20} from "fhenix-confidential-contracts/contracts/FHERC20.sol";
+import {FHERC20} from "../vendor/fherc20/FHERC20.sol";
 import {FHE, euint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 
 /// @title ConfidentialToken — FHERC20 token for CipherDEX settlements

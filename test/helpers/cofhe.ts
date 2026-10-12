@@ -1,57 +1,53 @@
 /**
- * Shared CoFHE encryption helpers for unit tests.
+ * Shared CoFHE encryption helpers for unit tests (CoFHE 1.0 / @cofhe/sdk 0.8).
  *
- * Wraps @cofhe/hardhat-plugin's createClientWithBatteries + new builder API.
- * Replaces the legacy `hre.cofhe.initializeWithHardhatSigner` + `cofhejs.encrypt`
- * pattern that the older `cofhe-hardhat-plugin@0.3.1` exposed.
+ * Encrypted inputs are bound to the contract that consumes them, and a batch of
+ * inputs shares one signature. `encrypt` returns the contract-call shape
+ * `[...handles, signature]`; the single-value helpers return `[handle, signature]`
+ * so they can be spread into a call: `vault.deposit(token, ...await encryptUint64(...))`.
  */
 
 import hre from "hardhat";
 import { Encryptable } from "@cofhe/sdk";
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+import type { Addressable } from "ethers";
 
 export { Encryptable };
 
-export async function encryptUint8(signer: HardhatEthersSigner, value: bigint) {
-  const client = await hre.cofhe.createClientWithBatteries(signer);
-  const [encrypted] = await client.encryptInputs([Encryptable.uint8(value)]).execute();
-  return encrypted;
+type Target = string | Addressable;
+type Item = ReturnType<(typeof Encryptable)["uint64"]> | ReturnType<(typeof Encryptable)["bool"]>;
+
+async function addressOf(t: Target): Promise<string> {
+  return typeof t === "string" ? t : t.getAddress();
 }
 
-export async function encryptUint16(signer: HardhatEthersSigner, value: bigint) {
+/** Encrypt a batch for `consumer`; returns `[...handles, signature]`. */
+export async function encrypt(signer: HardhatEthersSigner, consumer: Target, items: unknown[]) {
   const client = await hre.cofhe.createClientWithBatteries(signer);
-  const [encrypted] = await client.encryptInputs([Encryptable.uint16(value)]).execute();
-  return encrypted;
+  return client
+    .encryptInputs(items as Item[])
+    .setConsumingContract((await addressOf(consumer)) as `0x${string}`)
+    .execute() as Promise<string[]>;
 }
 
-export async function encryptUint32(signer: HardhatEthersSigner, value: bigint) {
-  const client = await hre.cofhe.createClientWithBatteries(signer);
-  const [encrypted] = await client.encryptInputs([Encryptable.uint32(value)]).execute();
-  return encrypted;
+export async function encryptUint64(signer: HardhatEthersSigner, value: bigint, consumer: Target) {
+  const [handle, signature] = await encrypt(signer, consumer, [Encryptable.uint64(value)]);
+  return [handle, signature] as [string, string];
 }
 
-export async function encryptUint64(signer: HardhatEthersSigner, value: bigint) {
-  const client = await hre.cofhe.createClientWithBatteries(signer);
-  const [encrypted] = await client.encryptInputs([Encryptable.uint64(value)]).execute();
-  return encrypted;
+/** Several uint64 values under one signature: `[handles[], signature]` for array params. */
+export async function encryptUint64s(signer: HardhatEthersSigner, values: bigint[], consumer: Target) {
+  const out = await encrypt(signer, consumer, values.map((v) => Encryptable.uint64(v)));
+  return [out.slice(0, -1), out[out.length - 1]] as [string[], string];
 }
 
-export async function encryptUint128(signer: HardhatEthersSigner, value: bigint) {
-  const client = await hre.cofhe.createClientWithBatteries(signer);
-  const [encrypted] = await client.encryptInputs([Encryptable.uint128(value)]).execute();
-  return encrypted;
+/** Plaintext behind a handle, read from the mock coprocessor. */
+export async function plaintext(handle: string | bigint) {
+  return hre.cofhe.mocks.getPlaintext(BigInt(handle));
 }
 
-export async function encryptBool(signer: HardhatEthersSigner, value: boolean) {
+/** Threshold-Network-style public decrypt with signature, as used by reveal flows. */
+export async function publicDecrypt(signer: HardhatEthersSigner, handle: string | bigint) {
   const client = await hre.cofhe.createClientWithBatteries(signer);
-  const [encrypted] = await client.encryptInputs([Encryptable.bool(value)]).execute();
-  return encrypted;
-}
-
-export async function encryptAddress(signer: HardhatEthersSigner, value: string) {
-  const client = await hre.cofhe.createClientWithBatteries(signer);
-  const [encrypted] = await client
-    .encryptInputs([Encryptable.address(value as `0x${string}`)])
-    .execute();
-  return encrypted;
+  return client.decryptForTx(BigInt(handle)).withoutACP().execute();
 }

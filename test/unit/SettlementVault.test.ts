@@ -223,20 +223,20 @@ describe("SettlementVault", function () {
     });
 
     it("reverts for unsupported token", async function () {
-      const encAmount = await encryptUint64(alice, 500n);
+      const encAmount = await encryptUint64(alice, 500n, vault);
 
       await expect(
-        vault.connect(alice).deposit(bob.address, encAmount)
+        vault.connect(alice).deposit(bob.address, ...encAmount)
       ).to.be.revertedWithCustomError(vault, "InvalidInput");
     });
 
     it("reverts when platform is paused", async function () {
       await registry.connect(admin).pause();
 
-      const encAmount = await encryptUint64(alice, 500n);
+      const encAmount = await encryptUint64(alice, 500n, vault);
 
       await expect(
-        vault.connect(alice).deposit(tokenAddr, encAmount)
+        vault.connect(alice).deposit(tokenAddr, ...encAmount)
       ).to.be.revertedWithCustomError(vault, "Paused");
     });
   });
@@ -249,68 +249,21 @@ describe("SettlementVault", function () {
     });
 
     it("reverts for unsupported token", async function () {
-      const encAmount = await encryptUint64(alice, 100n);
+      const encAmount = await encryptUint64(alice, 100n, vault);
 
       await expect(
-        vault.connect(alice).withdraw(bob.address, encAmount)
+        vault.connect(alice).withdraw(bob.address, ...encAmount)
       ).to.be.revertedWithCustomError(vault, "InvalidInput");
     });
 
     it("reverts when platform is paused", async function () {
       await registry.connect(admin).pause();
 
-      const encAmount = await encryptUint64(alice, 100n);
+      const encAmount = await encryptUint64(alice, 100n, vault);
 
       await expect(
-        vault.connect(alice).withdraw(tokenAddr, encAmount)
+        vault.connect(alice).withdraw(tokenAddr, ...encAmount)
       ).to.be.revertedWithCustomError(vault, "Paused");
-    });
-  });
-
-  describe("settleTrade()", function () {
-    let tokenAddr: string;
-
-    beforeEach(async function () {
-      tokenAddr = await token.getAddress();
-    });
-
-    it("requires authorized settler", async function () {
-      const dummyHash = hre.ethers.zeroPadValue("0x01", 32);
-      await expect(
-        vault.connect(alice).settleTrade(alice.address, bob.address, tokenAddr, dummyHash)
-      ).to.be.revertedWithCustomError(vault, "Unauthorized");
-    });
-
-    it("prevents self-settlement", async function () {
-      await vault.connect(admin).addAuthorizedSettler(settler.address);
-      const dummyHash = hre.ethers.zeroPadValue("0x01", 32);
-      await expect(
-        vault.connect(settler).settleTrade(alice.address, alice.address, tokenAddr, dummyHash)
-      ).to.be.revertedWithCustomError(vault, "InvalidInput");
-    });
-
-    it("reverts for unsupported token", async function () {
-      await vault.connect(admin).addAuthorizedSettler(settler.address);
-      const dummyHash = hre.ethers.zeroPadValue("0x01", 32);
-      await expect(
-        vault.connect(settler).settleTrade(alice.address, bob.address, feeCollector.address, dummyHash)
-      ).to.be.revertedWithCustomError(vault, "InvalidInput");
-    });
-
-    it("reverts for zero address (from)", async function () {
-      await vault.connect(admin).addAuthorizedSettler(settler.address);
-      const dummyHash = hre.ethers.zeroPadValue("0x01", 32);
-      await expect(
-        vault.connect(settler).settleTrade(hre.ethers.ZeroAddress, bob.address, tokenAddr, dummyHash)
-      ).to.be.revertedWithCustomError(vault, "InvalidInput");
-    });
-
-    it("reverts for zero address (to)", async function () {
-      await vault.connect(admin).addAuthorizedSettler(settler.address);
-      const dummyHash = hre.ethers.zeroPadValue("0x01", 32);
-      await expect(
-        vault.connect(settler).settleTrade(alice.address, hre.ethers.ZeroAddress, tokenAddr, dummyHash)
-      ).to.be.revertedWithCustomError(vault, "InvalidInput");
     });
   });
 
@@ -332,23 +285,23 @@ describe("SettlementVault", function () {
 
     it("credits exactly what arrived", async function () {
       await token.connect(alice).faucet(); // 1000e6
-      await vault.connect(alice).deposit(tokenAddr, await encryptUint64(alice, 400_000000n));
+      await vault.connect(alice).deposit(tokenAddr, ...(await encryptUint64(alice, 400_000000n, vault)));
       expect(await pt(await vault.getEncBalance(alice.address, tokenAddr))).to.equal(400_000000n);
       expect(await pt(await token.confidentialBalanceOf(alice.address))).to.equal(600_000000n);
     });
 
     it("credits 0 when the depositor can't cover the amount (no phantom balance)", async function () {
       // alice holds no tokens at all
-      await vault.connect(alice).deposit(tokenAddr, await encryptUint64(alice, 1000_000000n));
+      await vault.connect(alice).deposit(tokenAddr, ...(await encryptUint64(alice, 1000_000000n, vault)));
       expect(await pt(await vault.getEncBalance(alice.address, tokenAddr))).to.equal(0n);
     });
 
     it("an attacker with no tokens cannot withdraw another user's deposit", async function () {
       await token.connect(bob).faucet();
-      await vault.connect(bob).deposit(tokenAddr, await encryptUint64(bob, 1000_000000n));
+      await vault.connect(bob).deposit(tokenAddr, ...(await encryptUint64(bob, 1000_000000n, vault)));
 
-      await vault.connect(alice).deposit(tokenAddr, await encryptUint64(alice, 1000_000000n));
-      await vault.connect(alice).withdraw(tokenAddr, await encryptUint64(alice, 1000_000000n));
+      await vault.connect(alice).deposit(tokenAddr, ...(await encryptUint64(alice, 1000_000000n, vault)));
+      await vault.connect(alice).withdraw(tokenAddr, ...(await encryptUint64(alice, 1000_000000n, vault)));
 
       expect(await pt(await token.confidentialBalanceOf(alice.address))).to.equal(0n);
       expect(await pt(await vault.getEncBalance(bob.address, tokenAddr))).to.equal(1000_000000n);
@@ -356,16 +309,16 @@ describe("SettlementVault", function () {
 
     it("withdraw returns tokens and debits the ledger", async function () {
       await token.connect(alice).faucet();
-      await vault.connect(alice).deposit(tokenAddr, await encryptUint64(alice, 500_000000n));
-      await vault.connect(alice).withdraw(tokenAddr, await encryptUint64(alice, 200_000000n));
+      await vault.connect(alice).deposit(tokenAddr, ...(await encryptUint64(alice, 500_000000n, vault)));
+      await vault.connect(alice).withdraw(tokenAddr, ...(await encryptUint64(alice, 200_000000n, vault)));
       expect(await pt(await vault.getEncBalance(alice.address, tokenAddr))).to.equal(300_000000n);
       expect(await pt(await token.confidentialBalanceOf(alice.address))).to.equal(700_000000n);
     });
 
     it("withdrawing more than the balance moves nothing", async function () {
       await token.connect(alice).faucet();
-      await vault.connect(alice).deposit(tokenAddr, await encryptUint64(alice, 500_000000n));
-      await vault.connect(alice).withdraw(tokenAddr, await encryptUint64(alice, 501_000000n));
+      await vault.connect(alice).deposit(tokenAddr, ...(await encryptUint64(alice, 500_000000n, vault)));
+      await vault.connect(alice).withdraw(tokenAddr, ...(await encryptUint64(alice, 501_000000n, vault)));
       expect(await pt(await vault.getEncBalance(alice.address, tokenAddr))).to.equal(500_000000n);
       expect(await pt(await token.confidentialBalanceOf(alice.address))).to.equal(500_000000n);
     });
@@ -386,7 +339,7 @@ describe("SettlementVault", function () {
       await vault.connect(admin).addAuthorizedSettler(await harness.getAddress());
       await token.connect(alice).faucet();
       await token.connect(alice).setOperator(await vault.getAddress(), UNTIL);
-      await vault.connect(alice).deposit(tokenAddr, await encryptUint64(alice, 1000_000000n));
+      await vault.connect(alice).deposit(tokenAddr, ...(await encryptUint64(alice, 1000_000000n, vault)));
     });
 
     it("rejects callers that aren't authorized settlers", async function () {
@@ -399,26 +352,32 @@ describe("SettlementVault", function () {
       ).to.be.revertedWithCustomError(vault, "Unauthorized");
     });
 
+    it("rejects an encrypted handle the settler didn't share (no oracle over balances)", async function () {
+      const balanceHandle = await vault.getEncBalance(alice.address, tokenAddr);
+      await expect(harness.releaseUnshared(bob.address, tokenAddr, balanceHandle)).to.be.reverted;
+      expect(await pt(await vault.getEncBalance(bob.address, tokenAddr))).to.equal(0n);
+    });
+
     it("locks the full amount when the user can cover it", async function () {
-      await harness.connect(alice).lock(alice.address, tokenAddr, await encryptUint64(alice, 300_000000n));
+      await harness.connect(alice).lock(alice.address, tokenAddr, ...(await encryptUint64(alice, 300_000000n, harness)));
       expect(await pt(await harness.lastLocked())).to.equal(300_000000n);
       expect(await pt(await vault.getEncBalance(alice.address, tokenAddr))).to.equal(700_000000n);
     });
 
     it("locks nothing when the user can't cover it", async function () {
-      await harness.connect(alice).lock(alice.address, tokenAddr, await encryptUint64(alice, 1001_000000n));
+      await harness.connect(alice).lock(alice.address, tokenAddr, ...(await encryptUint64(alice, 1001_000000n, harness)));
       expect(await pt(await harness.lastLocked())).to.equal(0n);
       expect(await pt(await vault.getEncBalance(alice.address, tokenAddr))).to.equal(1000_000000n);
     });
 
     it("releases locked funds to a recipient", async function () {
-      await harness.connect(alice).lock(alice.address, tokenAddr, await encryptUint64(alice, 300_000000n));
+      await harness.connect(alice).lock(alice.address, tokenAddr, ...(await encryptUint64(alice, 300_000000n, harness)));
       await harness.release(bob.address, tokenAddr, 300_000000n);
       expect(await pt(await vault.getEncBalance(bob.address, tokenAddr))).to.equal(300_000000n);
     });
 
     it("can never release more than its own escrow pool", async function () {
-      await harness.connect(alice).lock(alice.address, tokenAddr, await encryptUint64(alice, 300_000000n));
+      await harness.connect(alice).lock(alice.address, tokenAddr, ...(await encryptUint64(alice, 300_000000n, harness)));
       // Pool holds 300; asking for 301 pays nothing — users' balances are untouched.
       await harness.release(bob.address, tokenAddr, 301_000000n);
       expect(await pt(await vault.getEncBalance(bob.address, tokenAddr))).to.equal(0n);

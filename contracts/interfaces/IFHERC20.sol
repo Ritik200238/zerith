@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {euint64, InEuint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {euint64} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 
 /// @title IFHERC20 — Interface for FHERC20 confidential token operations
 /// @notice Used by SettlementVault to interact with any FHERC20-compliant token

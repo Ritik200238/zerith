@@ -2,7 +2,7 @@ import { expect } from "chai";
 import hre from "hardhat";
 import { PrivatePayments, ConfidentialToken, SettlementVault, PlatformRegistry } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
-import { encryptUint64 } from "../helpers/cofhe";
+import { encryptUint64, encryptUint64s } from "../helpers/cofhe";
 
 describe("PrivatePayments", function () {
   let payments: PrivatePayments;
@@ -118,16 +118,18 @@ describe("PrivatePayments", function () {
   async function fundCreator(amount: bigint) {
     await token.connect(deployer).adminMint(creator.address, amount);
     await token.connect(creator).setOperator(await vault.getAddress(), UNTIL);
-    await vault.connect(creator).deposit(await token.getAddress(), await encryptUint64(creator, amount));
+    await vault.connect(creator).deposit(await token.getAddress(), ...(await encryptUint64(creator, amount, vault)));
   }
 
   async function createSplit(amounts: bigint[], recipients = [recipient1, recipient2]) {
-    const encs = [];
-    for (const a of amounts) encs.push(await encryptUint64(creator, a));
+    const [handles, signature] = amounts.length
+      ? await encryptUint64s(creator, amounts, payments)
+      : [[], "0x"];
     return payments.connect(creator).createSplit(
       await token.getAddress(),
       recipients.map((r) => r.address),
-      encs,
+      handles,
+      signature,
     );
   }
 
@@ -140,10 +142,7 @@ describe("PrivatePayments", function () {
       await fundCreator(1_000n);
       const tokenAddr = await token.getAddress();
       await expect(
-        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, [
-          await encryptUint64(creator, 300n),
-          await encryptUint64(creator, 500n),
-        ]),
+        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, ...(await encryptUint64s(creator, [300n, 500n], payments))),
       )
         .to.emit(payments, "SplitCreated")
         .to.emit(payments, "SplitFunded");
@@ -156,10 +155,7 @@ describe("PrivatePayments", function () {
     it("reverts if not template creator", async function () {
       const tokenAddr = await token.getAddress();
       await expect(
-        payments.connect(outsider).createSplitFromTemplate(0, tokenAddr, [
-          await encryptUint64(outsider, 1n),
-          await encryptUint64(outsider, 1n),
-        ]),
+        payments.connect(outsider).createSplitFromTemplate(0, tokenAddr, ...(await encryptUint64s(outsider, [1n, 1n], payments))),
       ).to.be.revertedWithCustomError(payments, "Unauthorized");
     });
 
@@ -167,17 +163,14 @@ describe("PrivatePayments", function () {
       await payments.connect(creator).deactivateTemplate(0);
       const tokenAddr = await token.getAddress();
       await expect(
-        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, [
-          await encryptUint64(creator, 1n),
-          await encryptUint64(creator, 1n),
-        ]),
+        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, ...(await encryptUint64s(creator, [1n, 1n], payments))),
       ).to.be.revertedWithCustomError(payments, "InvalidState");
     });
 
     it("reverts if amount count mismatch", async function () {
       const tokenAddr = await token.getAddress();
       await expect(
-        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, [await encryptUint64(creator, 1n)]),
+        payments.connect(creator).createSplitFromTemplate(0, tokenAddr, ...(await encryptUint64s(creator, [1n], payments))),
       ).to.be.revertedWithCustomError(payments, "InvalidInput");
     });
   });
@@ -240,7 +233,7 @@ describe("PrivatePayments", function () {
     });
 
     it("still pays even if the creator empties their vault afterwards", async function () {
-      await vault.connect(creator).withdraw(await token.getAddress(), await encryptUint64(creator, 200n));
+      await vault.connect(creator).withdraw(await token.getAddress(), ...(await encryptUint64(creator, 200n, vault)));
       await payments.connect(recipient2).claim(0);
       expect(await vaultBal(recipient2)).to.equal(500n);
     });

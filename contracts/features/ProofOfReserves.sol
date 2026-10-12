@@ -79,7 +79,10 @@ contract ProofOfReserves is FHEConstants {
 
         // Encrypted comparison inside the vault: balance >= threshold.
         // Only ever for msg.sender, so nobody can probe someone else's balance.
-        ebool meets = vault.balanceAtLeast(msg.sender, token, uint64(threshold));
+        ebool meets = FHE.receiveEboolFromCall(
+            vault.balanceAtLeast(msg.sender, token, uint64(threshold)),
+            address(vault)
+        );
 
         // Convert ebool → euint64 (0 or 1) for verifiable reveal path
         euint64 encResult = FHE.select(meets, ONE_64, ZERO_64);

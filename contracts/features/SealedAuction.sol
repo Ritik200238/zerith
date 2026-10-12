@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {FHE, euint64, InEuint64, eaddress, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {FHE, euint64, externalEuint64, eaddress, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ISettlementVault} from "../interfaces/ISettlementVault.sol";
 import {IPlatformRegistry} from "../interfaces/IPlatformRegistry.sol";
@@ -120,11 +120,12 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         uint256 amount,
         uint256 duration,
         uint256 snipeExtension,
-        InEuint64 calldata encReserveInput
+        externalEuint64 encReserve,
+        bytes calldata reserveProof
     ) external whenNotPaused nonReentrant returns (uint256 auctionId) {
         auctionId = _create(token, paymentToken, amount, duration, snipeExtension);
         Auction storage a = auctions[auctionId];
-        euint64 reserve = FHE.asEuint64(encReserveInput);
+        euint64 reserve = FHE.asEuint64(encReserve, reserveProof);
         FHE.allowThis(reserve); // never allowGlobal'd — sealed forever
         a.hasReserve = true;
         a.encReserve = reserve;
@@ -155,8 +156,7 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         // Lock the lot from the seller. The vault locks the full lot or nothing.
         euint64 lot = FHE.asEuint64(uint64(amount));
         FHE.allowThis(lot);
-        FHE.allowTransient(lot, address(vault));
-        euint64 locked = vault.lockFunds(msg.sender, token, lot);
+        euint64 locked = _lock(msg.sender, token, lot);
         FHE.allowThis(locked);
         a.lotLocked = locked;
 
@@ -197,7 +197,7 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
     /// @notice Place an encrypted bid. The bid amount is locked from the bidder's vault
     ///         balance; if the balance can't cover it, 0 is locked and the bid can't win.
     ///         The bidder can unseal their own bid to see what was actually locked.
-    function bid(uint256 auctionId, InEuint64 calldata encBidAmount)
+    function bid(uint256 auctionId, externalEuint64 encBidAmount, bytes calldata proof)
         external
         whenNotPaused
         nonReentrant
@@ -208,9 +208,8 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         if (a.seller == msg.sender) revert InvalidInput();
         if (hasBid[auctionId][msg.sender]) revert InvalidState();
 
-        euint64 requested = FHE.asEuint64(encBidAmount);
-        FHE.allowTransient(requested, address(vault));
-        euint64 locked = vault.lockFunds(msg.sender, a.paymentToken, requested);
+        euint64 requested = FHE.asEuint64(encBidAmount, proof);
+        euint64 locked = _lock(msg.sender, a.paymentToken, requested);
 
         // Compare what was actually locked, never the raw request.
         ebool isHigher = FHE.gt(locked, a.highestBid);
@@ -359,9 +358,15 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         FHE.allowThis(v);
     }
 
+    function _lock(address user, address token, euint64 amount) internal returns (euint64) {
+        return FHE.receiveEuint64FromCall(
+            vault.lockFunds(user, token, FHE.shareEuint64(amount, address(vault))),
+            address(vault)
+        );
+    }
+
     function _release(address to, address token, euint64 amount) internal {
-        FHE.allowTransient(amount, address(vault));
-        vault.releaseFunds(to, token, amount);
+        vault.releaseFunds(to, token, FHE.shareEuint64(amount, address(vault)));
     }
 
     // ─── Views ─────────────────────────────────────────────
