@@ -244,6 +244,9 @@ export default function AuctionsPage() {
   /* ---- core state ---- */
   const [auctions, setAuctions] = useState<AuctionData[]>([]);
   const [loading, setLoading] = useState(false);
+  // Distinguishes "the fetch failed" from "there genuinely are no auctions" —
+  // without this, an RPC blip makes a foundation think their sale vanished.
+  const [loadError, setLoadError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   /* ---- modals ---- */
@@ -299,6 +302,7 @@ export default function AuctionsPage() {
   const fetchAuctions = useCallback(async () => {
     if (!auctionRead) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const total = Number(await auctionRead.getAuctionCount());
 
@@ -339,7 +343,9 @@ export default function AuctionsPage() {
       list.reverse(); // newest first
       setAuctions(list);
     } catch {
-      setAuctions([]);
+      // Don't wipe a list we already have — a transient failure shouldn't make
+      // existing auctions blink out. Only flag the error; the render decides.
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -918,6 +924,16 @@ export default function AuctionsPage() {
             <div className="flex items-center justify-center py-20">
               <Loader2 size={24} className="text-[var(--text)] animate-spin" />
             </div>
+          ) : loadError && auctions.length === 0 ? (
+            <EmptyState
+              tone="error"
+              icon={AlertCircle}
+              eyebrow="Couldn't reach the network"
+              title="We couldn't load auctions right now."
+              body="This is a network or RPC hiccup — not a sign your auctions are gone. Every sealed auction lives on Ethereum and is still there. Retry in a moment."
+              primary={{ label: "Retry", onClick: () => fetchAuctions() }}
+              secondary={{ label: "Still stuck? Get help", href: "/contact" }}
+            />
           ) : auctions.length === 0 ? (
             <EmptyState
               icon={Gavel}

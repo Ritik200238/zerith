@@ -38,9 +38,17 @@ interface Props {
   secondary?: Action;
   /** Optional icon shown above the eyebrow. */
   icon?: LucideIcon;
+  /**
+   * Visual tone. "default" = a genuine empty list (nothing exists yet).
+   * "error" = a load/network failure — must read differently from empty so a
+   * user never mistakes "couldn't reach the chain" for "you have nothing".
+   */
+  tone?: "default" | "error";
 }
 
-export function EmptyState({ eyebrow, title, body, primary, secondary, icon: Icon }: Props) {
+export function EmptyState({ eyebrow, title, body, primary, secondary, icon: Icon, tone = "default" }: Props) {
+  const isError = tone === "error";
+  const accent = isError ? "var(--danger, #d77757)" : "var(--text)";
   return (
     <div
       className="flex flex-col items-start gap-4 px-6 py-12 md:px-10 md:py-16"
@@ -54,19 +62,19 @@ export function EmptyState({ eyebrow, title, body, primary, secondary, icon: Ico
         <div
           className="w-10 h-10 flex items-center justify-center"
           style={{
-            background: "var(--bg-alt)",
+            background: isError ? "var(--danger-bg, rgba(215,119,87,0.10))" : "var(--bg-alt)",
             border: "1px dashed var(--border-dash)",
             borderRadius: "var(--radius)",
           }}
         >
-          <Icon size={18} style={{ color: "var(--text)" }} />
+          <Icon size={18} style={{ color: accent }} />
         </div>
       )}
 
       {eyebrow && (
         <p
           className="font-mono uppercase tracking-[0.12em]"
-          style={{ fontSize: 10, color: "var(--text-muted)" }}
+          style={{ fontSize: 10, color: isError ? accent : "var(--text-muted)" }}
         >
           — {eyebrow}
         </p>
