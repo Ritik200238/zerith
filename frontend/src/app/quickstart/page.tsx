@@ -50,6 +50,7 @@ import { useEncrypt } from "@/hooks/useEncrypt";
 import { useUnseal } from "@/hooks/useUnseal";
 import { useContract, useReadContract } from "@/hooks/useContract";
 import { useToast } from "@/components/shared/Toast";
+import { humanizeTxError } from "@/hooks/useTxFlow";
 import { useCofhe } from "@/hooks/useCofhe";
 import { CONTRACTS, FHENIX_TESTNET, TOKEN_CONFIG } from "@/lib/constants";
 import { formatAmount } from "@/lib/format";
@@ -167,7 +168,7 @@ export default function QuickstartPage() {
     setStepError(null);
     try {
       await createAndConnectBurner();
-      toast.success("Burner ready", "Funded with Sepolia ETH. You're connected.");
+      toast.success("Wallet ready", "Created in your browser and topped up with Sepolia gas. You're connected.");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not create burner";
       setStepError(msg);
@@ -186,6 +187,18 @@ export default function QuickstartPage() {
     setBusyStep(2);
     setStepError(null);
     try {
+      // The faucet allows one claim per hour. If this wallet already claimed,
+      // it already holds test tokens — treat the step as done, don't revert.
+      const last = account ? Number(await tokenContract.lastFaucetClaim(account)) : 0;
+      if (last > 0 && Date.now() / 1000 < last + 3600) {
+        setProgress((prev) => {
+          const next = { ...prev, step2Done: true };
+          saveProgress(next);
+          return next;
+        });
+        toast.success("Test tokens already claimed", "This wallet claimed within the last hour, so you're set.");
+        return;
+      }
       const tx = await tokenContract.faucet();
       await tx.wait();
       setProgress((prev) => {
@@ -198,18 +211,13 @@ export default function QuickstartPage() {
         "Your encrypted balance is ready.",
       );
     } catch (err) {
-      const msg =
-        err instanceof Error && err.message.includes("user rejected")
-          ? "You rejected the transaction"
-          : err instanceof Error
-            ? err.message.slice(0, 200)
-            : "Faucet failed";
+      const msg = humanizeTxError(err);
       setStepError(msg);
       toast.error("Faucet failed", msg);
     } finally {
       setBusyStep(null);
     }
-  }, [tokenContract, toast]);
+  }, [account, tokenContract, toast]);
 
   /* ── Step 3: Encrypted bid on first OPEN auction ── */
   const handleStep3 = useCallback(async () => {
