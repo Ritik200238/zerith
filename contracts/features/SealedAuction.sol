@@ -75,6 +75,7 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
     error InvalidState();
     error Expired();
     error Paused();
+    error InvalidDecryptSignature();
 
     event AuctionCreated(uint256 indexed auctionId, address indexed seller, address token, uint256 amount, uint256 duration);
     event LotConfirmed(uint256 indexed auctionId, bool funded, uint256 deadline);
@@ -126,7 +127,7 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         auctionId = _create(token, paymentToken, amount, duration, snipeExtension);
         Auction storage a = auctions[auctionId];
         euint64 reserve = FHE.asEuint64(encReserve, reserveProof);
-        FHE.allowThis(reserve); // never allowGlobal'd — sealed forever
+        FHE.allowThis(reserve); // never made public — sealed forever
         a.hasReserve = true;
         a.encReserve = reserve;
     }
@@ -155,7 +156,6 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
 
         // Lock the lot from the seller. The vault locks the full lot or nothing.
         euint64 lot = FHE.asEuint64(uint64(amount));
-        FHE.allowThis(lot);
         euint64 locked = _lock(msg.sender, token, lot);
         FHE.allowThis(locked);
         a.lotLocked = locked;
@@ -164,7 +164,7 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         // so bidders never lock funds against an unfunded sale.
         ebool funded = FHE.eq(locked, lot);
         FHE.allowThis(funded);
-        FHE.allowGlobal(funded);
+        FHE.allowPublic(funded);
         a.lotFunded = funded;
 
         a.highestBid = ZERO_64;
@@ -181,7 +181,9 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         if (a.seller == address(0)) revert InvalidInput();
         if (a.status != AuctionStatus.PENDING_LOT) revert InvalidState();
 
-        FHE.publishDecryptResult(a.lotFunded, funded, signature);
+        // verifyDecryptResult (not publish): we store the outcome ourselves, so
+        // the PlaintextsStorage write would only cost gas.
+        if (!FHE.verifyDecryptResult(a.lotFunded, funded, signature)) revert InvalidDecryptSignature();
 
         if (funded) {
             a.deadline = block.timestamp + a.duration;
@@ -259,9 +261,9 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         FHE.allowThis(a.encSaleOk);
         FHE.allowThis(a.encWinningBid);
         FHE.allowThis(a.encWinner);
-        FHE.allowGlobal(a.encSaleOk);
-        FHE.allowGlobal(a.encWinningBid);
-        FHE.allowGlobal(a.encWinner);
+        FHE.allowPublic(a.encSaleOk);
+        FHE.allowPublic(a.encWinningBid);
+        FHE.allowPublic(a.encWinner);
 
         a.status = AuctionStatus.CLOSED;
         emit AuctionClosed(auctionId);
@@ -269,7 +271,7 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
 
     /// @notice Publish the TN-signed outcome. Anyone can call.
     /// @dev Caller gets (value, signature) for each handle from getRevealHandles via
-    ///      the cofhe sdk: client.decryptForTx(handle).withoutPermit().execute().
+    ///      the cofhe sdk: client.decryptForTx(handle).withoutACP().execute().
     function reveal(
         uint256 auctionId,
         bool saleOk,
@@ -282,9 +284,11 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
         Auction storage a = auctions[auctionId];
         if (a.status != AuctionStatus.CLOSED) revert InvalidState();
 
-        FHE.publishDecryptResult(a.encSaleOk, saleOk, saleOkSignature);
-        FHE.publishDecryptResult(a.encWinningBid, bidValue, bidSignature);
-        FHE.publishDecryptResult(a.encWinner, bidderValue, bidderSignature);
+        if (
+            !FHE.verifyDecryptResult(a.encSaleOk, saleOk, saleOkSignature) ||
+            !FHE.verifyDecryptResult(a.encWinningBid, bidValue, bidSignature) ||
+            !FHE.verifyDecryptResult(a.encWinner, bidderValue, bidderSignature)
+        ) revert InvalidDecryptSignature();
 
         if (!saleOk) {
             a.status = AuctionStatus.NO_SALE;
@@ -405,7 +409,8 @@ contract SealedAuction is ReentrancyGuard, FHEConstants {
                 a.bidCount, a.status, a.revealedBid, a.revealedBidder);
     }
 
-    /// @notice Blind Floor view. The reserve handle itself is never exposed.
+    /// @notice Blind Floor view. The reserve's handle is readable from auctions(), but
+    ///         it is never made decryptable, so nobody can learn the reserve.
     function getBlindStatus(uint256 auctionId) external view returns (
         bool hasReserve,
         bool revealedReserveMet,

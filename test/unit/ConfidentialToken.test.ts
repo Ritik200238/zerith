@@ -16,7 +16,7 @@ describe("ConfidentialToken", function () {
   beforeEach(async function () {
     [deployer, alice, bob] = await hre.ethers.getSigners();
     const factory = await hre.ethers.getContractFactory("ConfidentialToken");
-    token = await factory.deploy();
+    token = await factory.deploy("Zerith Test Dollar", "CDEX");
     await token.waitForDeployment();
   });
 
@@ -27,7 +27,7 @@ describe("ConfidentialToken", function () {
     });
 
     it("has correct name", async function () {
-      expect(await token.name()).to.equal("CipherDEX Token");
+      expect(await token.name()).to.equal("Zerith Test Dollar");
     });
 
     it("has correct symbol", async function () {
@@ -50,8 +50,9 @@ describe("ConfidentialToken", function () {
       expect(await token.INITIAL_SUPPLY()).to.equal(INITIAL_SUPPLY);
     });
 
-    it("is recognized as FHERC20", async function () {
-      expect(await token.isFherc20()).to.equal(true);
+    it("behaves as an ERC-7984 token (ERC-165, holder is always its own operator)", async function () {
+      expect(await token.supportsInterface("0x01ffc9a7")).to.equal(true); // ERC-165
+      expect(await token.isOperator(deployer.address, deployer.address)).to.equal(true);
     });
   });
 

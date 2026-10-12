@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import {FHE, euint64, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
+import {FHE, ebool} from "@fhenixprotocol/cofhe-contracts/FHE.sol";
 import {ISettlementVault} from "../interfaces/ISettlementVault.sol";
 import {IPlatformRegistry} from "../interfaces/IPlatformRegistry.sol";
-import {FHEConstants} from "../libraries/FHEConstants.sol";
 
 /// @title ProofOfReserves — Publicly verifiable encrypted reserve threshold proofs
 /// @notice A user (e.g. DAO treasurer) proves "I hold ≥ X tokens" without revealing
@@ -19,7 +18,7 @@ import {FHEConstants} from "../libraries/FHEConstants.sol";
 ///      The actual balance stays encrypted in the vault. A proof is a point-in-time
 ///      statement: the balance can change afterwards, so consumers should check
 ///      requestedAt (see getLatestVerifiedThreshold).
-contract ProofOfReserves is FHEConstants {
+contract ProofOfReserves {
     enum ClaimStatus { PENDING, VERIFIED_TRUE, VERIFIED_FALSE }
 
     struct Claim {
@@ -29,7 +28,7 @@ contract ProofOfReserves is FHEConstants {
         uint256 requestedAt;
         uint256 revealedAt;
         ClaimStatus status;
-        euint64 encResult;       // 1 if balance >= threshold, else 0 (encrypted)
+        ebool encResult;         // balance >= threshold (encrypted until revealed)
     }
 
     ISettlementVault public immutable vault;
@@ -39,12 +38,11 @@ contract ProofOfReserves is FHEConstants {
     mapping(address => uint256[]) private proverClaims;
     uint256 public nextClaimId;
 
-    euint64 internal ONE_64;
-
     error Unauthorized();
     error InvalidInput();
     error InvalidState();
     error Paused();
+    error InvalidDecryptSignature();
 
     event ProofRequested(uint256 indexed claimId, address indexed prover, address indexed token, uint256 threshold);
     event ProofRevealed(uint256 indexed claimId, bool meetsThreshold);
@@ -59,9 +57,6 @@ contract ProofOfReserves is FHEConstants {
         vault = ISettlementVault(_vault);
         registry = IPlatformRegistry(_registry);
 
-        _initFHEConstants();
-        ONE_64 = FHE.asEuint64(1);
-        FHE.allowThis(ONE_64);
     }
 
     /// @notice Request a "balance ≥ threshold" proof for caller's vault holdings
@@ -84,12 +79,9 @@ contract ProofOfReserves is FHEConstants {
             address(vault)
         );
 
-        // Convert ebool → euint64 (0 or 1) for verifiable reveal path
-        euint64 encResult = FHE.select(meets, ONE_64, ZERO_64);
-
-        // Allow contract to track + global for public reveal via Threshold Network
-        FHE.allowThis(encResult);
-        FHE.allowGlobal(encResult);
+        // Keep it, and make only this yes/no publicly decryptable.
+        FHE.allowThis(meets);
+        FHE.allowPublic(meets);
 
         claimId = nextClaimId++;
         claims[claimId] = Claim({
@@ -99,7 +91,7 @@ contract ProofOfReserves is FHEConstants {
             requestedAt: block.timestamp,
             revealedAt: 0,
             status: ClaimStatus.PENDING,
-            encResult: encResult
+            encResult: meets
         });
         proverClaims[msg.sender].push(claimId);
 
@@ -108,28 +100,25 @@ contract ProofOfReserves is FHEConstants {
 
     /// @notice Publish the verified reveal of a claim's outcome
     /// @dev Anyone can call. Caller obtains (value, signature) off-chain via the
-    ///      cofhe sdk: client.decryptForTx(handle).withoutPermit().execute().
-    ///      FHE.publishDecryptResult validates the Threshold Network signature.
+    ///      cofhe sdk: client.decryptForTx(handle).withoutACP().execute(). The
+    ///      signature is checked with FHE.verifyDecryptResult.
     /// @param claimId Pending claim to finalize
-    /// @param resultValue 1 if balance ≥ threshold, 0 otherwise (TN-decrypted)
+    /// @param meetsThreshold true if balance ≥ threshold (decrypted by Fhenix)
     /// @param signature Threshold Network signature attesting to the value
     function revealProof(
         uint256 claimId,
-        uint64 resultValue,
+        bool meetsThreshold,
         bytes calldata signature
     ) external whenNotPaused {
         Claim storage c = claims[claimId];
         if (c.prover == address(0)) revert InvalidInput();
         if (c.status != ClaimStatus.PENDING) revert InvalidState();
-        if (resultValue > 1) revert InvalidInput();
+        if (!FHE.verifyDecryptResult(c.encResult, meetsThreshold, signature)) revert InvalidDecryptSignature();
 
-        // On-chain TN signature verification
-        FHE.publishDecryptResult(c.encResult, resultValue, signature);
-
-        c.status = resultValue == 1 ? ClaimStatus.VERIFIED_TRUE : ClaimStatus.VERIFIED_FALSE;
+        c.status = meetsThreshold ? ClaimStatus.VERIFIED_TRUE : ClaimStatus.VERIFIED_FALSE;
         c.revealedAt = block.timestamp;
 
-        emit ProofRevealed(claimId, resultValue == 1);
+        emit ProofRevealed(claimId, meetsThreshold);
     }
 
     // ─── Views ─────────────────────────────────────────────

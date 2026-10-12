@@ -1,14 +1,17 @@
 # Vendored FHERC20
 
-Source: `fhenix-confidential-contracts@0.2.0` (MIT, see LICENSE) — the exact version
-the deployed Zerith test tokens (CDEX and MOCK on Sepolia) were built from.
+Source: `fhenix-confidential-contracts@0.4.0` (MIT, see LICENSE) — the ERC-7984
+confidential token Fhenix's docs currently point to. Only the core token files are
+included: `FHERC20/FHERC20.sol`, `FHERC20/FHERC20Core.sol`, their `utils/`, the
+`IFHERC20` / `IERC7984` / `IERC7984Receiver` interfaces and `utils/FHESafeMath.sol`.
+Wrappers and upgradeable variants are left out.
 
-Local change: the `InEuint64` encrypted-input overloads are ported to the CoFHE 1.0
-input format (`externalEuint64` handle + `bytes` proof) so the library compiles
-against `@fhenixprotocol/cofhe-contracts@1.0.0`. Token logic, ACL handling and the
-zero-replacement transfer semantics are unchanged, so tests behave like the live
-tokens. The handle-based `confidentialTransfer(From)(…, euint64)` functions the vault
-uses are untouched.
+It is vendored rather than installed because the npm package pins
+`@fhenixprotocol/cofhe-contracts@0.2.0`, while Zerith builds against `1.0.0`. The
+files are unchanged and compile against 1.0.0, which provides the same
+`externalEuint64` / `sharedEuint64` / `shareEuint64` / `receiveEuint64Param` API.
 
-Newer upstream releases (0.4.x) restructure the library around ERC-7984; moving to
-them is a separate change that would also mean redeploying the tokens.
+Token-to-contract calls use shared handles: transfers take a `sharedEuint64` the
+caller shared with the token and return the amount actually moved as a
+`sharedEuint64` shared back to the caller (receive it with
+`FHE.receiveEuint64FromCall(result, address(token))`).

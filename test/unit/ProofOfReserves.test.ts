@@ -9,6 +9,8 @@ import {
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 import { encryptUint64 } from "../helpers/cofhe";
 
+const toBool = (v: unknown) => (typeof v === "boolean" ? v : BigInt(v as bigint) === 1n);
+
 describe("ProofOfReserves", function () {
   let por: ProofOfReserves;
   let token: ConfidentialToken;
@@ -23,7 +25,7 @@ describe("ProofOfReserves", function () {
 
     // Token
     const tokenFactory = await hre.ethers.getContractFactory("ConfidentialToken");
-    token = await tokenFactory.deploy();
+    token = await tokenFactory.deploy("Zerith Test Dollar", "CDEX");
     await token.waitForDeployment();
 
     // Registry
@@ -182,7 +184,7 @@ describe("ProofOfReserves", function () {
       const c = await por.claims(id);
       const client = await hre.cofhe.createClientWithBatteries(other);
       const r = await client.decryptForTx(BigInt(c.encResult)).withoutACP().execute();
-      await por.connect(other).revealProof(id, r.decryptedValue, r.signature);
+      await por.connect(other).revealProof(id, toBool(r.decryptedValue), r.signature);
       return (await por.getClaim(id)).status;
     }
 
@@ -197,7 +199,8 @@ describe("ProofOfReserves", function () {
     });
 
     it("can't be faked with a deposit of tokens the prover doesn't hold", async function () {
-      // prover holds no tokens; the vault credits 0, so the proof fails
+      // prover holds 1 unit and "deposits" 1,000,000: the vault credits 0, so the proof fails
+      await token.connect(deployer).adminMint(prover.address, 1n);
       await token.connect(prover).setOperator(await vault.getAddress(), UNTIL);
       await vault.connect(prover).deposit(await token.getAddress(), ...(await encryptUint64(prover, 1_000_000n, vault)));
       expect(await prove(prover, 1n)).to.equal(2n);
@@ -221,7 +224,7 @@ describe("ProofOfReserves", function () {
       const c = await por.claims(0);
       const client = await hre.cofhe.createClientWithBatteries(other);
       const r = await client.decryptForTx(BigInt(c.encResult)).withoutACP().execute();
-      await expect(por.revealProof(0, 1n, r.signature)).to.be.reverted;
+      await expect(por.revealProof(0, !toBool(r.decryptedValue), r.signature)).to.be.reverted;
     });
   });
 

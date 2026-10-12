@@ -12,7 +12,7 @@ import {
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IFHERC20} from "../interfaces/IFHERC20.sol";
+import {IERC7984} from "../vendor/fherc20/interfaces/IERC7984.sol";
 import {IPlatformRegistry} from "../interfaces/IPlatformRegistry.sol";
 import {FHEConstants} from "../libraries/FHEConstants.sol";
 
@@ -21,9 +21,10 @@ import {FHEConstants} from "../libraries/FHEConstants.sol";
 ///         contracts (auctions, payroll) lock a user's funds into escrow when the user
 ///         commits, and pay out of that escrow later, so a settlement can never move
 ///         more than was actually committed.
-/// @dev Built for CoFHE 1.0: user inputs arrive as externalEuint64 + proof, and
-///      encrypted values crossing contract boundaries use shared handles, so the vault
-///      only ever acts on a handle its caller explicitly handed over.
+/// @dev Built for CoFHE 1.0: user inputs arrive as externalEuint64 + proof, and every
+///      encrypted value crossing a contract boundary (feature contracts, the ERC-7984
+///      token) is a shared handle, so each side only acts on what the other explicitly
+///      handed over.
 contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
     /// @notice Encrypted balance ledger: user => token => encrypted balance
     mapping(address => mapping(address => euint64)) private encBalances;
@@ -78,9 +79,9 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
     // ─── User Operations ────────────────────────────────────
 
     /// @notice Deposit FHERC20 tokens into the vault
-    /// @dev The user must call token.setOperator(vault, expiration) first. FHERC20
-    ///      zero-replaces a transfer the sender can't cover, so the vault credits only
-    ///      what the token reports as moved — never the requested amount.
+    /// @dev The user must call token.setOperator(vault, until) first (a short window is
+    ///      enough). FHERC20 zero-replaces a transfer the sender can't cover, so the vault
+    ///      credits only what the token reports as moved — never the requested amount.
     function deposit(address token, externalEuint64 encAmount, bytes calldata proof)
         external
         whenNotPaused
@@ -89,8 +90,10 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
         if (!supportedTokens[token]) revert InvalidInput();
         euint64 amount = FHE.asEuint64(encAmount, proof);
 
-        FHE.allowTransient(amount, token);
-        euint64 received = IFHERC20(token).confidentialTransferFrom(msg.sender, address(this), amount);
+        euint64 received = FHE.receiveEuint64FromCall(
+            IERC7984(token).confidentialTransferFrom(msg.sender, address(this), FHE.shareEuint64(amount, token)),
+            token
+        );
 
         encBalances[msg.sender][token] = FHE.add(encBalances[msg.sender][token], received);
         FHE.allowThis(encBalances[msg.sender][token]);
@@ -112,9 +115,11 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
 
         euint64 withdrawn = FHE.select(FHE.lte(amount, encBalances[msg.sender][token]), amount, ZERO_64);
 
-        FHE.allowTransient(withdrawn, token);
         // Debit exactly what was sent (sent <= withdrawn <= balance, so no underflow).
-        euint64 sent = IFHERC20(token).confidentialTransfer(msg.sender, withdrawn);
+        euint64 sent = FHE.receiveEuint64FromCall(
+            IERC7984(token).confidentialTransfer(msg.sender, FHE.shareEuint64(withdrawn, token)),
+            token
+        );
         encBalances[msg.sender][token] = FHE.sub(encBalances[msg.sender][token], sent);
 
         FHE.allowThis(encBalances[msg.sender][token]);
@@ -133,7 +138,7 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
     /// @notice Move up to `amount` of `user`'s balance into the caller's escrow pool.
     /// @dev All-or-nothing: locks `amount` if the user can cover it, otherwise 0. The
     ///      caller must share `amount` with this vault. Returns the locked amount as a
-    ///      share to the caller, which also keeps persistent access to it.
+    ///      share to the caller; a caller that stores it must allowThis it.
     function lockFunds(address user, address token, sharedEuint64 sharedAmount)
         external
         onlyAuthorizedSettler
@@ -152,8 +157,6 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
         FHE.allowThis(encBalances[user][token]);
         FHE.allow(encBalances[user][token], user);
         FHE.allowThis(escrowed[msg.sender][token]);
-        FHE.allowThis(locked);
-        FHE.allow(locked, msg.sender);
 
         emit FundsLocked(msg.sender, user, token);
         return FHE.shareEuint64(locked, msg.sender);
@@ -194,7 +197,6 @@ contract SettlementVault is Ownable2Step, ReentrancyGuard, FHEConstants {
     {
         if (!supportedTokens[token]) revert InvalidInput();
         ebool meets = FHE.gte(encBalances[user][token], FHE.asEuint64(threshold));
-        FHE.allowThis(meets);
         return FHE.shareEbool(meets, msg.sender);
     }
 

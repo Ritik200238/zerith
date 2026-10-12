@@ -86,8 +86,8 @@ describe("SealedAuction (escrowed)", function () {
     [deployer, seller, b1, b2, b3, feeCollector, outsider] = await hre.ethers.getSigners();
 
     const T = await hre.ethers.getContractFactory("ConfidentialToken");
-    lotToken = await T.deploy();
-    payToken = await T.deploy();
+    lotToken = await T.deploy("Mock Project Token", "MOCK");
+    payToken = await T.deploy("Zerith Test Dollar", "CDEX");
     LOT_ADDR = await lotToken.getAddress();
     PAY_ADDR = await payToken.getAddress();
 

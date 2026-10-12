@@ -20,7 +20,7 @@ describe("PrivatePayments", function () {
 
     // Deploy token
     const tokenFactory = await hre.ethers.getContractFactory("ConfidentialToken");
-    token = await tokenFactory.deploy();
+    token = await tokenFactory.deploy("Zerith Test Dollar", "CDEX");
     await token.waitForDeployment();
 
     // Deploy PlatformRegistry

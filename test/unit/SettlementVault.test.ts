@@ -24,7 +24,7 @@ describe("SettlementVault", function () {
 
     // Deploy ConfidentialToken
     const tokenFactory = await hre.ethers.getContractFactory("ConfidentialToken");
-    token = await tokenFactory.deploy();
+    token = await tokenFactory.deploy("Zerith Test Dollar", "CDEX");
     await token.waitForDeployment();
 
     // Deploy PlatformRegistry
@@ -290,20 +290,31 @@ describe("SettlementVault", function () {
       expect(await pt(await token.confidentialBalanceOf(alice.address))).to.equal(600_000000n);
     });
 
-    it("credits 0 when the depositor can't cover the amount (no phantom balance)", async function () {
-      // alice holds no tokens at all
-      await vault.connect(alice).deposit(tokenAddr, ...(await encryptUint64(alice, 1000_000000n, vault)));
-      expect(await pt(await vault.getEncBalance(alice.address, tokenAddr))).to.equal(0n);
+    it("rejects a deposit from a wallet that never held the token", async function () {
+      // ERC-7984 FHERC20 refuses to move from an account with no balance at all.
+      await expect(
+        vault.connect(alice).deposit(tokenAddr, ...(await encryptUint64(alice, 1000_000000n, vault))),
+      ).to.be.revertedWithCustomError(token, "FHERC20ZeroBalance");
+      expect(BigInt(await vault.getEncBalance(alice.address, tokenAddr))).to.equal(0n);
     });
 
-    it("an attacker with no tokens cannot withdraw another user's deposit", async function () {
+    it("credits 0 when the depositor holds some tokens but not enough (no phantom balance)", async function () {
+      await token.connect(alice).faucet(); // 1000e6
+      await vault.connect(alice).deposit(tokenAddr, ...(await encryptUint64(alice, 5000_000000n, vault)));
+      expect(await pt(await vault.getEncBalance(alice.address, tokenAddr))).to.equal(0n);
+      expect(await pt(await token.confidentialBalanceOf(alice.address))).to.equal(1000_000000n);
+    });
+
+    it("an attacker who can't cover a deposit cannot withdraw another user's funds", async function () {
       await token.connect(bob).faucet();
       await vault.connect(bob).deposit(tokenAddr, ...(await encryptUint64(bob, 1000_000000n, vault)));
 
+      // alice holds 1 token and "deposits" 1000: the token moves 0, the vault credits 0
+      await token.connect(admin).adminMint(alice.address, 1_000000n);
       await vault.connect(alice).deposit(tokenAddr, ...(await encryptUint64(alice, 1000_000000n, vault)));
       await vault.connect(alice).withdraw(tokenAddr, ...(await encryptUint64(alice, 1000_000000n, vault)));
 
-      expect(await pt(await token.confidentialBalanceOf(alice.address))).to.equal(0n);
+      expect(await pt(await token.confidentialBalanceOf(alice.address))).to.equal(1_000000n);
       expect(await pt(await vault.getEncBalance(bob.address, tokenAddr))).to.equal(1000_000000n);
     });
 
