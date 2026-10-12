@@ -11,7 +11,8 @@ import { useCofhe } from "@/hooks/useCofhe";
 import { useUnseal } from "@/hooks/useUnseal";
 import { useReadContract } from "@/hooks/useContract";
 import { useBlockPoll } from "@/hooks/useBlockPoll";
-import { FHENIX_TESTNET } from "@/lib/constants";
+import { FHENIX_TESTNET, TOKEN_CONFIG } from "@/lib/constants";
+import { formatAmount } from "@/lib/format";
 
 /**
  * SystemStatus v2 (U5 from Wave 4 plan).
@@ -23,7 +24,7 @@ import { FHENIX_TESTNET } from "@/lib/constants";
  *   - Network (correct chain / wrong)
  *   - Block (latest block number, polled every 12s)
  *   - Gas (current gas price in gwei)
- *   - TN (Threshold Network — indicator visible, derived from chain liveness)
+ *   - RPC (whether the Sepolia RPC answered the last poll)
  *
  * The encrypted-balance unseal action stays in this bar from v1, since
  * users hit it from the header all the time.
@@ -39,7 +40,7 @@ export function SystemStatus() {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [blockNumber, setBlockNumber] = useState<number | null>(null);
   const [gasGwei, setGasGwei] = useState<number | null>(null);
-  const [tnOk, setTnOk] = useState(true);
+  const [rpcOk, setRpcOk] = useState<boolean | null>(null);
 
   // Poll chain stats whenever blockTick fires (12s)
   useEffect(() => {
@@ -54,9 +55,9 @@ export function SystemStatus() {
         if (fee.gasPrice) {
           setGasGwei(Number(ethers.formatUnits(fee.gasPrice, "gwei")));
         }
-        setTnOk(true);
+        setRpcOk(true);
       } catch {
-        if (!cancelled) setTnOk(false);
+        if (!cancelled) setRpcOk(false);
       }
     }
     tick();
@@ -67,9 +68,10 @@ export function SystemStatus() {
     if (!tokenRead || !account) return;
     setBalanceLoading(true);
     try {
-      const ctHash = await tokenRead.balanceOfEncrypted(account);
+      // Wallet (not vault) balance of the test token, unsealed with the user's ACP.
+      const ctHash = await tokenRead.confidentialBalanceOf(account);
       const val = await unseal(BigInt(ctHash), 5); // euint64
-      if (val !== null) setBalance(val.toString());
+      if (val !== null) setBalance(formatAmount(val));
     } catch {
       setBalance(null);
     } finally {
@@ -77,9 +79,12 @@ export function SystemStatus() {
     }
   }, [tokenRead, account, unseal]);
 
-  const gasLabel = gasGwei !== null
-    ? gasGwei < 1 ? `${(gasGwei * 1000).toFixed(0)}m` : `${gasGwei.toFixed(1)}`
-    : "—";
+  const gasLabel = gasGwei === null
+    ? "—"
+    : gasGwei < 0.01 ? "<0.01" : gasGwei < 1 ? gasGwei.toFixed(3) : gasGwei.toFixed(1);
+
+  // Without a wallet there's no "wrong" network — the app reads Sepolia directly.
+  const networkBad = Boolean(account) && !isCorrectChain;
 
   return (
     <div className="flex items-center gap-3 text-[10px] flex-wrap font-mono uppercase tracking-wider text-textMuted">
@@ -109,13 +114,13 @@ export function SystemStatus() {
 
       {/* Network */}
       <div className="flex items-center gap-1.5">
-        {isCorrectChain ? (
-          <Wifi size={10} className="text-success" />
-        ) : (
+        {networkBad ? (
           <WifiOff size={10} className="text-danger" />
+        ) : (
+          <Wifi size={10} className={account ? "text-success" : "text-textMuted"} />
         )}
-        <span className={isCorrectChain ? "text-success" : "text-danger"}>
-          {isCorrectChain ? "Sepolia" : "Wrong network"}
+        <span className={networkBad ? "text-danger" : account ? "text-success" : "text-textMuted"}>
+          {networkBad ? "Wrong network" : "Sepolia"}
         </span>
       </div>
 
@@ -139,18 +144,15 @@ export function SystemStatus() {
 
       <Sep />
 
-      {/* Threshold Network */}
-      <div
-        className="flex items-center gap-1.5"
-        title="Threshold Network — signs reveal proofs for FHE.publishDecryptResult"
-      >
-        {tnOk ? (
-          <CheckCircle2 size={10} className="text-success" />
-        ) : (
+      {/* RPC liveness */}
+      <div className="flex items-center gap-1.5" title="Whether the Sepolia RPC answered the last poll">
+        {rpcOk === false ? (
           <Network size={10} className="text-warning" />
+        ) : (
+          <CheckCircle2 size={10} className={rpcOk ? "text-success" : "text-textMuted"} />
         )}
-        <span className={tnOk ? "text-success" : "text-warning"}>
-          TN {tnOk ? "OK" : "Stale"}
+        <span className={rpcOk === false ? "text-warning" : rpcOk ? "text-success" : "text-textMuted"}>
+          RPC {rpcOk === false ? "down" : rpcOk ? "OK" : "…"}
         </span>
       </div>
 
@@ -162,7 +164,7 @@ export function SystemStatus() {
             {balance !== null ? (
               <>
                 <Unlock size={10} className="text-success" />
-                <span className="text-text font-mono">{balance} CDEX</span>
+                <span className="text-text font-mono">{balance} {TOKEN_CONFIG.symbol} in wallet</span>
               </>
             ) : (
               <button
@@ -176,7 +178,7 @@ export function SystemStatus() {
                 ) : (
                   <Lock size={10} />
                 )}
-                <span>{unsealing || balanceLoading ? "Unsealing..." : "Show balance"}</span>
+                <span>{unsealing || balanceLoading ? "Unsealing..." : "Show wallet balance"}</span>
               </button>
             )}
           </div>
