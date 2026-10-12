@@ -99,15 +99,16 @@ export default function ActivityPage() {
     try {
       const ids: bigint[] = await payments.getCreatorHistory(account);
       for (const id of ids) {
+        // splits(): creator, token, recipientCount, claimedCount, status, createdAt, templateId
         const s = await payments.splits(id);
         out.push({
           type: "payment-sent",
-          timestamp: Number(s[6]),
+          timestamp: Number(s[5]),
           href: "/payments",
-          primary: `Sent to ${Number(s[3])} recipient${Number(s[3]) === 1 ? "" : "s"}`,
-          secondary: `Total: ${formatAmount(BigInt(s[2]))} ${TOKEN_CONFIG.symbol} · Split #${id.toString()}`,
-          status: Number(s[5]) === 0 ? "FUNDED" : Number(s[5]) === 1 ? "COMPLETED" : "CANCELLED",
-          statusKind: Number(s[5]) === 1 ? "ok" : Number(s[5]) === 0 ? "pending" : "bad",
+          primary: `Sent to ${Number(s[2])} recipient${Number(s[2]) === 1 ? "" : "s"}`,
+          secondary: `Total sealed · Split #${id.toString()}`,
+          status: Number(s[4]) === 0 ? "FUNDED" : Number(s[4]) === 1 ? "COMPLETED" : "CANCELLED",
+          statusKind: Number(s[4]) === 1 ? "ok" : Number(s[4]) === 0 ? "pending" : "bad",
           encrypted: true,
         });
       }
@@ -122,12 +123,12 @@ export default function ActivityPage() {
         const s = await payments.splits(id);
         out.push({
           type: "payment-received",
-          timestamp: Number(s[6]),
+          timestamp: Number(s[5]),
           href: "/payments",
           primary: `Received from ${shortAddr(s[0])}`,
           secondary: `Split #${id.toString()} · your amount sealed (unseal in /payments)`,
-          status: Number(s[5]) === 0 ? "PENDING CLAIM" : "COMPLETED",
-          statusKind: Number(s[5]) === 1 ? "ok" : "pending",
+          status: Number(s[4]) === 0 ? "PENDING CLAIM" : Number(s[4]) === 1 ? "COMPLETED" : "CANCELLED",
+          statusKind: Number(s[4]) === 1 ? "ok" : Number(s[4]) === 0 ? "pending" : "bad",
           encrypted: true,
         });
       }
@@ -169,7 +170,8 @@ export default function ActivityPage() {
             Number(a[6]) === 1 ? "AWAITING REVEAL" :
             Number(a[6]) === 2 ? "REVEALED" :
             Number(a[6]) === 3 ? "SETTLED" :
-            Number(a[6]) === 4 ? "CANCELLED" : "RESERVE NOT MET",
+            Number(a[6]) === 4 ? "CANCELLED" :
+            Number(a[6]) === 5 ? "RESERVE NOT MET" : "CONFIRMING LOT",
           statusKind:
             Number(a[6]) === 3 ? "ok" :
             Number(a[6]) === 0 || Number(a[6]) === 1 ? "pending" :
