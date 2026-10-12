@@ -55,10 +55,11 @@ interface WalletContextValue extends WalletState {
   connect: () => Promise<void>;
   connectBurner: (opts: { privateKey: string; address?: string }) => Promise<void>;
   /**
-   * Create a fresh burner via /api/burner/create and connect it.
-   * Returns the funding tx hash for UI confirmation.
+   * Create a burner in the browser, get it topped up with gas via
+   * /api/burner/create (the server only ever sees the address), then connect it.
+   * `fundedTxHash` is undefined when the address already had enough gas.
    */
-  createAndConnectBurner: () => Promise<{ address: string; fundedTxHash: string }>;
+  createAndConnectBurner: () => Promise<{ address: string; fundedTxHash?: string }>;
   disconnect: () => void;
   switchToFhenix: () => Promise<void>;
 }
@@ -102,6 +103,38 @@ function clearStoredBurner(): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(BURNER_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+// A key that was generated but not yet funded. Kept separately so a failed
+// top-up never leaves an unfunded wallet auto-connecting on reload, and a retry
+// reuses the same address instead of minting a new one.
+const PENDING_BURNER_KEY = "zerith-burner-pending-v1";
+
+function takePendingOrNewKey(): string {
+  try {
+    const existing = window.localStorage.getItem(PENDING_BURNER_KEY);
+    if (existing) {
+      new ethers.Wallet(existing); // throws if corrupted
+      return existing;
+    }
+  } catch {
+    // fall through to a fresh key
+  }
+  const key = ethers.Wallet.createRandom().privateKey;
+  try {
+    window.localStorage.setItem(PENDING_BURNER_KEY, key);
+  } catch {
+    // storage unavailable — burner still works for this tab
+  }
+  return key;
+}
+
+function clearPendingKey(): void {
+  try {
+    window.localStorage.removeItem(PENDING_BURNER_KEY);
   } catch {
     // ignore
   }
@@ -338,25 +371,25 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           // Best-effort; see connectBurner for the same rationale.
         }
       }
-      const resp = await fetch("/api/burner/create", { method: "POST" });
+      // The key is created and kept in this browser; only the address leaves it.
+      const privateKey = takePendingOrNewKey();
+      const address = new ethers.Wallet(privateKey).address;
+      const resp = await fetch("/api/burner/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
       if (!resp.ok) {
         const body = (await resp.json().catch(() => null)) as { message?: string } | null;
-        const msg = body?.message ?? `Burner creation failed (HTTP ${resp.status})`;
+        const msg = body?.message ?? `Couldn't set up the demo wallet (HTTP ${resp.status})`;
         setError(msg);
         throw new Error(msg);
       }
-      const data = (await resp.json()) as {
-        address: string;
-        privateKey: string;
-        fundedTxHash: string;
-      };
-      activateBurner(data.privateKey, data.address);
-      saveStoredBurner({
-        privateKey: data.privateKey,
-        address: data.address,
-        createdAt: Date.now(),
-      });
-      return { address: data.address, fundedTxHash: data.fundedTxHash };
+      const data = (await resp.json()) as { fundedTxHash?: string };
+      activateBurner(privateKey, address);
+      saveStoredBurner({ privateKey, address, createdAt: Date.now() });
+      clearPendingKey();
+      return { address, fundedTxHash: data.fundedTxHash };
     } finally {
       setConnecting(false);
     }
