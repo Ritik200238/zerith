@@ -113,7 +113,13 @@ function BurnerBadgeDropdown() {
   const { account, disconnect } = useWallet();
   const [open, setOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  // Disconnect deletes the only copy of the key, so it takes two clicks.
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) setConfirmDisconnect(false);
+  }, [open]);
 
   // Click-away to close
   useEffect(() => {
@@ -193,8 +199,9 @@ function BurnerBadgeDropdown() {
                     lineHeight: 1.5,
                   }}
                 >
-                  Generated in your browser. Funded with a small amount of Sepolia
-                  ETH so you can try Zerith without MetaMask.
+                  Created in your browser and stored only in this browser. Topped up
+                  with a little Sepolia ETH for gas so you can try Zerith without
+                  MetaMask. Testnet only — anyone using this browser can use it.
                 </p>
               </div>
 
@@ -235,6 +242,10 @@ function BurnerBadgeDropdown() {
                 </button>
                 <button
                   onClick={() => {
+                    if (!confirmDisconnect) {
+                      setConfirmDisconnect(true);
+                      return;
+                    }
                     disconnect();
                     setOpen(false);
                   }}
@@ -247,9 +258,19 @@ function BurnerBadgeDropdown() {
                     (e.currentTarget.style.background = "transparent")
                   }
                 >
-                  <span style={{ fontSize: 12 }}>Disconnect (clears key)</span>
+                  <span style={{ fontSize: 12 }}>
+                    {confirmDisconnect
+                      ? "Click again to delete this wallet"
+                      : "Disconnect (deletes key)"}
+                  </span>
                   <LogOut size={11} />
                 </button>
+                {confirmDisconnect && (
+                  <p className="px-3 pb-2" style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                    This browser holds the only copy of the key. Export it first if you
+                    want to keep this wallet and its tokens.
+                  </p>
+                )}
               </div>
             </motion.div>
           )}

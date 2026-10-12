@@ -178,7 +178,7 @@ export default function DashboardPage() {
                     <Zap size={14} />
                   )}
                   {creatingBurner
-                    ? "Spinning up your burner…"
+                    ? "Setting up your wallet (~15s)…"
                     : "Try it instantly — no wallet needed"}
                 </button>
                 <button
@@ -201,7 +201,7 @@ export default function DashboardPage() {
                     background: "var(--bg-card)",
                   }}
                 >
-                  <Lock size={11} /> Sepolia testnet · 5-second setup
+                  <Lock size={11} /> Sepolia testnet · gas included · nothing to install
                 </div>
                 {burnerError && (
                   <p
