@@ -1,0 +1,72 @@
+{
+  "ConfidentialToken": [
+    "add",
+    "allow",
+    "allowThis",
+    "asEuint64",
+    "isAllowed",
+    "select",
+    "sub"
+  ],
+  "SettlementVault": [
+    "add",
+    "allow",
+    "allowSender",
+    "allowThis",
+    "allowTransient",
+    "asEbool",
+    "asEuint128",
+    "asEuint64",
+    "gte",
+    "lte",
+    "receiveEuint64Param",
+    "select",
+    "shareEbool",
+    "shareEuint64",
+    "sub"
+  ],
+  "SealedAuction": [
+    "allowGlobal",
+    "allowSender",
+    "allowThis",
+    "asEaddress",
+    "asEbool",
+    "asEuint128",
+    "asEuint64",
+    "eq",
+    "gt",
+    "gte",
+    "max",
+    "publishDecryptResult",
+    "receiveEuint64FromCall",
+    "select",
+    "shareEuint64"
+  ],
+  "PrivatePayments": [
+    "add",
+    "allow",
+    "allowThis",
+    "and",
+    "asEbool",
+    "asEuint128",
+    "asEuint64",
+    "asEuint64s",
+    "eq",
+    "gte",
+    "receiveEuint64FromCall",
+    "select",
+    "shareEuint64"
+  ],
+  "ProofOfReserves": [
+    "allowGlobal",
+    "allowThis",
+    "asEbool",
+    "asEuint128",
+    "asEuint64",
+    "publishDecryptResult",
+    "receiveEboolFromCall",
+    "select"
+  ],
+  "PlatformRegistry": [],
+  "AuctionClaim": []
+}

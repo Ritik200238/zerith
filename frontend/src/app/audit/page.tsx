@@ -26,29 +26,29 @@ import { ethers } from "ethers";
 import { useWallet } from "@/providers/WalletProvider";
 import { CONTRACTS, FHENIX_TESTNET, type ContractName } from "@/lib/constants";
 import {
-  PRIVACY_AUDIT, aggregateFheOps, fheContractCount, type PrivacyDescriptor, type PrivacyStage,
+  PRIVACY_AUDIT, aggregateFheOps, aggregateComputeOps, fheContractCount, type PrivacyDescriptor, type PrivacyStage,
 } from "@/lib/privacy-audit";
 import { getReadContract } from "@/lib/contracts";
 import { FaucetButton } from "@/components/shared/FaucetButton";
 
 const STAGE_BADGE: Record<PrivacyStage, { label: string; bg: string; text: string; tooltip: string }> = {
   1: {
-    label: "Stage 1",
+    label: "Public",
     bg: "bg-[var(--bg-alt)]",
     text: "text-[var(--text-muted)]",
-    tooltip: "Public on-chain by design — registry / merkle / ERC721 metadata.",
+    tooltip: "No encrypted state — public by design (fees, pause switch).",
   },
   2: {
-    label: "Stage 2",
+    label: "Outcome revealed",
     bg: "bg-[var(--bg-alt)]",
     text: "text-[var(--text)]",
-    tooltip: "Encrypted at rest. Only the settlement result is revealed via Threshold Network signature.",
+    tooltip: "Encrypted at rest. Only the outcome (e.g. the winning bid) is revealed, with a Threshold Network signature.",
   },
   3: {
-    label: "Stage 3",
+    label: "Never decrypted",
     bg: "bg-[var(--bg-alt)]",
     text: "text-[var(--text)]",
-    tooltip: "End-to-end encrypted. The handle never gets decrypted on-chain — owners read via permit only.",
+    tooltip: "Never decrypted on-chain. Only the owner can read it, with their access permission (ACP).",
   },
 };
 
@@ -114,6 +114,7 @@ export default function AuditPage() {
     0,
   );
   const allOps = aggregateFheOps();
+  const computeOps = aggregateComputeOps();
   const fheCount = fheContractCount();
   const totalContracts = Object.keys(PRIVACY_AUDIT).length;
 
@@ -141,9 +142,10 @@ export default function AuditPage() {
           className="max-w-2xl"
           style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}
         >
-          Every contract Zerith deploys is listed below. For each, we publish the schema —
-          which fields are encrypted, which are public, and which FHE operations the contract
-          calls. Live counts come straight from the chain. No claim is unverifiable.
+          Every contract in the core product is listed below. For each, we publish which
+          fields are encrypted, which are public, and which FHE library calls the contract
+          makes — that list is generated from the Solidity source, not typed by hand. Live
+          counts come straight from the chain.
         </p>
         <div>
           <FaucetButton />
@@ -152,10 +154,14 @@ export default function AuditPage() {
 
       {/* Top-line stats */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
-        <StatCard icon={Layers} label="Contracts deployed" value={String(totalContracts)} />
+        <StatCard icon={Layers} label="Core contracts" value={String(totalContracts)} />
         <StatCard icon={Lock} label="Contracts using FHE" value={String(fheCount)} />
         <StatCard icon={EyeOff} label="Encrypted fields" value={String(totalEncryptedFields)} />
-        <StatCard icon={Zap} label="Distinct FHE ops" value={String(allOps.length)} />
+        <StatCard
+          icon={Zap}
+          label={`Ops on ciphertext (${allOps.length} FHE calls total)`}
+          value={String(computeOps.length)}
+        />
       </section>
 
       {/* Network info */}

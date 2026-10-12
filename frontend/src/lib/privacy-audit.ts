@@ -1,23 +1,25 @@
 /**
- * Privacy Audit Metadata — single source of truth for `/audit` page.
+ * Privacy Audit Metadata — single source of truth for the `/audit` page.
  *
- * Documents, for every deployed contract:
- *   - which fields are stored as encrypted handles (euint*, eaddress)
- *   - which fields are public (uint, address, bool)
- *   - which FHE ops the contract uses
- *   - which view function exposes a public count (or null if none)
+ * Documents, for every contract in the core product:
+ *   - which fields are stored as encrypted handles (euint*, eaddress, ebool)
+ *   - which fields are public
+ *   - which FHE library calls the contract makes — generated from the Solidity
+ *     source by `copy-abis.js` into fhe-ops.json, never typed by hand
+ *   - which view function exposes a public count
  *   - the privacy stage (1, 2, or 3)
  *
  * Stages:
- *   - Stage 1 — encrypted in transit, plaintext on chain (commit-reveal, etc.)
- *   - Stage 2 — encrypted at rest, decrypted only on settlement
- *   - Stage 3 — never decrypted; permits only (end-to-end encrypted)
+ *   - Stage 1 — no encrypted state
+ *   - Stage 2 — encrypted at rest; only the outcome is decrypted (e.g. the winning bid)
+ *   - Stage 3 — never decrypted on-chain; only the owner can unseal with their ACP
  *
- * This file is the "schema" half. The /audit page reads these descriptors
- * and pulls the live counts at render time.
+ * Paused features (legacy-contracts/) are not listed: they aren't part of the
+ * running product.
  */
 
 import type { ContractName } from "./constants";
+import FHE_OPS from "./fhe-ops.json";
 
 export type PrivacyStage = 1 | 2 | 3;
 
@@ -32,387 +34,115 @@ export interface PrivacyDescriptor {
   encryptedFields: string[];
   /** Fields stored as plaintext on-chain (intentionally public). */
   publicFields: string[];
-  /** FHE library calls this contract uses. */
+  /** FHE library calls this contract makes (from the source). */
   fheOps: string[];
-  /**
-   * Solidity function name that returns a public scalar count, used to
-   * surface "12 sealed auctions live" style metrics. null when no such getter
-   * exists yet.
-   */
+  /** View function returning a public count, or null. */
   countGetter: string | null;
-  /** Optional human-readable noun for the count, plural. */
+  /** Plural noun for the count. */
   countLabel: string | null;
-  /**
-   * Whether this contract emits a `RevealPublished` event we want to surface
-   * on the audit page. Most decrypt-flow contracts do.
-   */
+  /** Whether outcomes are published with Threshold Network signatures. */
   emitsReveals: boolean;
 }
 
+const ops = (name: keyof typeof FHE_OPS): string[] => FHE_OPS[name] ?? [];
+
 export const PRIVACY_AUDIT: Partial<Record<ContractName, PrivacyDescriptor>> = {
-  ConfidentialToken: {
-    title: "Confidential Token (FHERC-20)",
-    purpose: "Encrypted-balance ERC-20 with built-in faucet.",
-    stage: 3,
-    encryptedFields: ["confidentialBalanceOf(address)", "confidentialTotalSupply()"],
-    publicFields: ["name", "symbol", "decimals", "balanceOf (0.0000–0.9999 indicator only)", "operators (setOperator)"],
-    fheOps: ["asEuint64", "add", "sub", "select", "allowThis", "allow"],
-    countGetter: null,
-    countLabel: null,
-    emitsReveals: false,
+  SealedAuction: {
+    title: "Sealed-Bid Block Sale",
+    purpose:
+      "Sell a public lot to the highest sealed bid. Bids and the lot are escrowed in the vault, so settlement is atomic. Only the winning bid is ever decrypted; losers are refunded as ciphertext.",
+    stage: 2,
+    encryptedFields: [
+      "bids[auction][bidder] (amount actually locked)",
+      "highestBid, highestBidder (until reveal)",
+      "Blind Floor reserve (never decrypted)",
+      "lotLocked, lotFunded",
+    ],
+    publicFields: ["seller", "lot token + size", "payment token", "deadline", "bid count", "status", "winner + winning bid after reveal"],
+    fheOps: ops("SealedAuction"),
+    countGetter: "getAuctionCount",
+    countLabel: "auctions",
+    emitsReveals: true,
   },
 
   SettlementVault: {
     title: "Settlement Vault",
-    purpose: "Encrypted balance ledger; settles trades atomically.",
+    purpose:
+      "Encrypted balance ledger and escrow. Deposits credit only what actually arrived; feature contracts lock funds when users commit and can pay out only what they locked.",
     stage: 3,
-    encryptedFields: ["balances(token, user)"],
-    publicFields: ["pause state", "platform admin"],
-    fheOps: ["asEuint64", "add", "sub", "select", "gte", "allowThis", "allow"],
+    encryptedFields: ["balance(user, token)", "escrow(settler, token)"],
+    publicFields: ["supported tokens", "authorized settlers", "owner"],
+    fheOps: ops("SettlementVault"),
     countGetter: null,
     countLabel: null,
     emitsReveals: false,
   },
 
-  ProofOfReserves: {
-    title: "Proof of Reserves",
-    purpose: "Prove \"I hold ≥ X\" against an encrypted vault balance, without revealing the exact amount. Outcome revealed via Threshold Network signature.",
-    stage: 2,
-    encryptedFields: ["vault balance (via delegateBalanceRead)", "encResult (1/0 until reveal)"],
-    publicFields: ["prover", "token", "threshold", "status"],
-    fheOps: ["asEuint64", "gte", "select", "allowThis", "allowGlobal", "publishDecryptResult"],
-    countGetter: "getClaimCount",
-    countLabel: "claims",
-    emitsReveals: true,
-  },
-
-  SealedAuction: {
-    title: "Sealed-Bid Auction",
-    purpose: "Highest-bid wins, anti-snipe timer.",
-    stage: 2,
-    encryptedFields: ["bids[bidder].amount", "highestBid", "winner (until reveal)"],
-    publicFields: ["seller", "token pair", "deadline", "bidCount", "status"],
-    fheOps: ["asEuint128", "gt", "max", "select", "allowGlobal", "publishDecryptResult"],
-    countGetter: "getAuctionCount",
-    countLabel: "auctions",
-    emitsReveals: true,
-  },
-
-  VickreyAuction: {
-    title: "Vickrey (2nd-Price) Auction",
-    purpose: "Highest wins, pays 2nd-highest. Truthful bidding.",
-    stage: 2,
-    encryptedFields: [
-      "bids[bidder].amount",
-      "highestBid (until reveal)",
-      "secondBid (until reveal)",
-      "winner (until reveal)",
-    ],
-    publicFields: ["seller", "token pair", "deadline", "bidCount"],
-    fheOps: ["asEuint128", "gt", "select", "allowGlobal", "publishDecryptResult"],
-    countGetter: "getAuctionCount",
-    countLabel: "auctions",
-    emitsReveals: true,
-  },
-
-  DutchAuction: {
-    title: "Dutch Auction",
-    purpose: "Price decays linearly; buy at current price.",
-    stage: 2,
-    encryptedFields: ["purchases[buyer].amount"],
-    publicFields: ["startPrice", "endPrice", "duration", "buyerCount"],
-    fheOps: ["asEuint64", "min", "allowGlobal", "publishDecryptResult"],
-    countGetter: "getAuctionCount",
-    countLabel: "auctions",
-    emitsReveals: true,
-  },
-
-  BatchAuction: {
-    title: "Batch / Clearing-Price Auction",
-    purpose: "Uniform clearing price where supply meets demand.",
-    stage: 2,
-    encryptedFields: ["orders[bidder].amount", "clearingPrice (until reveal)"],
-    publicFields: ["seller", "token pair", "totalSupply", "orderCount"],
-    fheOps: ["asEuint64", "gte", "lte", "add", "select", "allowGlobal", "publishDecryptResult"],
-    countGetter: "getAuctionCount",
-    countLabel: "auctions",
-    emitsReveals: true,
-  },
-
-  OverflowSale: {
-    title: "Overflow Sale",
-    purpose: "Fixed price; pro-rata allocation if oversubscribed.",
-    stage: 2,
-    encryptedFields: ["deposits[buyer].amount", "allocations[buyer].amount"],
-    publicFields: ["price", "totalSupply", "depositorCount"],
-    fheOps: ["asEuint64", "add", "min", "div(plain)", "allowGlobal", "publishDecryptResult"],
-    countGetter: "getSaleCount",
-    countLabel: "sales",
-    emitsReveals: true,
-  },
-
   PrivatePayments: {
-    title: "Private Payments",
-    purpose: "Per-recipient encrypted payouts. End-to-end encrypted.",
+    title: "Private Payroll",
+    purpose:
+      "Encrypted multi-recipient payroll. The whole split is locked from the creator up front; each recipient can unseal only their own amount, and the total stays encrypted.",
     stage: 3,
-    encryptedFields: ["splits[id].recipientAmounts[recipient]"],
-    publicFields: ["payer", "recipient list", "split template name"],
-    fheOps: ["asEuint64", "add", "allowThis", "allow"],
+    encryptedFields: ["amount per recipient", "split total"],
+    publicFields: ["creator", "token", "recipient list", "claimed count", "status"],
+    fheOps: ops("PrivatePayments"),
     countGetter: "getSplitCount",
     countLabel: "splits",
     emitsReveals: false,
   },
 
-  FreelanceBidding: {
-    title: "Freelance Bidding",
-    purpose: "Encrypted bids, milestone escrow, 3-voter dispute resolution.",
+  ProofOfReserves: {
+    title: "Proof of Reserves",
+    purpose:
+      "Prove \"my vault balance was at least X at this time\" without revealing the balance. The comparison runs on ciphertext; only the yes/no outcome is published, with a Threshold Network signature.",
     stage: 2,
-    encryptedFields: [
-      "bids[bidder].price",
-      "milestoneEscrow",
-      "disputeVotes (until tally)",
-    ],
-    publicFields: ["title", "milestoneCount", "bidderCount", "status"],
-    fheOps: ["asEuint128", "lt", "select", "asEuint8", "add", "allowGlobal", "publishDecryptResult"],
-    countGetter: "getJobCount",
-    countLabel: "jobs",
+    encryptedFields: ["vault balance (compared inside the vault)", "outcome (until reveal)"],
+    publicFields: ["prover", "token", "threshold", "requested at", "outcome after reveal"],
+    fheOps: ops("ProofOfReserves"),
+    countGetter: "getClaimCount",
+    countLabel: "claims",
     emitsReveals: true,
   },
 
-  OrderBook: {
-    title: "Encrypted P2P Order Book",
-    purpose: "Limit orders with encrypted prices.",
-    stage: 2,
-    encryptedFields: ["orders[id].price"],
-    publicFields: ["maker", "token pair", "amount", "side", "status"],
-    fheOps: ["asEuint128", "gte", "lte", "select", "allowGlobal", "publishDecryptResult"],
-    countGetter: "getActiveOrderCount",
-    countLabel: "active orders",
-    emitsReveals: true,
-  },
-
-  OTCBoard: {
-    title: "OTC Desk",
-    purpose: "Private venue for large block trades.",
-    stage: 2,
-    encryptedFields: ["quotes[id].price", "quotes[id].amount"],
-    publicFields: ["maker", "token pair", "expiry"],
-    fheOps: ["asEuint128", "gte", "lte", "and", "select", "mul", "allowGlobal"],
-    countGetter: null,
-    countLabel: null,
-    emitsReveals: true,
-  },
-
-  LimitOrderEngine: {
-    title: "Limit Order Engine",
-    purpose: "Continuous matching of encrypted limit orders.",
-    stage: 2,
-    encryptedFields: ["orders[id].price", "orders[id].amount"],
-    publicFields: ["token pair", "side", "status"],
-    fheOps: ["asEuint128", "lte", "gte", "or", "select", "allowGlobal"],
-    countGetter: "getActiveOrderCount",
-    countLabel: "active orders",
-    emitsReveals: false,
-  },
-
-  Escrow: {
-    title: "Escrow",
-    purpose: "Conditional release; eq + and gating.",
-    stage: 2,
-    encryptedFields: ["amount", "release condition"],
-    publicFields: ["payer", "payee", "status"],
-    fheOps: ["asEuint128", "eq", "and", "select", "asEuint64", "allowThis", "allow", "allowTransient"],
-    countGetter: null,
-    countLabel: null,
-    emitsReveals: false,
-  },
-
-  Reputation: {
-    title: "Encrypted Reputation",
-    purpose: "Composable credit bureau. Ratings encrypted, score reveals on permit.",
-    stage: 2,
-    encryptedFields: ["scores[user]", "ratings[trader, counterparty]"],
-    publicFields: ["tradeRecorded[tradeId]", "user list"],
-    fheOps: ["asEuint8", "add", "div(plain)", "allowGlobal", "publishDecryptResult"],
-    countGetter: null,
-    countLabel: null,
-    emitsReveals: true,
-  },
-
-  PortfolioTracker: {
-    title: "Portfolio Tracker",
-    purpose: "Encrypted portfolio valuation across vault balances.",
+  ConfidentialToken: {
+    title: "Test Token (FHERC-20)",
+    purpose:
+      "The CDEX test token: encrypted balances with a public faucet. Built from fhenix-confidential-contracts 0.2.0.",
     stage: 3,
-    encryptedFields: ["computed portfolio total"],
-    publicFields: ["token list registered for tracker"],
-    fheOps: ["mul", "add", "allowThis", "allow"],
+    encryptedFields: ["confidentialBalanceOf(address)", "total supply"],
+    publicFields: ["name", "symbol", "decimals", "balance indicator (not the amount)", "operators"],
+    fheOps: ops("ConfidentialToken"),
     countGetter: null,
     countLabel: null,
     emitsReveals: false,
-  },
-
-  TokenVesting: {
-    title: "Token Vesting",
-    purpose: "Cliff + linear vesting; encrypted grant amounts.",
-    stage: 3,
-    encryptedFields: ["grants[id].amount", "grants[id].released"],
-    publicFields: ["beneficiary", "cliff", "duration"],
-    fheOps: ["asEuint64", "sub", "div(plain)", "allowThis", "allow"],
-    countGetter: null,
-    countLabel: null,
-    emitsReveals: false,
-  },
-
-  AllowlistGate: {
-    title: "Allowlist Gate",
-    purpose: "Merkle-tree whitelist for gated launches.",
-    stage: 1,
-    encryptedFields: [],
-    publicFields: ["merkleRoot", "claimedBitmap"],
-    fheOps: [],
-    countGetter: null,
-    countLabel: null,
-    emitsReveals: false,
-  },
-
-  Referrals: {
-    title: "Encrypted Referrals",
-    purpose: "FHE-private referral attribution + earnings.",
-    stage: 3,
-    encryptedFields: ["encTotalEarned[referrer]"],
-    publicFields: ["root referrer registration", "referralCount[referrer]"],
-    fheOps: ["asEuint64", "add", "allowThis", "allow"],
-    countGetter: null,
-    countLabel: null,
-    emitsReveals: false,
-  },
-
-  AuctionClaim: {
-    title: "Auction Claim NFT",
-    purpose: "ERC-721 representing a tradeable auction position.",
-    stage: 1,
-    encryptedFields: [],
-    publicFields: ["owner", "tokenId", "auctionId"],
-    fheOps: [],
-    countGetter: null,
-    countLabel: null,
-    emitsReveals: false,
-  },
-
-  ConfidentialWrapper: {
-    title: "Confidential ERC-20 Wrapper",
-    purpose: "Wrap ANY ERC-20 token into an encrypted-balance equivalent. Composability win.",
-    stage: 3,
-    encryptedFields: ["encBalance[token][user]"],
-    publicFields: ["totalDeposited[token]", "initialized[token][user]"],
-    fheOps: ["asEuint64", "add", "sub", "gte", "select", "allowThis", "allow", "allowGlobal", "publishDecryptResult"],
-    countGetter: null,
-    countLabel: null,
-    emitsReveals: true,
-  },
-
-  EncryptedRaffle: {
-    title: "Encrypted Raffle",
-    purpose: "Public ticket buying, encrypted random winner via FHE.randomEuint64().",
-    stage: 2,
-    encryptedFields: ["encWinnerIndex[id]"],
-    publicFields: ["raffles[id].creator", "raffles[id].deadline", "raffles[id].ticketCount", "participants[id][]"],
-    fheOps: ["randomEuint64", "asEuint64", "rem", "allowThis", "allowGlobal", "publishDecryptResult"],
-    countGetter: "getRaffleCount",
-    countLabel: "raffles",
-    emitsReveals: true,
-  },
-
-  EncryptedRoyalty: {
-    title: "Encrypted Royalty Splits",
-    purpose: "On-chain royalty registry where per-recipient % is encrypted. Distribution runs on ciphertext.",
-    stage: 3,
-    encryptedFields: ["encPercent[id][recipient]"],
-    publicFields: ["royalties[id].creator", "royalties[id].token", "recipientLists[id]"],
-    fheOps: ["asEuint64", "mul", "div", "allowThis", "allow", "allowTransient"],
-    countGetter: "getRoyaltyCount",
-    countLabel: "splits",
-    emitsReveals: false,
-  },
-
-  ConfidentialMultisig: {
-    title: "Confidential Multisig Vault",
-    purpose: "Multisig where threshold + voting shares are encrypted; settlement runs on ciphertext.",
-    stage: 3,
-    encryptedFields: [
-      "multisigs[id].threshold",
-      "members[id][addr].share",
-      "proposals[id][pid].amount",
-      "proposals[id][pid].yesShares",
-    ],
-    publicFields: [
-      "multisigs[id].creator",
-      "multisigs[id].token",
-      "memberCount",
-      "proposals[id][pid].recipient",
-      "proposals[id][pid].status",
-    ],
-    fheOps: ["asEuint64", "add", "gte", "select", "allowThis", "allow", "allowTransient"],
-    countGetter: "getMultisigCount",
-    countLabel: "vaults",
-    emitsReveals: false,
-  },
-
-  EncryptedStreaming: {
-    title: "Encrypted Streaming Payments",
-    purpose: "Sablier-style streams with encrypted rate-per-second.",
-    stage: 3,
-    encryptedFields: ["streams[id].ratePerSecond"],
-    publicFields: ["streams[id].payer", "streams[id].recipient", "streams[id].startTime", "streams[id].endTime", "streams[id].status"],
-    fheOps: ["asEuint64", "mul", "allowThis", "allow", "allowTransient"],
-    countGetter: "getStreamCount",
-    countLabel: "streams",
-    emitsReveals: false,
-  },
-
-  Organization: {
-    title: "Organization",
-    purpose: "DAO primitive — encrypted member weights + encrypted votes.",
-    stage: 2,
-    encryptedFields: [
-      "encWeight[orgId][member]",
-      "proposals[orgId][id].yesWeight",
-      "proposals[orgId][id].noWeight",
-    ],
-    publicFields: [
-      "orgs[orgId].name",
-      "orgs[orgId].admin",
-      "orgs[orgId].memberCount",
-      "proposals[orgId][id].status",
-      "proposals[orgId][id].deadline",
-    ],
-    fheOps: ["asEuint64", "add", "select", "allowThis", "allow", "allowGlobal", "publishDecryptResult"],
-    countGetter: "getOrgCount",
-    countLabel: "orgs",
-    emitsReveals: true,
   },
 
   PlatformRegistry: {
     title: "Platform Registry",
-    purpose: "User registry, fee schedule, pause control.",
+    purpose: "Fee schedule, fee collector and the emergency pause.",
     stage: 1,
     encryptedFields: [],
-    publicFields: ["isUser", "feeBps", "paused"],
-    fheOps: [],
+    publicFields: ["fee (bps)", "fee collector", "paused"],
+    fheOps: ops("PlatformRegistry"),
     countGetter: null,
     countLabel: null,
     emitsReveals: false,
   },
 };
 
-/** Human-readable list of all FHE ops touched anywhere in the codebase. */
+/** Operations that compute on ciphertext (as opposed to access control or conversion). */
+const COMPUTE_OPS = new Set(["add", "sub", "mul", "div", "select", "gt", "gte", "lt", "lte", "eq", "ne", "max", "min", "and", "or", "xor", "not"]);
+
+/** Every distinct FHE call made by the core contracts. */
 export function aggregateFheOps(): string[] {
   const set = new Set<string>();
-  for (const desc of Object.values(PRIVACY_AUDIT)) {
-    if (!desc) continue;
-    desc.fheOps.forEach((op) => set.add(op));
-  }
+  for (const desc of Object.values(PRIVACY_AUDIT)) desc?.fheOps.forEach((op) => set.add(op));
   return Array.from(set).sort();
+}
+
+/** The subset of aggregateFheOps() that computes on encrypted values. */
+export function aggregateComputeOps(): string[] {
+  return aggregateFheOps().filter((op) => COMPUTE_OPS.has(op));
 }
 
 /** Count distinct contracts that use FHE. */
