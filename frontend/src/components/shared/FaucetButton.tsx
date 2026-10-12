@@ -50,7 +50,10 @@ export function FaucetButton() {
 
   // Disconnected → still render, prompt connect.
   if (!account) {
+    // Hidden on phones: it does the same as the Connect button beside it, and the
+    // header has no room for both at 375px.
     return (
+      <span className="hidden md:inline-flex">
       <button
         type="button"
         onClick={connect}
@@ -66,6 +69,7 @@ export function FaucetButton() {
         )}
         <span>{connecting ? "Connecting..." : "Connect to claim"}</span>
       </button>
+      </span>
     );
   }
 

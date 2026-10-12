@@ -53,10 +53,11 @@ export function WalletConnect() {
           ) : (
             <Wallet size={14} />
           )}
-          <span>{connecting ? "Connecting..." : "Connect Wallet"}</span>
+          <span className="md:hidden">{connecting ? "…" : "Connect"}</span>
+          <span className="hidden md:inline">{connecting ? "Connecting..." : "Connect Wallet"}</span>
         </button>
         {error && (
-          <span className="text-xs text-danger max-w-48 truncate" title={error}>
+          <span className="hidden md:inline text-xs text-danger max-w-48 truncate" title={error}>
             {error}
           </span>
         )}

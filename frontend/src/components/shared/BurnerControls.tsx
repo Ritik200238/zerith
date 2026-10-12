@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useWallet } from "@/providers/WalletProvider";
 import { FHENIX_TESTNET } from "@/lib/constants";
+import { useToast } from "@/components/shared/Toast";
 
 const MONO_LABEL: React.CSSProperties = {
   fontSize: 10,
@@ -49,6 +50,7 @@ export function BurnerControls() {
   const { account, mode, connecting, createAndConnectBurner, error } = useWallet();
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const toast = useToast();
 
   const handleTryInstantly = useCallback(async () => {
     setCreating(true);
@@ -58,10 +60,12 @@ export function BurnerControls() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Could not create burner";
       setCreateError(msg);
+      // The inline error is desktop-only (no header room on phones), so always toast.
+      toast.error("Couldn't set up the demo wallet", msg);
     } finally {
       setCreating(false);
     }
-  }, [createAndConnectBurner]);
+  }, [createAndConnectBurner, toast]);
 
   // ── Branch 1: disconnected → show the Try Instantly CTA ──
   if (!account) {
@@ -84,7 +88,7 @@ export function BurnerControls() {
         </button>
         {(createError || error) && !creating && (
           <span
-            className="text-xs max-w-48 truncate"
+            className="hidden md:inline text-xs max-w-48 truncate"
             style={{ color: "var(--danger, #d77757)" }}
             title={createError ?? error ?? ""}
           >
