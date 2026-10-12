@@ -17,6 +17,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidDecryptSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidInput",
     "type": "error"
   },
@@ -28,17 +33,6 @@
   {
     "inputs": [],
     "name": "Paused",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "int32",
-        "name": "value",
-        "type": "int32"
-      }
-    ],
-    "name": "SecurityZoneOutOfBounds",
     "type": "error"
   },
   {
@@ -137,7 +131,7 @@
         "type": "uint8"
       },
       {
-        "internalType": "euint64",
+        "internalType": "ebool",
         "name": "encResult",
         "type": "bytes32"
       }
@@ -327,9 +321,9 @@
         "type": "uint256"
       },
       {
-        "internalType": "uint64",
-        "name": "resultValue",
-        "type": "uint64"
+        "internalType": "bool",
+        "name": "meetsThreshold",
+        "type": "bool"
       },
       {
         "internalType": "bytes",

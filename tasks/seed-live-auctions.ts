@@ -13,7 +13,23 @@ import * as fs from "fs";
 import * as path from "path";
 
 const E6 = 1_000_000n;
-const UNTIL = 2n ** 48n - 1n;
+// Operator approval for the vault: a short window, as Fhenix's FHERC20 docs advise
+// (an operator can move the whole balance), not a permanent grant.
+const approveUntil = async () => BigInt((await ethers.provider.getBlock("latest"))!.timestamp + 600);
+
+/** decryptForTx().withoutACP(), retrying while Fhenix hasn't yet seen the
+ *  transaction that made the handle public (NOT_PUBLICLY_ALLOWED). */
+async function publicDecryptWithRetry(client: any, handle: bigint) {
+  const started = Date.now();
+  for (;;) {
+    try {
+      return await client.decryptForTx(handle).withoutACP().execute();
+    } catch (e: any) {
+      if (e?.code !== "NOT_PUBLICLY_ALLOWED" || Date.now() - started > 45_000) throw e;
+      await new Promise((r) => setTimeout(r, 3_000));
+    }
+  }
+}
 
 async function loadCofhe(provider: unknown, signer: unknown) {
   const base = path.join(__dirname, "..", "node_modules", "@cofhe", "sdk", "dist");
@@ -46,9 +62,7 @@ async function main() {
   const fhe = await loadCofhe(provider, seller);
 
   const total = lots.reduce((s, l) => s + l.size, 0n);
-  if (!(await mock.isOperator(seller.address, A.SettlementVault))) {
-    await (await mock.setOperator(A.SettlementVault, UNTIL, fees)).wait();
-  }
+  await (await mock.setOperator(A.SettlementVault, await approveUntil(), fees)).wait();
   const [h, proof] = (await fhe.client
     .encryptInputs([fhe.Encryptable.uint64(total)])
     .setConsumingContract(A.SettlementVault)
@@ -61,7 +75,7 @@ async function main() {
     const id = await auction.getAuctionCount();
     tx = await auction.createAuction(A.MockToken, A.ConfidentialToken, lot.size, lot.seconds, 0, fees);
     await tx.wait();
-    const r = await fhe.client.decryptForTx(BigInt(await auction.getLotFundedHandle(id))).withoutACP().execute();
+    const r = await publicDecryptWithRetry(fhe.client, BigInt(await auction.getLotFundedHandle(id)));
     const funded = typeof r.decryptedValue === "boolean" ? r.decryptedValue : BigInt(r.decryptedValue) === 1n;
     const c = await auction.confirmLot(id, funded, r.signature, fees);
     await c.wait();

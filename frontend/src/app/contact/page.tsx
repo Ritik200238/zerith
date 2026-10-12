@@ -161,12 +161,13 @@ const FAQS: FaqEntry[] = [
   },
   {
     Icon: Network,
-    question: "Why does the on-chain symbol say 'CDEX' instead of Zerith?",
+    question: "What are CDEX and MOCK?",
     answer: (
       <>
-        The settlement token was deployed under the project's previous name.
-        ERC-20 metadata is immutable, so the on-chain symbol stays{" "}
-        <code>CDEX</code>. The UI brand is Zerith. Full explainer:{" "}
+        Zerith&apos;s two Sepolia test tokens, with no value. <code>CDEX</code>{" "}
+        (&ldquo;Zerith Test Dollar&rdquo;; the symbol comes from the project&apos;s
+        earlier name) is what bidders pay with; <code>MOCK</code> is what the demo
+        sales sell. Both are ERC-7984 confidential tokens with a faucet. More:{" "}
         <Link href="/why-cdex" className="underline">
           /why-cdex
         </Link>

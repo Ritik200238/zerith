@@ -27,6 +27,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidDecryptSignature",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidInput",
     "type": "error"
   },

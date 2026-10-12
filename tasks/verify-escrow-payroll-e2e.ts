@@ -18,8 +18,24 @@ import * as fs from "fs";
 import * as path from "path";
 
 const E6 = 1_000_000n;
-const UNTIL = 2n ** 48n - 1n;
+// Operator approval for the vault: a short window, as Fhenix's FHERC20 docs advise
+// (an operator can move the whole balance), not a permanent grant.
+const approveUntil = async () => BigInt((await ethers.provider.getBlock("latest"))!.timestamp + 600);
 const FHE_UINT64 = 5;
+
+/** decryptForTx().withoutACP(), retrying while Fhenix hasn't yet seen the
+ *  transaction that made the handle public (NOT_PUBLICLY_ALLOWED). */
+async function publicDecryptWithRetry(client: any, handle: bigint) {
+  const started = Date.now();
+  for (;;) {
+    try {
+      return await client.decryptForTx(handle).withoutACP().execute();
+    } catch (e: any) {
+      if (e?.code !== "NOT_PUBLICLY_ALLOWED" || Date.now() - started > 45_000) throw e;
+      await new Promise((r) => setTimeout(r, 3_000));
+    }
+  }
+}
 
 async function loadCofhe(provider: unknown, signer: unknown) {
   const base = path.join(__dirname, "..", "node_modules", "@cofhe", "sdk", "dist");
@@ -63,7 +79,7 @@ async function main() {
 
   // ── 1. Fund the treasurer's vault ──
   await (await cdex.faucet(fees)).wait();
-  await (await cdex.setOperator(A.SettlementVault, UNTIL, fees)).wait();
+  await (await cdex.setOperator(A.SettlementVault, await approveUntil(), fees)).wait();
   const [dh, dp] = (await tFhe.client
     .encryptInputs([tFhe.Encryptable.uint64(1_000n * E6)])
     .setConsumingContract(A.SettlementVault)
@@ -78,8 +94,9 @@ async function main() {
     tx = await por.requestProof(A.ConfidentialToken, threshold, fees);
     await tx.wait();
     const claim = await por.claims(id);
-    const r = await tFhe.client.decryptForTx(BigInt(claim.encResult)).withoutACP().execute();
-    const reveal = await por.revealProof(id, r.decryptedValue, r.signature, fees);
+    const r = await publicDecryptWithRetry(tFhe.client, BigInt(claim.encResult));
+    const meets = typeof r.decryptedValue === "boolean" ? r.decryptedValue : BigInt(r.decryptedValue) === 1n;
+    const reveal = await por.revealProof(id, meets, r.signature, fees);
     await reveal.wait();
     const status = (await por.getClaim(id)).status;
     console.log(`proof >= ${ethers.formatUnits(threshold, 6)}: status ${status} (1=true, 2=false) reveal ${reveal.hash}`);

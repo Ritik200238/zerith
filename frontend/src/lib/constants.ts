@@ -17,25 +17,25 @@ export const FHENIX_TESTNET = {
 } as const;
 
 /** Deployed contract addresses — Ethereum Sepolia (chainId 11155111).
- *  October 2026: the core (SettlementVault, SealedAuction, PrivatePayments,
- *  ProofOfReserves) was rebuilt on Fhenix CoFHE 1.0 with escrowed settlement and
- *  redeployed. The tokens, registry and claim NFT are unchanged. Every other
- *  address belongs to a paused feature from the May 2026 deployment.
+ *  October 2026: the core (tokens, registry, claim NFT, SettlementVault,
+ *  SealedAuction, PrivatePayments, ProofOfReserves) runs on Fhenix CoFHE 1.0 with
+ *  ERC-7984 tokens and escrowed settlement. Every other address belongs to a
+ *  paused feature from the May 2026 deployment.
  */
 export const CONTRACTS = {
-  ConfidentialToken: "0x56047782ABFE56d88f1f29b12b3c0C22ee12a3d2",
-  PlatformRegistry: "0x0a97e158D0679A29321AB97A54AF666269C5F5A8",
-  SettlementVault: "0xb6e0D910Ea85d365820A96ffb9cC0Ebd9A169Ad2",
+  ConfidentialToken: "0x9233B71feB89Bddd14B30Ddc5de171541E9bBC90",
+  PlatformRegistry: "0x3B7B81E6B2D6b2F4904Bef744fCfdcE3a8bc5616",
+  SettlementVault: "0x28ab1735988cD549FfBC6ebE5383a5ae83534D17",
   OrderBook: "0x80b09409f2dB5FAEb45f2ca36C8C1b06772D45E2",
-  AuctionClaim: "0xD46b298b4c4ce04E65b37a7F594D8C8e7876f65c",
-  SealedAuction: "0x3B29F7F773E5554c3f46Cc8d4236d109AE3FfE08",
+  AuctionClaim: "0x3065150c4fbf0dC767D3669F5a3B2Ad056be3De9",
+  SealedAuction: "0x42C620C7014E5fe40b8C6B8c1bc12AAde1db47aB",
   Escrow: "0x36dbcCAF465f106ebB3da7E9776b0598d4f36d32",
   LimitOrderEngine: "0x09A01EFA1e97c9f12F1Aa6Dc0dAf1b019a58F8E6",
   BatchAuction: "0xB29AF471E9392D0bAafc898795d7Ed6Bd6fBEfd5",
   PortfolioTracker: "0xe72F751B9FB60C542e352F82826f465FD3bc47a0",
   Reputation: "0xcbD4c5269219f3eE8a1C3Dbe0FB24d1F6558Ac09",
   OTCBoard: "0x808C27D12265234bE405Eb45800f2BDB1f4Cdb3D",
-  PrivatePayments: "0x132053d697E0fd79A216DC4E7a4b3E1317a435B1",
+  PrivatePayments: "0xD10f93f12c9bbd69a85d5ec654038CC8201fB49C",
   FreelanceBidding: "0xf71715fD9c9d314D56FBa0031EBc69ba22d5CE05",
   VickreyAuction: "0x12973Ac885A11136A9f948beCc6e810CF9D54e17",
   DutchAuction: "0xd9bA4b7b825f3558757Fe977d024b29e27B65b54",
@@ -52,25 +52,19 @@ export const CONTRACTS = {
   // touch the vault) — keeping the older addresses as a deliberate carry-over.
   ConfidentialWrapper: "0x7Cb515093392Af34cF14c654dbA666422420Df42",
   EncryptedRaffle: "0xEADb49571BCA5188d9AEe0DB7b7154eD118Af1b1",
-  ProofOfReserves: "0x2Cc1F8DE2f07051e94BB8305942882134890B106",
+  ProofOfReserves: "0x8b3df8FD07aBE76157CFbeb512600B6256795C39",
   // MockToken — used as the alternate side for auction/OTC pairs where the
   // contract enforces token != paymentToken. Whitelisted on SettlementVault.
-  MockToken: "0x949caC2113c0AF90b309Ec1A9136f7B159d1A672",
+  MockToken: "0xEEAcA4dC06534E150Ee41e772BE675bCDF830150",
 } satisfies Record<string, string>;
 
 export type ContractName = keyof typeof CONTRACTS;
 
 /** Token metadata */
 export const TOKEN_CONFIG = {
-  // Verified on-chain 2026-05-18 against ConfidentialToken at 0x5604…2a3d2:
-  //   name()     = "CipherDEX Token" (on-chain, immutable from the original deploy)
-  //   symbol()   = "CDEX"
-  //   decimals() = 6
-  // UI brand reads as "Zerith Token" for display purposes; the on-chain
-  // symbol stays CDEX (immutable). The 18→6 decimals fix is critical:
-  // FAUCET_AMOUNT = 1000 * 1e6 on the contract, so with the old decimals=18
-  // every formatted amount across the app was off by 12 orders of magnitude.
-  name: "Zerith Token",
+  // On-chain: name() = "Zerith Test Dollar", symbol() = "CDEX", decimals() = 6
+  // (ERC-7984 FHERC20 deployed October 2026). FAUCET_AMOUNT = 1000 * 1e6.
+  name: "Zerith Test Dollar",
   symbol: "CDEX",
   decimals: 6,
   faucetAmount: "1000", // 1000 CDEX human-readable
@@ -124,7 +118,7 @@ export const PAUSED_FEATURES = [
 ] as const;
 
 /** Encryption stage labels for progress display.
- *  These mirror the cofhejs.encrypt() pipeline: each label tells the user
+ *  These mirror the the SDK's encryptInputs() pipeline: each label tells the user
  *  exactly which step the WASM is on, in plain English. */
 export const ENCRYPT_STAGES = [
   { key: "extract", label: "Reading" },

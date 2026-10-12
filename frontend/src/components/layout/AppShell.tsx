@@ -58,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href="/why-cdex"
                 className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted hover:text-text transition-colors"
               >
-                Why CDEX
+                Test tokens
               </a>
               <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-textMuted">
                 v1.0

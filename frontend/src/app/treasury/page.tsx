@@ -236,17 +236,18 @@ export default function TreasuryPage() {
       // FHERC20 operator authorization: vault must be allowed to call
       // confidentialTransferFrom on the user's behalf. Check first, only
       // ask the user to sign if not already authorized.
+      // An operator can move your whole balance, so (as Fhenix's FHERC20 docs advise)
+      // the vault gets a 10-minute window for this deposit, not a permanent approval.
       const isOp = await (token as unknown as { isOperator: (owner: string, op: string) => Promise<boolean> })
         .isOperator(account, CONTRACTS.SettlementVault);
       if (!isOp) {
         toast.info(
-          "One quick approval first",
-          "Before your first deposit, your wallet asks you to let the vault move tokens for you. This time you'll sign twice — approve, then deposit. After that, deposits are a single signature.",
+          "Approve this deposit",
+          "Your wallet asks you to let the vault move these tokens for the next 10 minutes, then to sign the deposit.",
         );
-        // Max uint48 expiration → effectively forever for testnet usage.
-        const MAX_UINT48 = "281474976710655"; // 2**48 - 1
-        const approveTx = await (token as unknown as { setOperator: (op: string, exp: string) => Promise<{ wait: () => Promise<unknown> }> })
-          .setOperator(CONTRACTS.SettlementVault, MAX_UINT48);
+        const until = Math.floor(Date.now() / 1000) + 600;
+        const approveTx = await (token as unknown as { setOperator: (op: string, until: number) => Promise<{ wait: () => Promise<unknown> }> })
+          .setOperator(CONTRACTS.SettlementVault, until);
         await approveTx.wait();
       }
 
@@ -347,21 +348,21 @@ export default function TreasuryPage() {
       if (!por) return;
       try {
         toast.info("Fetching TN signature", "Talking to Threshold Network for verifiable result.");
-        const result = await decryptForTx(encResultHandle);
-        if (!result) throw new Error("Decryption failed");
-        const { decryptedValue, signature } = result;
+        const { decryptedValue, signature } = await decryptForTx(encResultHandle);
+        const meets =
+          typeof decryptedValue === "boolean" ? decryptedValue : BigInt(decryptedValue) === BigInt(1);
 
         setTxState("signing");
-        const tx = await por.revealProof(claimId, decryptedValue, signature);
+        const tx = await por.revealProof(claimId, meets, signature);
         setTxState("confirming");
         setTxHash(tx.hash);
         await tx.wait();
         setTxState("success");
         toast.success(
           "Proof revealed",
-          decryptedValue === BigInt(1)
-            ? "Verified ≥ threshold. Public proof recorded."
-            : "Verified < threshold. Public proof recorded.",
+          meets
+            ? "Proven: the balance met the threshold. Public proof recorded."
+            : "Not met: the balance was below the threshold. Public proof recorded.",
         );
         setRefreshKey((k) => k + 1);
       } catch (err: unknown) {

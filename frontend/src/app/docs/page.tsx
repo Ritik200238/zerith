@@ -245,11 +245,10 @@ await cofhe.connect(publicClient, walletClient);`}
 // ethers.Contract instances built from deployed-addresses.json + the ABIs.
 
 // 1. Fund your vault. Bids lock funds from this balance, so deposit first.
-//    Authorize the vault as an FHERC-20 operator once (approve() reverts by design).
-const MAX_UINT48 = "281474976710655"; // 2**48 - 1
-if (!(await token.isOperator(wallet.address, vaultAddr))) {
-  await (await token.setOperator(vaultAddr, MAX_UINT48)).wait();
-}
+//    Let the vault operate your ERC-7984 tokens for a short window only — an
+//    operator can move your whole balance (approve() reverts by design).
+const until = Math.floor(Date.now() / 1000) + 600; // 10 minutes
+await (await token.setOperator(vaultAddr, until)).wait();
 const [depositHandle, depositProof] = await cofhe
   .encryptInputs([Encryptable.uint64(500_000000n)]) // 500 tokens, 6 decimals
   .setConsumingContract(vaultAddr)

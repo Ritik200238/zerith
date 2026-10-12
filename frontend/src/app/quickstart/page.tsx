@@ -62,7 +62,8 @@ const STORAGE_KEY = "zerith-quickstart-progress-v2";
 const SAMPLE_BID_AMOUNT = "100"; // whole CDEX, fixed so the demo is repeatable
 // Bids lock funds from the vault, so step 2 deposits this much after the faucet.
 const QUICKSTART_DEPOSIT = "500";
-const MAX_UINT48 = "281474976710655"; // operator approval that doesn't expire (testnet)
+// Vault operator approval lasts 10 minutes (Fhenix's FHERC20 docs: shortest window).
+const APPROVAL_WINDOW_S = 600;
 
 interface Progress {
   /** Wallet this progress belongs to; switching wallets starts over. */
@@ -211,9 +212,12 @@ export default function QuickstartPage() {
         await (await tokenContract.faucet()).wait();
       }
 
-      // 2. One-time approval so the vault can pull tokens for the deposit.
+      // 2. Short-lived approval so the vault can pull tokens for this deposit.
       if (!(await tokenContract.isOperator(account, CONTRACTS.SettlementVault))) {
-        await (await tokenContract.setOperator(CONTRACTS.SettlementVault, MAX_UINT48)).wait();
+        await (await tokenContract.setOperator(
+          CONTRACTS.SettlementVault,
+          Math.floor(Date.now() / 1000) + APPROVAL_WINDOW_S,
+        )).wait();
       }
 
       // 3. Encrypted deposit — bids lock funds from this vault balance.
@@ -532,7 +536,7 @@ export default function QuickstartPage() {
             tagline={`Claim ${TOKEN_CONFIG.faucetAmount} test ${TOKEN_CONFIG.symbol}, then deposit ${QUICKSTART_DEPOSIT} into the vault — encrypted.`}
             done={progress.step2Done}
             active={activeStep === 2}
-            body="Bids lock real funds, so you need a vault balance first. Your deposit amount is encrypted in your browser before it's sent; the chain only ever sees ciphertext. Three quick transactions: faucet, one-time vault approval, deposit."
+            body="Bids lock real funds, so you need a vault balance first. Your deposit amount is encrypted in your browser before it's sent; the chain only ever sees ciphertext. Three quick transactions: faucet, a 10-minute vault approval, deposit."
           >
             {!progress.step2Done && (
               <button

@@ -69,3 +69,4 @@ frontend/render-logo.js
 # Internal go-to-market materials — kept local, not published
 /outreach/
 .e2e-burners.json
+.gstack/

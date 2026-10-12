@@ -5,11 +5,10 @@ const frontendDir = __dirname;
 const base = path.dirname(frontendDir); // parent = cipherdex/
 const destDir = path.join(frontendDir, 'src', 'lib', 'abis');
 
-// Contracts built in this repo. ConfidentialToken is deliberately NOT copied:
-// the live CDEX/MOCK tokens were built from fhenix-confidential-contracts 0.2.0,
-// and the vendored copy in contracts/vendor/ only exists for tests. Paused
-// features (legacy-contracts/) keep the ABIs already in src/lib/abis.
-const core = ['SettlementVault', 'PlatformRegistry', 'AuctionClaim'];
+// Contracts built in this repo. ConfidentialToken is the ERC-7984 test token
+// (CDEX and MOCK are both deployments of it). Paused features (legacy-contracts/)
+// keep the ABIs already in src/lib/abis.
+const core = ['ConfidentialToken', 'SettlementVault', 'PlatformRegistry', 'AuctionClaim'];
 const features = ['SealedAuction', 'PrivatePayments', 'ProofOfReserves'];
 
 const contracts = [
@@ -41,7 +40,7 @@ console.log(`\n✓ ${ok} ABIs refreshed, ${skipped} skipped, dest: ${destDir}`);
 // The /audit page shows these, so they come from the code, never from a
 // hand-maintained list.
 const opSources = {
-  ConfidentialToken: ['contracts/core/ConfidentialToken.sol', 'contracts/vendor/fherc20/FHERC20.sol'],
+  ConfidentialToken: ['contracts/core/ConfidentialToken.sol', 'contracts/vendor/fherc20/FHERC20/FHERC20Core.sol', 'contracts/vendor/fherc20/FHERC20/utils/FHERC20Utils.sol', 'contracts/vendor/fherc20/utils/FHESafeMath.sol'],
   SettlementVault: ['contracts/core/SettlementVault.sol', 'contracts/libraries/FHEConstants.sol'],
   SealedAuction: ['contracts/features/SealedAuction.sol', 'contracts/libraries/FHEConstants.sol'],
   PrivatePayments: ['contracts/features/PrivatePayments.sol', 'contracts/libraries/FHEConstants.sol'],

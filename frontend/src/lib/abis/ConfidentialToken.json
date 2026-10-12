@@ -1,142 +1,19 @@
 [
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "name_",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "symbol_",
+        "type": "string"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "constructor"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "spender",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "allowance",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "needed",
-        "type": "uint256"
-      }
-    ],
-    "name": "ERC20InsufficientAllowance",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "sender",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "balance",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "needed",
-        "type": "uint256"
-      }
-    ],
-    "name": "ERC20InsufficientBalance",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "approver",
-        "type": "address"
-      }
-    ],
-    "name": "ERC20InvalidApprover",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "receiver",
-        "type": "address"
-      }
-    ],
-    "name": "ERC20InvalidReceiver",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "sender",
-        "type": "address"
-      }
-    ],
-    "name": "ERC20InvalidSender",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "spender",
-        "type": "address"
-      }
-    ],
-    "name": "ERC20InvalidSpender",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "permitOwner",
-        "type": "address"
-      }
-    ],
-    "name": "FHERC20ConfidentialTransferFromOwnerMismatch",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "permitSpender",
-        "type": "address"
-      }
-    ],
-    "name": "FHERC20ConfidentialTransferFromSpenderMismatch",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "inValueHash",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "permitValueHash",
-        "type": "uint256"
-      }
-    ],
-    "name": "FHERC20ConfidentialTransferFromValueHashMismatch",
-    "type": "error"
   },
   {
     "inputs": [],
@@ -158,7 +35,18 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "from",
+        "name": "sender",
+        "type": "address"
+      }
+    ],
+    "name": "FHERC20InvalidSender",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "holder",
         "type": "address"
       },
       {
@@ -174,12 +62,12 @@
     "inputs": [
       {
         "internalType": "euint64",
-        "name": "value",
+        "name": "amount",
         "type": "bytes32"
       },
       {
         "internalType": "address",
-        "name": "owner",
+        "name": "user",
         "type": "address"
       }
     ],
@@ -189,22 +77,22 @@
   {
     "inputs": [
       {
-        "internalType": "uint8",
-        "name": "got",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "expected",
-        "type": "uint8"
+        "internalType": "address",
+        "name": "holder",
+        "type": "address"
       }
     ],
-    "name": "InvalidEncryptedInput",
+    "name": "FHERC20ZeroBalance",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "InvalidState",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
     "type": "error"
   },
   {
@@ -222,6 +110,44 @@
     "inputs": [],
     "name": "Unauthorized",
     "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "euint64",
+        "name": "encryptedAmount",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "requester",
+        "type": "address"
+      }
+    ],
+    "name": "AmountDiscloseRequested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "euint64",
+        "name": "encryptedAmount",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "amount",
+        "type": "uint64"
+      }
+    ],
+    "name": "AmountDisclosed",
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -264,9 +190,9 @@
         "type": "address"
       },
       {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "value_hash",
+        "indexed": true,
+        "internalType": "euint64",
+        "name": "amount",
         "type": "bytes32"
       }
     ],
@@ -489,7 +415,7 @@
         "type": "bool"
       }
     ],
-    "stateMutability": "view",
+    "stateMutability": "pure",
     "type": "function"
   },
   {
@@ -532,16 +458,21 @@
         "type": "address"
       },
       {
-        "internalType": "euint64",
-        "name": "value",
+        "internalType": "externalEuint64",
+        "name": "encryptedAmount",
         "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "inputProof",
+        "type": "bytes"
       }
     ],
     "name": "confidentialTransfer",
     "outputs": [
       {
-        "internalType": "euint64",
-        "name": "transferred",
+        "internalType": "sharedEuint64",
+        "name": "",
         "type": "bytes32"
       }
     ],
@@ -556,38 +487,16 @@
         "type": "address"
       },
       {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "ctHash",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint8",
-            "name": "securityZone",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "utype",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "signature",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct InEuint64",
-        "name": "inValue",
-        "type": "tuple"
+        "internalType": "sharedEuint64",
+        "name": "sharedAmount",
+        "type": "bytes32"
       }
     ],
     "name": "confidentialTransfer",
     "outputs": [
       {
-        "internalType": "euint64",
-        "name": "transferred",
+        "internalType": "sharedEuint64",
+        "name": "",
         "type": "bytes32"
       }
     ],
@@ -602,8 +511,8 @@
         "type": "address"
       },
       {
-        "internalType": "euint64",
-        "name": "value",
+        "internalType": "sharedEuint64",
+        "name": "sharedAmount",
         "type": "bytes32"
       },
       {
@@ -615,8 +524,8 @@
     "name": "confidentialTransferAndCall",
     "outputs": [
       {
-        "internalType": "euint64",
-        "name": "transferred",
+        "internalType": "sharedEuint64",
+        "name": "",
         "type": "bytes32"
       }
     ],
@@ -631,31 +540,14 @@
         "type": "address"
       },
       {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "ctHash",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint8",
-            "name": "securityZone",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "utype",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "signature",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct InEuint64",
-        "name": "inValue",
-        "type": "tuple"
+        "internalType": "externalEuint64",
+        "name": "encryptedAmount",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "inputProof",
+        "type": "bytes"
       },
       {
         "internalType": "bytes",
@@ -666,8 +558,8 @@
     "name": "confidentialTransferAndCall",
     "outputs": [
       {
-        "internalType": "euint64",
-        "name": "transferred",
+        "internalType": "sharedEuint64",
+        "name": "",
         "type": "bytes32"
       }
     ],
@@ -687,38 +579,21 @@
         "type": "address"
       },
       {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "ctHash",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint8",
-            "name": "securityZone",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "utype",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "signature",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct InEuint64",
-        "name": "inValue",
-        "type": "tuple"
+        "internalType": "externalEuint64",
+        "name": "encryptedAmount",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "inputProof",
+        "type": "bytes"
       }
     ],
     "name": "confidentialTransferFrom",
     "outputs": [
       {
-        "internalType": "euint64",
-        "name": "transferred",
+        "internalType": "sharedEuint64",
+        "name": "",
         "type": "bytes32"
       }
     ],
@@ -738,16 +613,16 @@
         "type": "address"
       },
       {
-        "internalType": "euint64",
-        "name": "value",
+        "internalType": "sharedEuint64",
+        "name": "sharedAmount",
         "type": "bytes32"
       }
     ],
     "name": "confidentialTransferFrom",
     "outputs": [
       {
-        "internalType": "euint64",
-        "name": "transferred",
+        "internalType": "sharedEuint64",
+        "name": "",
         "type": "bytes32"
       }
     ],
@@ -767,8 +642,47 @@
         "type": "address"
       },
       {
-        "internalType": "euint64",
-        "name": "value",
+        "internalType": "externalEuint64",
+        "name": "encryptedAmount",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "inputProof",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "data",
+        "type": "bytes"
+      }
+    ],
+    "name": "confidentialTransferFromAndCall",
+    "outputs": [
+      {
+        "internalType": "sharedEuint64",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "sharedEuint64",
+        "name": "sharedAmount",
         "type": "bytes32"
       },
       {
@@ -780,8 +694,8 @@
     "name": "confidentialTransferFromAndCall",
     "outputs": [
       {
-        "internalType": "euint64",
-        "name": "transferred",
+        "internalType": "sharedEuint64",
+        "name": "",
         "type": "bytes32"
       }
     ],
@@ -789,59 +703,16 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "ctHash",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint8",
-            "name": "securityZone",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "utype",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "signature",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct InEuint64",
-        "name": "inValue",
-        "type": "tuple"
-      },
-      {
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "confidentialTransferFromAndCall",
+    "inputs": [],
+    "name": "contractURI",
     "outputs": [
       {
-        "internalType": "euint64",
-        "name": "transferred",
-        "type": "bytes32"
+        "internalType": "string",
+        "name": "",
+        "type": "string"
       }
     ],
-    "stateMutability": "nonpayable",
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -855,6 +726,29 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "euint64",
+        "name": "encryptedAmount",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "cleartextAmount",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes",
+        "name": "decryptionProof",
+        "type": "bytes"
+      }
+    ],
+    "name": "discloseEncryptedAmount",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -872,19 +766,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "isFherc20",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -947,6 +828,19 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "euint64",
+        "name": "encryptedAmount",
+        "type": "bytes32"
+      }
+    ],
+    "name": "requestDiscloseEncryptedAmount",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "resetIndicatedBalance",
     "outputs": [],
@@ -969,6 +863,25 @@
     "name": "setOperator",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes4",
+        "name": "interfaceId",
+        "type": "bytes4"
+      }
+    ],
+    "name": "supportsInterface",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

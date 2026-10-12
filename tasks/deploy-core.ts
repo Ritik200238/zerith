@@ -52,8 +52,8 @@ async function main() {
   let claim = addrs.AuctionClaim as string;
   if (fresh) {
     console.log("FRESH deploy: tokens, registry and claim NFT too");
-    token = (await deploy("ConfidentialToken", [])).a;
-    mock = (await deploy("ConfidentialToken", [])).a; // second test token for the lot side
+    token = (await deploy("ConfidentialToken", ["Zerith Test Dollar", "CDEX"])).a;
+    mock = (await deploy("ConfidentialToken", ["Mock Project Token", "MOCK"])).a; // the lot side
     registry = (await deploy("PlatformRegistry", [deployer.address, 50, deployer.address])).a;
     claim = (await deploy("AuctionClaim", [deployer.address])).a;
   }
