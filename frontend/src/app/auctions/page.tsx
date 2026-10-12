@@ -420,6 +420,10 @@ export default function AuctionsPage() {
   const unsealMyBid = useCallback(
     async (auction: AuctionData) => {
       if (!auctionContract || !account) return;
+      if (!(await auctionContract.hasBid(auction.id, account))) {
+        toast.info("No bid from this wallet", `You haven't bid on auction #${auction.id} with this wallet.`);
+        return;
+      }
       try {
         const hash = await auctionContract.getMyBid(auction.id);
         const val  = await unseal(BigInt(hash), FHE_UINT64);
@@ -435,12 +439,14 @@ export default function AuctionsPage() {
               ? { ...prev, myBidUnsealed: val.toString() }
               : prev,
           );
+        } else {
+          toast.error("Couldn't unseal your bid", "The Threshold Network didn't return it. Try again in a moment.");
         }
-      } catch {
-        /* no bid placed or unseal failed — expected */
+      } catch (err) {
+        toast.error("Couldn't unseal your bid", humanizeTxError(err));
       }
     },
-    [auctionContract, account, unseal],
+    [auctionContract, account, unseal, toast],
   );
 
   /* ---------------------------------------------------------------- */
@@ -779,7 +785,7 @@ export default function AuctionsPage() {
         explorerUrl={FHENIX_TESTNET.blockExplorer}
         report={{
           encrypted: [
-            "Every bid amount (euint128)",
+            "Every bid amount (euint64)",
             "Bidder identity until reveal (eaddress)",
             "Highest bid + bidder tracked entirely on ciphertext",
             "Losing bids — never decrypted, ever",
@@ -1366,6 +1372,35 @@ export default function AuctionsPage() {
                 )}
               </div>
 
+              {/* the lot must already be in the seller's vault */}
+              <p className="text-xs leading-relaxed text-[var(--text-muted)]">
+                The lot is locked from your vault balance when you create the sale. Deposit
+                it first in{" "}
+                <a href="/treasury" className="underline text-[var(--text)]">Treasury</a>{" "}
+                (switch to the token you're selling; MOCK has a test faucet there).
+              </p>
+
+              {/* in-modal progress + errors (the page banner sits behind this modal) */}
+              {(txState === "signing" || txState === "confirming" || txState === "decrypting") && (
+                <div className="flex items-center gap-2 rounded px-3 py-2 text-xs bg-[var(--bg-alt)] border border-dashed border-[var(--border-dash)] text-[var(--text)]">
+                  <Loader2 size={12} className="animate-spin shrink-0" />
+                  {txState === "signing"
+                    ? "Confirm in your wallet…"
+                    : txState === "confirming"
+                      ? "Waiting for the transaction to confirm…"
+                      : "Fhenix's Threshold Network is checking your lot is locked (about 10–30s)…"}
+                </div>
+              )}
+              {txState === "error" && txError && (
+                <div
+                  role="alert"
+                  className="rounded px-3 py-2 text-xs border border-dashed border-[var(--border-dash)]"
+                  style={{ color: "var(--danger, #d77757)" }}
+                >
+                  {txError}
+                </div>
+              )}
+
               {/* submit */}
               <button
                 onClick={handleCreate}
@@ -1375,7 +1410,8 @@ export default function AuctionsPage() {
                   !cAmount ||
                   (cBlindFloor && !cReserve) ||
                   txState === "signing" ||
-                  txState === "confirming"
+                  txState === "confirming" ||
+                  txState === "decrypting"
                 }
                 className="w-full rounded py-3 text-sm font-semibold text-[var(--bg)]
                            bg-[var(--text)]
@@ -1383,15 +1419,10 @@ export default function AuctionsPage() {
                            disabled:opacity-40 disabled:cursor-not-allowed
                            transition-all flex items-center justify-center gap-2"
               >
-                {txState === "signing" ? (
+                {txState === "signing" || txState === "confirming" || txState === "decrypting" ? (
                   <>
                     <Loader2 size={14} className="animate-spin" />
-                    Processing...
-                  </>
-                ) : txState === "confirming" ? (
-                  <>
-                    <Loader2 size={14} className="animate-spin" />
-                    Processing...
+                    Working…
                   </>
                 ) : (
                   <>
@@ -1697,7 +1728,7 @@ export default function AuctionsPage() {
                 <div className="space-y-2">
                   {[
                     { n: 1, label: "Bidding",  desc: "Bidders submit encrypted bids", done: selectedAuction.status >= 1 },
-                    { n: 2, label: "Close", desc: "Seller closes after deadline, triggers FHE decrypt",  done: selectedAuction.status >= 1 },
+                    { n: 2, label: "Close", desc: "Anyone closes after the deadline; the outcome becomes decryptable",  done: selectedAuction.status >= 1 },
                     { n: 3, label: "Reveal", desc: "Retrieve decrypted winner from co-processor", done: selectedAuction.status >= 2 },
                     { n: 4, label: "Settle", desc: "Tokens transfer to winner, payment to seller", done: selectedAuction.status >= 3 },
                   ].map((s) => (
