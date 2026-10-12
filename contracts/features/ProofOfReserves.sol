@@ -12,11 +12,13 @@ import {FHEConstants} from "../libraries/FHEConstants.sol";
 ///         contract computes FHE.gte against a plaintext threshold and exposes the
 ///         boolean outcome via Threshold Network verifiable reveal.
 /// @dev Flow:
-///      1. Prover calls vault.delegateBalanceRead(thisContract, token) once per token
-///      2. Prover calls requestProof(token, threshold) — creates pending claim
-///      3. Anyone calls revealProof(claimId, value, sig) with TN-signed result
+///      1. Prover calls requestProof(token, threshold) — the vault compares the prover's
+///         encrypted balance on ciphertext (this contract must be an authorized settler)
+///      2. Anyone calls revealProof(claimId, value, sig) with the TN-signed result
 ///      Public observers see only: prover, token, threshold, outcome (≥ or <), timestamp.
-///      The actual balance stays encrypted in the vault.
+///      The actual balance stays encrypted in the vault. A proof is a point-in-time
+///      statement: the balance can change afterwards, so consumers should check
+///      requestedAt (see getLatestVerifiedThreshold).
 contract ProofOfReserves is FHEConstants {
     enum ClaimStatus { PENDING, VERIFIED_TRUE, VERIFIED_FALSE }
 
@@ -63,7 +65,6 @@ contract ProofOfReserves is FHEConstants {
     }
 
     /// @notice Request a "balance ≥ threshold" proof for caller's vault holdings
-    /// @dev Caller must have called vault.delegateBalanceRead(address(this), token) first
     /// @param token FHERC20 token to prove reserves of
     /// @param threshold Plaintext minimum amount being claimed
     /// @return claimId Identifier for the pending claim
@@ -76,12 +77,9 @@ contract ProofOfReserves is FHEConstants {
         if (threshold == 0) revert InvalidInput();
         if (threshold > type(uint64).max) revert InvalidInput();
 
-        // Read prover's encrypted vault balance (requires prior delegateBalanceRead)
-        euint64 balance = vault.getEncBalance(msg.sender, token);
-
-        // Compute encrypted comparison: balance >= threshold
-        euint64 thresholdEnc = FHE.asEuint64(uint64(threshold));
-        ebool meets = FHE.gte(balance, thresholdEnc);
+        // Encrypted comparison inside the vault: balance >= threshold.
+        // Only ever for msg.sender, so nobody can probe someone else's balance.
+        ebool meets = vault.balanceAtLeast(msg.sender, token, uint64(threshold));
 
         // Convert ebool → euint64 (0 or 1) for verifiable reveal path
         euint64 encResult = FHE.select(meets, ONE_64, ZERO_64);
@@ -157,19 +155,19 @@ contract ProofOfReserves is FHEConstants {
         return nextClaimId;
     }
 
-    /// @notice Convenience: latest verified-true threshold for (prover, token)
-    /// @dev Returns 0 if no verified-true claim exists. Note: stale claims do
-    ///      NOT auto-expire — caller should also check requestedAt for freshness.
-    function getHighestVerifiedThreshold(address prover, address token)
+    /// @notice The most recent verified-true proof for (prover, token) and when it was
+    ///         made. Returns (0, 0) if none. Freshness matters: a proof only says the
+    ///         balance was at least `threshold` at `requestedAt`.
+    function getLatestVerifiedThreshold(address prover, address token)
         external
         view
-        returns (uint256 highest)
+        returns (uint256 threshold, uint256 requestedAt)
     {
         uint256[] storage ids = proverClaims[prover];
-        for (uint256 i = 0; i < ids.length; i++) {
-            Claim storage c = claims[ids[i]];
-            if (c.token == token && c.status == ClaimStatus.VERIFIED_TRUE && c.threshold > highest) {
-                highest = c.threshold;
+        for (uint256 i = ids.length; i > 0; i--) {
+            Claim storage c = claims[ids[i - 1]];
+            if (c.token == token && c.status == ClaimStatus.VERIFIED_TRUE) {
+                return (c.threshold, c.requestedAt);
             }
         }
     }

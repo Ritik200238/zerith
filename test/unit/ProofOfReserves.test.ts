@@ -7,6 +7,7 @@ import {
   PlatformRegistry,
 } from "../../typechain-types";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+import { encryptUint64 } from "../helpers/cofhe";
 
 describe("ProofOfReserves", function () {
   let por: ProofOfReserves;
@@ -43,6 +44,8 @@ describe("ProofOfReserves", function () {
     const porFactory = await hre.ethers.getContractFactory("ProofOfReserves");
     por = await porFactory.deploy(await vault.getAddress(), await registry.getAddress());
     await por.waitForDeployment();
+    // PoR asks the vault for an encrypted balance comparison, so it must be authorized.
+    await vault.addAuthorizedSettler(await por.getAddress());
   });
 
   describe("Deployment", function () {
@@ -75,14 +78,6 @@ describe("ProofOfReserves", function () {
   });
 
   describe("requestProof()", function () {
-    beforeEach(async function () {
-      // Prover delegates balance read to PoR before requesting
-      await vault.connect(prover).delegateBalanceRead(
-        await por.getAddress(),
-        await token.getAddress()
-      );
-    });
-
     it("creates pending claim and emits event", async function () {
       const tokenAddr = await token.getAddress();
       const threshold = 1000n;
@@ -125,7 +120,6 @@ describe("ProofOfReserves", function () {
 
     it("isolates claims between provers", async function () {
       const tokenAddr = await token.getAddress();
-      await vault.connect(other).delegateBalanceRead(await por.getAddress(), tokenAddr);
 
       await por.connect(prover).requestProof(tokenAddr, 100n);
       await por.connect(other).requestProof(tokenAddr, 500n);
@@ -173,23 +167,61 @@ describe("ProofOfReserves", function () {
     });
   });
 
-  describe("getHighestVerifiedThreshold()", function () {
-    it("returns 0 when no claims exist", async function () {
-      expect(
-        await por.getHighestVerifiedThreshold(prover.address, await token.getAddress())
-      ).to.equal(0n);
+  describe("end-to-end proofs", function () {
+    const UNTIL = 2n ** 48n - 1n;
+
+    async function fund(who: HardhatEthersSigner, amount: bigint) {
+      await token.connect(deployer).adminMint(who.address, amount);
+      await token.connect(who).setOperator(await vault.getAddress(), UNTIL);
+      await vault.connect(who).deposit(await token.getAddress(), await encryptUint64(who, amount));
+    }
+
+    async function prove(who: HardhatEthersSigner, threshold: bigint) {
+      const id = await por.getClaimCount();
+      await por.connect(who).requestProof(await token.getAddress(), threshold);
+      const c = await por.claims(id);
+      const client = await hre.cofhe.createClientWithBatteries(other);
+      const r = await client.decryptForTx(BigInt(c.encResult)).withoutPermit().execute();
+      await por.connect(other).revealProof(id, r.decryptedValue, r.signature);
+      return (await por.getClaim(id)).status;
+    }
+
+    it("verifies true when the vault balance meets the threshold", async function () {
+      await fund(prover, 5_000n);
+      expect(await prove(prover, 5_000n)).to.equal(1n); // VERIFIED_TRUE
     });
 
-    it("returns 0 when only pending claims exist", async function () {
-      const tokenAddr = await token.getAddress();
-      await vault.connect(prover).delegateBalanceRead(await por.getAddress(), tokenAddr);
-      await por.connect(prover).requestProof(tokenAddr, 1000n);
-      await por.connect(prover).requestProof(tokenAddr, 5000n);
+    it("verifies false when it doesn't", async function () {
+      await fund(prover, 4_999n);
+      expect(await prove(prover, 5_000n)).to.equal(2n); // VERIFIED_FALSE
+    });
 
-      // No revealProof calls — all still PENDING
-      expect(
-        await por.getHighestVerifiedThreshold(prover.address, tokenAddr)
-      ).to.equal(0n);
+    it("can't be faked with a deposit of tokens the prover doesn't hold", async function () {
+      // prover holds no tokens; the vault credits 0, so the proof fails
+      await token.connect(prover).setOperator(await vault.getAddress(), UNTIL);
+      await vault.connect(prover).deposit(await token.getAddress(), await encryptUint64(prover, 1_000_000n));
+      expect(await prove(prover, 1n)).to.equal(2n);
+    });
+
+    it("getLatestVerifiedThreshold returns the most recent true proof and its time", async function () {
+      const tokenAddr = await token.getAddress();
+      expect((await por.getLatestVerifiedThreshold(prover.address, tokenAddr)).threshold).to.equal(0n);
+      await fund(prover, 5_000n);
+      await prove(prover, 4_000n);
+      await prove(prover, 1_000n);
+      await prove(prover, 9_000n); // false — ignored
+      const latest = await por.getLatestVerifiedThreshold(prover.address, tokenAddr);
+      expect(latest.threshold).to.equal(1_000n);
+      expect(latest.requestedAt).to.be.greaterThan(0n);
+    });
+
+    it("rejects a forged reveal", async function () {
+      await fund(prover, 10n);
+      await por.connect(prover).requestProof(await token.getAddress(), 100n);
+      const c = await por.claims(0);
+      const client = await hre.cofhe.createClientWithBatteries(other);
+      const r = await client.decryptForTx(BigInt(c.encResult)).withoutPermit().execute();
+      await expect(por.revealProof(0, 1n, r.signature)).to.be.reverted;
     });
   });
 
