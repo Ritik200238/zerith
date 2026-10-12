@@ -809,11 +809,11 @@ function ClaimRow({
   const StatusBadge =
     claim.status === 1 ? (
       <span className="badge inline-flex items-center gap-1 text-success">
-        <CheckCircle2 className="w-3 h-3" /> VERIFIED ≥
+        <CheckCircle2 className="w-3 h-3" /> PROVEN
       </span>
     ) : claim.status === 2 ? (
       <span className="badge inline-flex items-center gap-1 text-danger">
-        <XCircle className="w-3 h-3" /> VERIFIED &lt;
+        <XCircle className="w-3 h-3" /> NOT MET
       </span>
     ) : (
       <span className="badge inline-flex items-center gap-1 text-textMuted">
@@ -829,9 +829,14 @@ function ClaimRow({
             {StatusBadge}
             <span className="mono text-textMuted">#{claim.id}</span>
           </div>
-          <div className="font-display text-2xl break-words">
+          <div
+            className={`font-display text-2xl break-words ${claim.status === 2 ? "line-through text-textMuted" : ""}`}
+          >
             ≥ {formatAmount(claim.threshold.toString())} <span className="text-textMuted text-base">{tokenSymbol}</span>
           </div>
+          {claim.status === 2 && (
+            <div className="text-sm text-danger">The balance was below this threshold when checked.</div>
+          )}
           <div className="text-textMuted text-sm">
             Requested {formatTs(claim.requestedAt)}
             {claim.revealedAt > 0 && <> · Revealed {formatTs(claim.revealedAt)}</>}

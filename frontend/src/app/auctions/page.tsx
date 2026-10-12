@@ -752,7 +752,7 @@ export default function AuctionsPage() {
               amount and bidder ever decrypted on chain.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <FaucetButton />
             {account && (
               <button
