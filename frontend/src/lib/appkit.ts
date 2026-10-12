@@ -3,11 +3,11 @@
  * anywhere in the client tree triggers createAppKit(), which globally
  * registers the wallet modal and the useAppKit + useDisconnect hooks.
  *
- * Why AppKit instead of raw wagmi: this app is built on ethers v6 + cofhejs
+ * Why AppKit instead of raw wagmi: this app is built on ethers v6 + @cofhe/sdk
  * (Ethers6Adapter). Reown's ethers adapter returns an EIP-1193 walletProvider
  * we wrap with new ethers.BrowserProvider(...) — every existing contract
  * call site keeps working unchanged. A wagmi migration would force a rewrite
- * of every write call and re-bridging of cofhejs.
+ * of every write call and re-bridging of the Fhenix SDK.
  *
  * The Sepolia network from @reown/appkit/networks targets the same chainId
  * (11155111) used by FHENIX_TESTNET in @/lib/constants — the brand says

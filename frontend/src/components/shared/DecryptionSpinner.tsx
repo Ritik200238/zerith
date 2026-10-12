@@ -9,7 +9,7 @@ interface DecryptionSpinnerProps {
 }
 
 /**
- * Compact spinner shown while unsealing encrypted data via cofhejs.unseal().
+ * Compact spinner shown while unsealing encrypted data via the SDK's decryptForView().
  */
 export function DecryptionSpinner({
   visible,

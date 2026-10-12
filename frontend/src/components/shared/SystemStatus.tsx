@@ -20,7 +20,7 @@ import { formatAmount } from "@/lib/format";
  * Live operational pulse for the app. Shows in the page chrome so users
  * (and judges) can see the system breathing. Five sections:
  *   - Wallet (account or "Disconnected")
- *   - FHE (cofhejs WASM ready / pending)
+ *   - FHE (the Fhenix SDK WASM ready / pending)
  *   - Network (correct chain / wrong)
  *   - Block (latest block number, polled every 12s)
  *   - Gas (current gas price in gwei)

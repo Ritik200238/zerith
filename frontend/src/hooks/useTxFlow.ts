@@ -130,7 +130,7 @@ export interface TxFlow {
   step: TxFlowStep;
   errorMessage: string | undefined;
   txHash: string | undefined;
-  /** Move to "encrypt" — call BEFORE the cofhejs encrypt() promise. */
+  /** Move to "encrypt" — call BEFORE the the SDK encryptInputs() promise. */
   begin: () => void;
   /** Move to "submit" — call BEFORE the contract write awaits the wallet. */
   submitted: () => void;

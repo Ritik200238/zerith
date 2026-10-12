@@ -13,7 +13,7 @@ interface EncryptionProgressProps {
 const STAGE_ORDER: EncryptStage[] = ["extract", "pack", "prove", "verify", "replace", "done"];
 
 /**
- * 6-stage progress bar that visualizes the cofhejs.encrypt() pipeline.
+ * 6-stage progress bar that visualizes the the SDK's encryptInputs() pipeline.
  * Each stage lights up as the encryption proceeds through:
  * Extract -> Pack -> Prove -> Verify -> Replace -> Done
  */

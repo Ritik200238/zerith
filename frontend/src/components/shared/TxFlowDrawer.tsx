@@ -11,7 +11,7 @@
  *   reassurance that cryptography is doing the right thing.
  *
  * Steps:
- *   1. encrypt    — Client-side encryption (cofhejs WASM, ~2-5s)
+ *   1. encrypt    — Client-side encryption (the Fhenix SDK WASM, ~2-5s)
  *   2. submit     — Posting encrypted handle to the FHE network (~3-10s)
  *   3. confirm    — Ethereum L1 block confirmation (~10-25s)
  *   4. sealed     — Final success state
