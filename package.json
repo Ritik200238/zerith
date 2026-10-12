@@ -19,6 +19,8 @@
   },
   "devDependencies": {
     "@cofhe/hardhat-plugin": "0.8.0",
+    "@cofhe/mock-contracts": "0.8.0",
+    "@cofhe/sdk": "0.8.0",
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@types/chai": "^4.3.0",
     "@types/mocha": "^10.0.0",
@@ -27,7 +29,6 @@
     "ethers": "^6.13.0",
     "hardhat": "^2.22.0",
     "ts-node": "^10.9.0",
-    "typescript": "^5.5.0",
-    "@cofhe/sdk": "0.8.0"
+    "typescript": "^5.5.0"
   }
 }

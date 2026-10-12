@@ -21,9 +21,21 @@ async function addressOf(t: Target): Promise<string> {
   return typeof t === "string" ? t : t.getAddress();
 }
 
+// One SDK client per test wallet (as the Fhenix testing docs do in `before`),
+// instead of building a new one for every encrypt/decrypt call.
+const clients = new Map<string, ReturnType<typeof hre.cofhe.createClientWithBatteries>>();
+function clientFor(signer: HardhatEthersSigner) {
+  let c = clients.get(signer.address);
+  if (!c) {
+    c = hre.cofhe.createClientWithBatteries(signer);
+    clients.set(signer.address, c);
+  }
+  return c;
+}
+
 /** Encrypt a batch for `consumer`; returns `[...handles, signature]`. */
 export async function encrypt(signer: HardhatEthersSigner, consumer: Target, items: unknown[]) {
-  const client = await hre.cofhe.createClientWithBatteries(signer);
+  const client = await clientFor(signer);
   return client
     .encryptInputs(items as Item[])
     .setConsumingContract((await addressOf(consumer)) as `0x${string}`)
@@ -48,6 +60,6 @@ export async function plaintext(handle: string | bigint) {
 
 /** Threshold-Network-style public decrypt with signature, as used by reveal flows. */
 export async function publicDecrypt(signer: HardhatEthersSigner, handle: string | bigint) {
-  const client = await hre.cofhe.createClientWithBatteries(signer);
+  const client = await clientFor(signer);
   return client.decryptForTx(BigInt(handle)).withoutACP().execute();
 }

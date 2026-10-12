@@ -20,7 +20,6 @@ const config: HardhatUserConfig = {
     },
   },
   cofhe: {
-    logMocks: false,
     gasWarning: false,
   },
   networks: {
