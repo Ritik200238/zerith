@@ -20,13 +20,15 @@
  */
 
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   X,
   Lock,
   Check,
   AlertCircle,
   ExternalLink,
+  ArrowRight,
   ChevronDown,
   Loader2,
 } from "lucide-react";
@@ -140,6 +142,7 @@ export function TxFlowDrawer({
   onRetry,
 }: Props) {
   const [whyOpen, setWhyOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
   const explorer = EXPLORER_BY_CHAIN[chainId] ?? EXPLORER_BY_CHAIN[11155111];
 
   // Closable only when terminal (sealed, error) or before start (idle).
@@ -268,6 +271,18 @@ export function TxFlowDrawer({
                       Try again
                     </button>
                   )}
+                  {/* Always offer a path to a human — an error state should never
+                      be a dead end. */}
+                  <Link
+                    href="/contact"
+                    className="mt-3 flex items-center justify-center gap-1 font-mono transition-colors"
+                    style={{ ...MONO_LABEL, color: "var(--text-muted)" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                  >
+                    Still stuck? Get help
+                    <ArrowRight size={10} />
+                  </Link>
                 </section>
               ) : (
                 <ol className="space-y-3">
@@ -340,22 +355,32 @@ export function TxFlowDrawer({
                               </p>
                             )}
                             {isActive && row.key !== "sealed" && (
+                              // Indeterminate sweep — we genuinely don't know how
+                              // long the chain will take, so we never fake a
+                              // percentage or a deadline. It only signals "working".
                               <div
-                                className="mt-2.5 h-1 overflow-hidden"
+                                className="mt-2.5 h-1 overflow-hidden relative"
                                 style={{
                                   background: "var(--bg-alt)",
                                   borderRadius: 999,
                                 }}
                               >
                                 <motion.div
-                                  initial={{ width: "5%" }}
-                                  animate={{ width: ["10%", "75%", "92%"] }}
-                                  transition={{
-                                    duration: 14,
-                                    ease: "easeOut",
-                                    times: [0, 0.6, 1],
+                                  initial={{ x: "-70%" }}
+                                  animate={reduceMotion ? { x: "60%" } : { x: ["-70%", "170%"] }}
+                                  transition={
+                                    reduceMotion
+                                      ? { duration: 0 }
+                                      : { duration: 1.4, ease: "easeInOut", repeat: Infinity }
+                                  }
+                                  style={{
+                                    position: "absolute",
+                                    top: 0,
+                                    height: "100%",
+                                    width: "45%",
+                                    background: "var(--text)",
+                                    borderRadius: 999,
                                   }}
-                                  style={{ height: "100%", background: "var(--text)" }}
                                 />
                               </div>
                             )}
