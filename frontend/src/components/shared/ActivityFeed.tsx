@@ -15,10 +15,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import {
-  Gavel, Eye, TrendingDown, Layers, Droplets, Send, Briefcase,
-  ArrowLeftRight, Activity, Building2, Sparkles, Trophy,
-} from "lucide-react";
+import { Gavel, Send, Shield, Activity } from "lucide-react";
 import { ethers } from "ethers";
 import { useWallet } from "@/providers/WalletProvider";
 import { useBlockPoll } from "@/hooks/useBlockPoll";
@@ -35,19 +32,11 @@ type FeedEntry = {
   getter: string;
 };
 
+// Core product only, and totals are labelled as totals ("created"), not as live/active.
 const FEED: FeedEntry[] = [
-  { contract: "SealedAuction",       label: "Sealed Auctions",        unit: "auctions", href: "/auctions",  icon: Gavel,          getter: "getAuctionCount" },
-  { contract: "VickreyAuction",      label: "Vickrey Auctions",       unit: "auctions", href: "/vickrey",   icon: Eye,            getter: "getAuctionCount" },
-  { contract: "DutchAuction",        label: "Dutch Auctions",         unit: "auctions", href: "/dutch",     icon: TrendingDown,   getter: "getAuctionCount" },
-  { contract: "BatchAuction",        label: "Batch Rounds",           unit: "rounds",   href: "/batch",     icon: Layers,         getter: "getRoundCount" },
-  { contract: "OverflowSale",        label: "Overflow Sales",         unit: "sales",    href: "/overflow",  icon: Droplets,       getter: "getSaleCount" },
-  { contract: "PrivatePayments",     label: "Payment Splits",         unit: "splits",   href: "/payments",  icon: Send,           getter: "getSplitCount" },
-  { contract: "FreelanceBidding",    label: "Freelance Jobs",         unit: "jobs",     href: "/freelance", icon: Briefcase,      getter: "getJobCount" },
-  { contract: "OrderBook",           label: "Active Orders",          unit: "orders",   href: "/trade",     icon: ArrowLeftRight, getter: "getActiveOrderCount" },
-  { contract: "EncryptedStreaming",  label: "Active Streams",         unit: "streams",  href: "/streaming", icon: Activity,       getter: "getStreamCount" },
-  { contract: "Organization",        label: "Organizations",          unit: "orgs",     href: "/org",       icon: Building2,      getter: "getOrgCount" },
-  { contract: "ConfidentialMultisig", label: "Confidential Multisigs", unit: "vaults",  href: "/multisig",  icon: Sparkles,       getter: "getMultisigCount" },
-  { contract: "EncryptedRaffle",     label: "Encrypted Raffles",      unit: "raffles",  href: "/raffle",    icon: Trophy,         getter: "getRaffleCount" },
+  { contract: "SealedAuction",   label: "Sealed sales created",       unit: "sales",  href: "/auctions", icon: Gavel,  getter: "getAuctionCount" },
+  { contract: "PrivatePayments", label: "Payroll splits created",     unit: "splits", href: "/payments", icon: Send,   getter: "getSplitCount" },
+  { contract: "ProofOfReserves", label: "Reserve proofs requested",   unit: "proofs", href: "/treasury", icon: Shield, getter: "getClaimCount" },
 ];
 
 interface Props {

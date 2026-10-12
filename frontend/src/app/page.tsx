@@ -456,7 +456,7 @@ export default function DashboardPage() {
             className="font-mono text-[11px] uppercase tracking-[0.1em] mb-7"
             style={{ color: "var(--text-muted)" }}
           >
-            — Live on chain
+            — On-chain totals
           </div>
           <ActivityFeed
             variant="grid"
