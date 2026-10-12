@@ -58,6 +58,8 @@ const ROUTES = [
   ["28-contact", "/contact"],
   ["29-why-cdex", "/why-cdex"],
   ["30-more", "/more"],
+  ["31-quickstart", "/quickstart"],
+  ["32-docs", "/docs"],
 ];
 
 async function main() {
@@ -67,6 +69,8 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     ...devices["iPhone 14"],
+    // iPhone 14 is 390px wide; test the narrowest common phone width instead.
+    viewport: { width: VIEWPORT_WIDTH, height: 812 },
     storageState: {
       cookies: [],
       origins: [
