@@ -34,8 +34,11 @@ import {
 import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
 
 const GITHUB_REPO = "https://github.com/Ritik200238/zerith";
+// Escrowed sale on CoFHE 1.0, run 2026-10-12 by tasks/verify-escrow-auction-e2e.ts (auction #1).
 const HEADLINE_REVEAL_TX =
-  "0x98a1c650b8f992dacba8580ac25aa1c1960bde1d37fa490697a9a143014fafc7";
+  "0x609f93426d4374df8f249f24c8e293c3f97bd62072719ddc4bc4576871bca8cb";
+const HEADLINE_SETTLE_TX =
+  "0x19dd547dc3b99a01ba101b7f14e3b500d6c502770c237a06136a180755be1ebc";
 
 const SECTIONS: { id: string; label: string; Icon: typeof Code2 }[] = [
   { id: "sdk", label: "SDK reference", Icon: Code2 },
@@ -174,8 +177,8 @@ export default function DocsPage() {
           <p>
             Zerith does not ship a bespoke client. The frontend integrates
             directly against two installed packages:{" "}
-            <Code>@cofhe/sdk</Code> (Fhenix CoFHE — encryption, decryption,
-            permits) and <Code>ethers v6</Code> (the on-chain calls, against the
+            <Code>@cofhe/sdk</Code> 0.8 (Fhenix CoFHE 1.0 — encryption,
+            decryption, access permissions) and <Code>ethers v6</Code> (the on-chain calls, against the
             published contract ABIs). Every snippet below is exactly the pattern
             the app uses in{" "}
             <Code>frontend/src/providers/CofheProvider.tsx</Code> and the feature
@@ -185,7 +188,7 @@ export default function DocsPage() {
           <Subhead>Install</Subhead>
           <CodeBlock
             language="bash"
-            code={`npm install @cofhe/sdk cofhejs ethers`}
+            code={`npm install @cofhe/sdk@0.8.0 ethers`}
           />
 
           <Subhead>Initialize the CoFHE client</Subhead>
@@ -211,24 +214,24 @@ await cofhe.connect(publicClient, walletClient);`}
           <Table
             rows={[
               [
-                <Code key="m1">cofhe.encryptInputs([Encryptable.uint128(amount)]).execute()</Code>,
-                "Encrypt a value client-side into an InEuint128 (with a ZK proof of validity). Pass the returned handle to the contract call. Use Encryptable.uint64(...) for euint64 amounts.",
+                <Code key="m1">cofhe.encryptInputs([Encryptable.uint64(v)]).setConsumingContract(addr).execute()</Code>,
+                "Encrypt client-side with a ZK proof. Inputs are bound to the contract that consumes them, and a batch shares one signature: the result is [...handles, signature], which maps straight onto (externalEuint64 handle, bytes proof) contract arguments.",
               ],
               [
-                <Code key="m2">cofhe.decryptForView(ctHash, FheTypes.Uint128).execute()</Code>,
-                "Decrypt your own handle locally via the threshold network, gated by your permit. Cross-account calls are rejected by the TN — you can only unseal handles your address owns.",
+                <Code key="m2">cofhe.decryptForView(ctHash, FheTypes.Uint64).withACP().execute()</Code>,
+                "Decrypt a handle your address is allowed to read, using your self ACP (Access Control Permission). Other accounts are refused.",
               ],
               [
-                <Code key="m3">cofhe.decryptForTx(handle).withoutPermit().execute()</Code>,
-                "Fetch a TN co-signed (value, signature) pair for an FHE.allowGlobal'd handle, then submit it on-chain (e.g. revealWinner). Permissionless once the handle is globally allowed.",
+                <Code key="m3">cofhe.decryptForTx(handle).withoutACP().execute()</Code>,
+                "Fetch a Threshold-Network-signed (value, signature) pair for a handle the contract made public, then submit it on-chain (e.g. confirmLot, reveal). Anyone can do this.",
               ],
               [
-                <Code key="m4">cofhe.permits.getOrCreateSelfPermit()</Code>,
-                "Idempotently ensure an active self-permit exists. Permits gate decryptForView; they last ~24h and auto-rotate in the app.",
+                <Code key="m4">cofhe.acp.getOrCreateSelfACP()</Code>,
+                "Ensure you have an active self ACP. The first call asks your wallet to sign once.",
               ],
               [
                 <Code key="m5">new ethers.Contract(addr, abi, signer)</Code>,
-                "Plain ethers v6 contract instance for the on-chain calls — createAuction, bid, closeAuction, revealWinner, vault.deposit. Addresses live in deployed-addresses.json.",
+                "Plain ethers v6 contract instance for the on-chain calls. Addresses are in deployed-addresses.json.",
               ],
             ]}
           />
@@ -236,30 +239,37 @@ await cofhe.connect(publicClient, walletClient);`}
           <Subhead>End-to-end example</Subhead>
           <CodeBlock
             language="ts"
-            code={`import { Encryptable } from "@cofhe/sdk";
-import { FheTypes } from "@cofhe/sdk";
+            code={`import { Encryptable, FheTypes } from "@cofhe/sdk";
 
-// cofhe + signer are set up as above. SealedAuction / SettlementVault are
+// cofhe + signer are set up as above. token / vault / sealedAuction are
 // ethers.Contract instances built from deployed-addresses.json + the ABIs.
 
-// 1. Fund the vault first. deposit pulls from your wallet via the FHERC-20,
-//    so you must authorize the vault as an operator once (FHERC20.approve
-//    reverts by design — use setOperator instead).
+// 1. Fund your vault. Bids lock funds from this balance, so deposit first.
+//    Authorize the vault as an FHERC-20 operator once (approve() reverts by design).
 const MAX_UINT48 = "281474976710655"; // 2**48 - 1
 if (!(await token.isOperator(wallet.address, vaultAddr))) {
   await (await token.setOperator(vaultAddr, MAX_UINT48)).wait();
 }
-const [encDeposit] = (await cofhe.encryptInputs([Encryptable.uint64(100n)]).execute());
-await (await vault.deposit(tokenAddr, encDeposit)).wait();
+const [depositHandle, depositProof] = await cofhe
+  .encryptInputs([Encryptable.uint64(500_000000n)]) // 500 tokens, 6 decimals
+  .setConsumingContract(vaultAddr)
+  .execute();
+await (await vault.deposit(tokenAddr, depositHandle, depositProof)).wait();
 
-// 2. Bid on auction #4 with an encrypted price (euint128 -> Encryptable.uint128).
-const [encBid] = (await cofhe.encryptInputs([Encryptable.uint128(1200n)]).execute());
-const tx = await sealedAuction.bid(4, encBid);
-console.log("bid tx:", tx.hash);
+// 2. Bid on auction #0. The amount is locked from your vault balance;
+//    if you can't cover it, nothing is locked and the bid can't win.
+const [bidHandle, bidProof] = await cofhe
+  .encryptInputs([Encryptable.uint64(120_000000n)])
+  .setConsumingContract(auctionAddr)
+  .execute();
+await (await sealedAuction.bid(0, bidHandle, bidProof)).wait();
 
-// 3. Later, unseal your own bid (only you can — bids are euint128).
-const myBid = await cofhe.decryptForView(await sealedAuction.getMyBid(4), FheTypes.Uint128).execute();
-console.log("my bid was:", myBid); // 1200n`}
+// 3. Unseal your own bid (the amount actually locked). Only you can.
+await cofhe.acp.getOrCreateSelfACP();
+const myBid = await cofhe
+  .decryptForView(BigInt(await sealedAuction.getMyBid(0)), FheTypes.Uint64)
+  .withACP()
+  .execute();`}
           />
         </Section>
 
@@ -272,68 +282,64 @@ console.log("my bid was:", myBid); // 1200n`}
           tagline="The end-to-end sealed-auction lifecycle, contract calls, and event hooks."
         >
           <p>
-            A sealed auction goes through five states. Each transition is
-            permissionless on the bidder side — anyone holding allowed
-            FHERC-20 tokens can post a bid, anyone can trigger reveal once the
-            deadline lapses.
+            Every bid and the seller&apos;s lot are locked in the settlement
+            vault, so a sale settles atomically from escrow: the winner always
+            pays exactly the winning bid and always receives the lot. After
+            creation, every step except cancelling can be triggered by anyone.
           </p>
 
           <Subhead>State machine</Subhead>
           <Table
             rows={[
-              [<Code key="s0">OPEN</Code>, "Created. Accepts bids until the deadline."],
-              [<Code key="s1">CLOSED</Code>, "Deadline passed or seller closed early. No more bids accepted."],
-              [<Code key="s2">REVEALED</Code>, "Threshold network co-signed the winning bid + bidder. Plaintext recorded."],
-              [<Code key="s3">SETTLED</Code>, "Settlement vault transferred tokens between winner and seller."],
-              [<Code key="s4">CANCELLED</Code>, "Seller cancelled before any bids landed."],
-              [
-                <Code key="s5">RESERVE_NOT_MET</Code>,
-                "Blind Floor only — the encrypted reserve check returned false at reveal. Seller refunded; bidders refunded.",
-              ],
+              [<Code key="s6">PENDING_LOT</Code>, "Created; the lot was locked from the seller's vault. Waiting for the Threshold Network to confirm the full lot was there."],
+              [<Code key="s0">OPEN</Code>, "Lot confirmed. Accepts encrypted bids until the deadline (late bids extend it)."],
+              [<Code key="s1">CLOSED</Code>, "Anyone closed it after the deadline. The outcome handles are now publicly decryptable."],
+              [<Code key="s2">REVEALED</Code>, "Threshold-Network-signed winner and winning bid were verified on-chain."],
+              [<Code key="s3">SETTLED</Code>, "Escrow paid the seller (minus the 2% fee) and sent the lot to the winner. Losers claim refunds."],
+              [<Code key="s4">CANCELLED</Code>, "Unfunded lot, no bids by the deadline, or the seller cancelled before any bid. The lot goes back."],
+              [<Code key="s5">NO_SALE</Code>, "Blind Floor only: the reserve wasn't met. Nothing about any bid is revealed; the lot and all bids are refunded."],
             ]}
           />
 
           <Subhead>Lifecycle, by contract call</Subhead>
           <CodeBlock
             language="ts"
-            code={`// ─── Seller ───
-const auctionId = await sealedAuction.createAuction(
-  tokenForSale,    // address of the FHERC-20 being sold
-  paymentToken,    // address of the FHERC-20 bidders pay with
-  amount,          // plaintext amount being sold
-  duration,        // seconds
-  snipeExtension,  // anti-snipe extension on late bids
-);
+            code={`// ─── Seller ─── (deposit the lot into the vault first)
+await sealedAuction.createAuction(lotToken, paymentToken, lotAmount, duration, snipeExtension);
+// Anyone: publish the Threshold Network's check that the lot was fully locked
+const lot = await cofhe.decryptForTx(await sealedAuction.getLotFundedHandle(id)).withoutACP().execute();
+await sealedAuction.confirmLot(id, lot.decryptedValue === 1n, lot.signature);
 
-// ─── Bidder (multiple, each one independent) ───
-// The InEuint128 is constructed via cofhejs with a ZK proof of validity.
-const encBid = await cofhe.encryptInputs([Encryptable.uint128(1200n)]).execute();
-await sealedAuction.bid(auctionId, encBid[0]);
+// ─── Bidders ─── (each bid locks funds from the bidder's vault balance)
+const [h, proof] = await cofhe.encryptInputs([Encryptable.uint64(amount)])
+  .setConsumingContract(auctionAddr).execute();
+await sealedAuction.bid(id, h, proof);
 
-// ─── Anyone (after deadline) ───
-await sealedAuction.closeAuction(auctionId);
-// Threshold network co-signs the highest-bid reveal off-chain
-const proof = await cofhe.decryptForTx(highestBidHandle).withoutPermit().execute();
-await sealedAuction.revealWinner(
-  auctionId,
-  proof.decryptedValue,
-  proof.signature,
-  bidderAddr,
-  bidderProof.signature,
-);
+// ─── Anyone, after the deadline ───
+await sealedAuction.closeAuction(id);
+const [okH, bidH, winnerH] = await sealedAuction.getRevealHandles(id);
+const ok = await cofhe.decryptForTx(okH).withoutACP().execute();
+const bid = await cofhe.decryptForTx(bidH).withoutACP().execute();
+const win = await cofhe.decryptForTx(winnerH).withoutACP().execute();
+await sealedAuction.reveal(id, ok.decryptedValue === 1n, ok.signature,
+  bid.decryptedValue, bid.signature, toAddress(win.decryptedValue), win.signature);
+await sealedAuction.settleAuction(id);
 
-// ─── Vault settles ───
-await sealedAuction.settleAuction(auctionId);`}
+// ─── Each losing bidder ─── (refund stays encrypted; it is never decrypted)
+await sealedAuction.claimRefund(id);`}
           />
 
           <Subhead>Events to subscribe to</Subhead>
           <Table
             rows={[
-              [<Code key="e1">AuctionCreated</Code>, "auctionId, seller, token, amount, deadline"],
+              [<Code key="e1">AuctionCreated</Code>, "auctionId, seller, token, amount, duration"],
+              [<Code key="e0">LotConfirmed</Code>, "auctionId, funded, deadline"],
               [<Code key="e2">BidPlaced</Code>, "auctionId, bidder, newDeadline (anti-snipe extension)"],
               [<Code key="e3">AuctionClosed</Code>, "auctionId"],
               [<Code key="e4">WinnerRevealed</Code>, "auctionId, winner, winningBid (plaintext)"],
-              [<Code key="e5">AuctionSettled</Code>, "auctionId — vault transfer complete"],
+              [<Code key="e6">NoSale</Code>, "auctionId — Blind Floor reserve not met"],
+              [<Code key="e5">AuctionSettled</Code>, "auctionId — escrow paid out"],
+              [<Code key="e7">RefundClaimed</Code>, "auctionId, bidder"],
             ]}
           />
 
@@ -370,12 +376,12 @@ await sealedAuction.settleAuction(auctionId);`}
             <Bullet
               ok
               title="Pre-trade leakage to MEV."
-              body="Bid amounts are ciphertext at submission. Searchers see InEuint128 handles, not numbers. There is nothing to sandwich."
+              body="Bid amounts are ciphertext at submission. Searchers see encrypted input handles, not numbers. There is nothing to sandwich."
             />
             <Bullet
               ok
               title="Reserve price (Blind Floor mode)."
-              body="The encrypted reserve is never decrypted. The chain publishes only the boolean outcome of FHE.gte(highestBid, reserve)."
+              body="The encrypted reserve is never decrypted. The chain publishes only whether the sale went through, and if it didn't, neither the winner nor the winning bid is revealed."
             />
           </ul>
 
@@ -394,7 +400,7 @@ await sealedAuction.settleAuction(auctionId);`}
             <Bullet
               warn
               title="Threshold network availability."
-              body="Decryption-on-reveal requires the FHE network to co-sign. If the network is unreachable, settlement is delayed (not lost): once a handle is FHE.allowGlobal'd at close, reveal is permissionless — anyone can fetch the co-signed result and submit revealWinner the moment the network returns. Note: the auctions have no on-chain emergency-refund. A 7-day EMERGENCY_TIMEOUT exists only on FreelanceBidding (escrowed jobs stuck in settling); do not assume it covers sealed auctions."
+              body="Lot confirmation and the reveal need the Threshold Network to co-sign. If it's unreachable, the sale is delayed, not lost: closing and revealing are open to anyone and can be retried the moment the network returns. While it's down, escrowed bids and the lot stay locked; there is no on-chain timeout that refunds them without a reveal."
             />
             <Bullet
               warn
@@ -412,11 +418,11 @@ await sealedAuction.settleAuction(auctionId);`}
               ],
               [
                 "Threshold network",
-                "Reveals require a quorum of independent operators to co-sign. Compromise of fewer than the threshold leaks nothing. Compromise of the threshold compromises decryption (but not the encryption — past auctions stay sealed).",
+                "Decryptions are performed by Fhenix's Threshold Network. On-chain, contracts verify one ECDSA signature from it (FHE.publishDecryptResult). Any quorum among its operators happens off-chain, so this is a trust assumption on Fhenix's network, which can in principle decrypt any handle.",
               ],
               [
-                "Permits",
-                "Each user holds a 30-day permit signed once. Permits gate decryption-on-view (own balance, own bid). Compromise of a permit allows the attacker to decrypt only what that user is allowed to see.",
+                "Access permissions (ACPs)",
+                "Each user signs a self ACP once. It gates decrypt-to-view of their own values (balance, bid). A leaked ACP lets someone read only what that user can read, and ACPs can be revoked on-chain.",
               ],
             ]}
           />
@@ -441,7 +447,7 @@ await sealedAuction.settleAuction(auctionId);`}
             The canonical example we point reviewers at:
           </p>
           <ExplorerLink
-            label="Sealed auction · 3 bidders · winner revealed"
+            label="Escrowed sealed sale · 3 bidders · winner revealed"
             href={`${FHENIX_TESTNET.blockExplorer}/tx/${HEADLINE_REVEAL_TX}`}
             tx={HEADLINE_REVEAL_TX}
           />
@@ -472,7 +478,7 @@ await sealedAuction.settleAuction(auctionId);`}
                 Decode the input data.
               </strong>{" "}
               Etherscan&apos;s "Decode Input Data" reveals the function call:{" "}
-              <Code>revealWinner(auctionId, winningBid, signature, winner, bidderSig)</Code>.
+              <Code>reveal(auctionId, saleOk, sig, winningBid, sig, winner, sig)</Code>.
               Note the plaintext <Code>winningBid</Code> and{" "}
               <Code>winner</Code> — these were just decrypted by the threshold
               network and verified on-chain.
@@ -481,7 +487,17 @@ await sealedAuction.settleAuction(auctionId);`}
               <strong style={{ color: "var(--text)" }}>
                 Read the SealedAuction source.
               </strong>{" "}
-              Confirm that <Code>revealWinner()</Code> calls{" "}
+              It&apos;s{" "}
+              <a
+                href={`${FHENIX_TESTNET.blockExplorer}/address/${CONTRACTS.SealedAuction}#code`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:opacity-80"
+                style={{ color: "var(--text)" }}
+              >
+                verified on Etherscan
+              </a>
+              , so you can check it matches this repository. Confirm that <Code>reveal()</Code> calls{" "}
               <Code>FHE.publishDecryptResult(handle, value, signature)</Code> —
               this is the precompile that verifies the threshold network
               signature against the ciphertext handle. If it returns{" "}
@@ -500,7 +516,7 @@ await sealedAuction.settleAuction(auctionId);`}
               <strong style={{ color: "var(--text)" }}>
                 Try to decrypt a losing bid yourself.
               </strong>{" "}
-              Call <Code>cofhe.decryptForTx(handle).withoutPermit().execute()</Code>{" "}
+              Call <Code>cofhe.decryptForTx(handle).withoutACP().execute()</Code>{" "}
               from a wallet that didn&apos;t place that bid. The threshold
               network refuses — we never called <Code>FHE.allowGlobal</Code>{" "}
               on losing handles, so they remain owner-restricted.
@@ -513,9 +529,22 @@ await sealedAuction.settleAuction(auctionId);`}
           </p>
           <Table
             rows={[
-              ["Bidders", "burner1 (500), burner2 (800), burner3 (1200)"],
-              ["Winner revealed", "burner3 / 1200 ✓ matches highest bid"],
-              ["Losing bids in storage", "burner1 / burner2 — encrypted handles, never decrypted"],
+              ["Bidders", "300 and 450 CDEX (each funded), plus 5,000 from a wallet with an empty vault"],
+              ["Winner revealed", "the 450 bidder ✓ — the unfunded 5,000 bid locked nothing and couldn't win"],
+              ["Losing bids", "the 300 bid stays an encrypted handle forever; it was refunded as ciphertext"],
+              [
+                "Settlement",
+                <a
+                  key="s"
+                  href={`${FHENIX_TESTNET.blockExplorer}/tx/${HEADLINE_SETTLE_TX}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--text)" }}
+                  className="underline hover:opacity-80"
+                >
+                  escrow paid the seller 441 (450 − 2% fee) and sent the 2,000 MOCK lot to the winner
+                </a>,
+              ],
               [
                 "Verify yourself",
                 <a
