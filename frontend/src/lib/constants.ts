@@ -94,18 +94,35 @@ export const NAV_ITEMS = [
   { label: "Labs", href: "/more", icon: "Grid", group: "Trust" },
 ] as const;
 
-/** Routes that are the core product (no "labs"/"paused" banner). */
-export const CORE_ROUTES = [
-  "/", "/quickstart", "/auctions", "/treasury", "/payments",
-  "/audit", "/docs", "/more", "/contact", "/why-cdex",
+/** Labs — listed on /more. Read-only or experimental surfaces that still work.
+ *  Every other non-core route renders a "paused" page (see PausedFeature). */
+export const SECONDARY_NAV = [
+  { label: "Activity", href: "/activity", icon: "Activity", description: "A feed of on-chain events across Zerith. Shows counts and parties, never encrypted amounts." },
 ] as const;
 
-/** Labs — listed on /more. They work on testnet but have known issues, so
- *  they carry a "Labs" banner. Any other feature route is shown as paused. */
-export const SECONDARY_NAV = [
-  { label: "Vickrey", href: "/vickrey", icon: "Eye", description: "Sealed bids where the highest bidder wins but pays the second-highest price. The winning and second bids are revealed." },
-  { label: "OTC", href: "/otc", icon: "Users", description: "Request a quote privately. Quotes are encrypted, but the requester can read a quote as soon as it arrives." },
-  { label: "Activity", href: "/activity", icon: "Activity", description: "A feed of on-chain events across Zerith. Shows counts and parties, never encrypted amounts." },
+/** Features paused until they're ported to Fhenix CoFHE 1.0 and escrowed settlement. */
+export const PAUSED_FEATURES = [
+  { label: "Vickrey auctions", href: "/vickrey" },
+  { label: "Dutch auctions", href: "/dutch" },
+  { label: "Batch auctions", href: "/batch" },
+  { label: "Overflow sales", href: "/overflow" },
+  { label: "OTC desk", href: "/otc" },
+  { label: "Trading", href: "/trade" },
+  { label: "Limit orders", href: "/limits" },
+  { label: "Escrow", href: "/escrow" },
+  { label: "Freelance bidding", href: "/freelance" },
+  { label: "Payment streams", href: "/streaming" },
+  { label: "Confidential multisig", href: "/multisig" },
+  { label: "Organizations", href: "/org" },
+  { label: "Vesting", href: "/vesting" },
+  { label: "Royalties", href: "/royalty" },
+  { label: "Referrals", href: "/referrals" },
+  { label: "Reputation", href: "/reputation" },
+  { label: "Raffles", href: "/raffle" },
+  { label: "Token wrapper", href: "/wrapper" },
+  { label: "Portfolio", href: "/portfolio" },
+  { label: "Allowlist gate", href: "/allowlist" },
+  { label: "Agent", href: "/agent" },
 ] as const;
 
 /** Encryption stage labels for progress display.

@@ -26,7 +26,7 @@ import {
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
-import { SECONDARY_NAV } from "@/lib/constants";
+import { SECONDARY_NAV, PAUSED_FEATURES } from "@/lib/constants";
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Eye,
@@ -74,10 +74,10 @@ export default function MorePage() {
             }}
           >
             Zerith&apos;s core product is sealed block sales, an encrypted
-            treasury and private payroll. These experiments run on the same FHE
-            stack and work on Sepolia testnet, but they have known issues and
-            aren&apos;t ready for real value. Other features we built earlier
-            are paused while we harden the core.
+            treasury and private payroll. Labs pages work on Sepolia testnet but
+            aren&apos;t part of the core. The features below them are paused:
+            their contracts predate Fhenix&apos;s CoFHE 1.0 encryption format and
+            are being rebuilt on the same escrowed settlement as the core.
           </p>
         </header>
 
@@ -143,6 +143,31 @@ export default function MorePage() {
               </Link>
             );
           })}
+        </section>
+
+        <section className="space-y-4">
+          <div
+            className="font-mono text-[11px] uppercase tracking-[0.1em]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            — Paused
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {PAUSED_FEATURES.map((f) => (
+              <Link
+                key={f.href}
+                href={f.href}
+                className="px-3 py-1.5 text-sm"
+                style={{
+                  border: "1px dashed var(--border-dash)",
+                  borderRadius: 999,
+                  color: "var(--text-secondary)",
+                }}
+              >
+                {f.label}
+              </Link>
+            ))}
+          </div>
         </section>
 
         <hr style={{ border: "none", borderTop: "1px dashed var(--border-dash)" }} />
