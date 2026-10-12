@@ -341,6 +341,25 @@ export default function PaymentsPage() {
     }
   }, [paymentsContract]);
 
+  /** Creator cancels a split: every unclaimed amount returns to their vault balance. */
+  const handleCancel = useCallback(async (splitId: number) => {
+    if (!paymentsContract) return;
+    setTxState("signing");
+    setTxError(undefined);
+    try {
+      const tx = await paymentsContract.cancelSplit(splitId);
+      setTxState("confirming");
+      setTxHash(tx.hash);
+      await tx.wait();
+      setTxState("success");
+      toast.success("Split cancelled", "Unclaimed amounts are back in your vault balance.");
+      setModalView("none");
+      setRefreshKey((k) => k + 1);
+    } catch (err: unknown) {
+      handleTxError(err);
+    }
+  }, [paymentsContract, toast]);
+
   /* ---------------------------------------------------------------- */
   /*  Unseal my amount in a split                                      */
   /* ---------------------------------------------------------------- */
@@ -421,7 +440,7 @@ export default function PaymentsPage() {
               locked from your vault when you create the split, so every recipient can claim.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <FaucetButton />
             {account && (
               <>
@@ -680,6 +699,17 @@ export default function PaymentsPage() {
                           style={{ background: "var(--text)", color: "var(--bg)", borderRadius: 8 }}
                         >
                           <Download size={12} /> Claim
+                        </button>
+                      )}
+                      {mine && split.status === 0 && (
+                        <button
+                          onClick={() => handleCancel(split.id)}
+                          disabled={txState === "signing" || txState === "confirming"}
+                          className="px-3 py-2 text-xs font-medium transition-colors disabled:opacity-40"
+                          style={{ background: "transparent", border: "1px dashed var(--border-dash)", color: "var(--text-muted)", borderRadius: 8 }}
+                          title="Cancel and return every unclaimed amount to your vault"
+                        >
+                          Cancel
                         </button>
                       )}
                       <button
@@ -1076,6 +1106,17 @@ export default function PaymentsPage() {
                 >
                   <Download size={16} />
                   Claim My Payment
+                </button>
+              )}
+
+              {isCreator(selectedSplit) && selectedSplit.status === 0 && (
+                <button
+                  onClick={() => handleCancel(selectedSplit.id)}
+                  disabled={txState === "signing" || txState === "confirming"}
+                  className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium transition-opacity hover:opacity-80 disabled:opacity-40"
+                  style={{ background: "transparent", border: "1px dashed var(--border-dash)", color: "var(--text)", borderRadius: 8 }}
+                >
+                  Cancel split · return unclaimed amounts
                 </button>
               )}
             </motion.div>
