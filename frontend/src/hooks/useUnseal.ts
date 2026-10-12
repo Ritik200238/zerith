@@ -46,6 +46,12 @@ export function useUnseal() {
         setState({ unsealing: false, error: "Connect a wallet first" });
         return null;
       }
+      // A value that was never written (e.g. a vault balance before the first
+      // deposit) has no ciphertext: it's zero, and Fhenix would refuse access.
+      if (ctHash === BigInt(0)) {
+        setState({ unsealing: false, error: null });
+        return BigInt(0);
+      }
       setState({ unsealing: true, error: null });
       try {
         const c = client as CofheClient;
