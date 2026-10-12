@@ -33,7 +33,7 @@ const FEATURE_PATHS = [
 export function OnboardingModal() {
   const router = useRouter();
   const toast = useToast();
-  const { account, connect, connecting } = useWallet();
+  const { account, connect, connecting, createAndConnectBurner } = useWallet();
   const tokenContract = useContract("ConfidentialToken");
 
   const [visible, setVisible] = useState(false);
@@ -93,6 +93,19 @@ export function OnboardingModal() {
       toast.error("Wallet connect failed", "Please try again or check your wallet");
     }
   }, [connect, toast]);
+
+  // No-install path: a burner wallet created in this browser, topped up with gas.
+  const [creatingBurner, setCreatingBurner] = useState(false);
+  const handleBurner = useCallback(async () => {
+    setCreatingBurner(true);
+    try {
+      await createAndConnectBurner();
+    } catch (err) {
+      toast.error("Couldn't set up the test wallet", err instanceof Error ? err.message : "Try again in a moment");
+    } finally {
+      setCreatingBurner(false);
+    }
+  }, [createAndConnectBurner, toast]);
 
   const handleFaucet = useCallback(async () => {
     if (!tokenContract || faucetState === "pending") return;
@@ -211,7 +224,8 @@ export function OnboardingModal() {
                   <ScreenConnect
                     account={account}
                     onConnect={handleConnect}
-                    isConnecting={connecting}
+                    onBurner={handleBurner}
+                    isConnecting={connecting || creatingBurner}
                   />
                 )}
                 {step === "faucet" && (
@@ -244,14 +258,15 @@ export function OnboardingModal() {
 
               {step !== "path" && (
                 <button
-                  onClick={goNext}
-                  disabled={
-                    (step === "connect" && !account) ||
-                    (step === "faucet" && faucetState === "pending")
-                  }
+                  onClick={step === "connect" && !account ? () => setStep("path") : goNext}
+                  disabled={step === "faucet" && faucetState === "pending"}
                   className="btn btn-primary btn-sm disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {stepIndex === totalSteps - 1 ? "Get Started" : "Next"}
+                  {step === "connect" && !account
+                    ? "Just look around"
+                    : stepIndex === totalSteps - 1
+                      ? "Get Started"
+                      : "Next"}
                   <ArrowRight size={12} />
                 </button>
               )}
@@ -385,10 +400,12 @@ function ScreenFHE() {
 function ScreenConnect({
   account,
   onConnect,
+  onBurner,
   isConnecting,
 }: {
   account: string | null;
   onConnect: () => void;
+  onBurner: () => void;
   isConnecting: boolean;
 }) {
   return (
@@ -404,13 +421,14 @@ function ScreenConnect({
             lineHeight: 1.2,
           }}
         >
-          Connect your wallet
+          Pick a wallet
         </h2>
         <p
           className="mt-1.5"
           style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}
         >
-          MetaMask on Ethereum Sepolia. We never custody anything.
+          A test wallet needs nothing installed: it&apos;s created in this browser and
+          topped up with Sepolia gas. Or connect your own wallet on Ethereum Sepolia.
         </p>
       </div>
 
@@ -435,14 +453,23 @@ function ScreenConnect({
           </div>
         </div>
       ) : (
-        <button
-          onClick={onConnect}
-          disabled={isConnecting}
-          className="btn btn-primary w-full justify-center disabled:opacity-50"
-        >
-          {isConnecting ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />}
-          <span>{isConnecting ? "Connecting…" : "Connect MetaMask"}</span>
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={onBurner}
+            disabled={isConnecting}
+            className="btn btn-primary w-full justify-center disabled:opacity-50"
+          >
+            {isConnecting ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />}
+            <span>{isConnecting ? "Setting up…" : "Use a test wallet (nothing to install)"}</span>
+          </button>
+          <button
+            onClick={onConnect}
+            disabled={isConnecting}
+            className="btn btn-outline w-full justify-center disabled:opacity-50"
+          >
+            <span>Connect my own wallet</span>
+          </button>
+        </div>
       )}
 
       <p
