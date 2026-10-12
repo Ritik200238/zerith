@@ -33,6 +33,7 @@ import { PrivacyLens } from "@/components/shared/PrivacyLens";
 import { CONTRACTS, TOKEN_CONFIG, FHENIX_TESTNET } from "@/lib/constants";
 import { useTxFeedback } from "@/hooks/useTxFeedback";
 import { formatAmount } from "@/lib/format";
+import { humanizeTxError } from "@/hooks/useTxFlow";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -210,13 +211,10 @@ export default function PaymentsPage() {
   const toast = useToast();
 
   function handleTxError(err: unknown) {
-    const isRejection = err instanceof Error && err.message.includes("user rejected");
-    const message = isRejection
-      ? "You rejected the transaction in your wallet"
-      : err instanceof Error ? err.message.slice(0, 200) : "Transaction failed";
+    const message = humanizeTxError(err);
     setTxState("error");
     setTxError(message);
-    toast.error(isRejection ? "Transaction cancelled" : "Transaction failed", message);
+    toast.error(message.startsWith("You cancelled") ? "Transaction cancelled" : "Transaction failed", message);
   }
 
   /* ---------------------------------------------------------------- */
@@ -238,11 +236,15 @@ export default function PaymentsPage() {
       toast.error("Invalid recipient address", `"${badAddr.address.slice(0, 10)}..." is not a valid Ethereum address.`);
       return;
     }
-    const badAmt = valid.find((r) => parseAmt(r.amount, 0) === null);
+    const badAmt = valid.find((r) => {
+      const v = parseAmt(r.amount);
+      return v === null || v === BigInt(0) || v > BigInt("18446744073709551615");
+    });
     if (badAmt) {
-      toast.error("Invalid amount", `"${badAmt.amount}" is not a valid number. Use whole numbers like 1000.`);
+      toast.error("Invalid amount", `"${badAmt.amount}" isn't a valid amount. Use a positive number like 1000 or 12.5.`);
       return;
     }
+    const units = valid.map((r) => parseAmt(r.amount)!);
 
     setTxState("signing");
     setTxError(undefined);
@@ -255,7 +257,7 @@ export default function PaymentsPage() {
       const { Encryptable } = await import("@cofhe/sdk");
 
       // Audit fix B2: PrivatePayments.createSplit expects InEuint64[]
-      const encItems = valid.map((r) => Encryptable.uint64(BigInt(r.amount)));
+      const encItems = units.map((u) => Encryptable.uint64(u));
       const encrypted = await encrypt(encItems);
       if (!encrypted) throw new Error("Encryption failed");
 
@@ -263,7 +265,7 @@ export default function PaymentsPage() {
 
       // Contract requires plaintext totalDeposit (4th arg) — sum of per-recipient amounts
       // for escrow funding. Note: total is publicly visible; per-recipient split stays encrypted.
-      const totalDeposit = valid.reduce((sum, r) => sum + BigInt(r.amount), BigInt(0));
+      const totalDeposit = units.reduce((sum, u) => sum + u, BigInt(0));
       setSplitFlowStep("submit");
       const tx = await paymentsContract.createSplit(
         CONTRACTS.ConfidentialToken,
@@ -283,12 +285,7 @@ export default function PaymentsPage() {
       setModalView("none");
       setRefreshKey((k) => k + 1);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error && err.message.includes("user rejected")
-          ? "You rejected the transaction in your wallet"
-          : err instanceof Error
-            ? err.message.slice(0, 240)
-            : "Transaction failed";
+      const message = humanizeTxError(err);
       setSplitFlowStep("error");
       setSplitFlowError(message);
       handleTxError(err);
@@ -427,7 +424,7 @@ export default function PaymentsPage() {
             </h1>
             <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
               Split payments across recipients. Each sees only their own encrypted amount.
-              The total stays hidden from everyone.
+              The total payout is public; who gets how much is not.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -534,7 +531,8 @@ export default function PaymentsPage() {
               How it works:
             </span>
             Each recipient&apos;s amount is encrypted separately. Only the recipient can unseal
-            their own share. The total and individual amounts remain hidden from all other parties.
+            their own share, and nobody else can read any individual amount. The total payout is
+            recorded in plain text.
           </p>
         </div>
       )}
@@ -845,6 +843,7 @@ export default function PaymentsPage() {
                     {modalView === "create" && (
                       <input
                         type="number"
+                        step="any"
                         value={r.amount}
                         onChange={(e) => updateRecipient(i, "amount", e.target.value)}
                         placeholder="Amount"
