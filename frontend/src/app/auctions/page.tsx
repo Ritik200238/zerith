@@ -461,7 +461,6 @@ export default function AuctionsPage() {
       setTxState("decrypting");
       const handle = await auctionContract.getLotFundedHandle(id);
       const proof = await decryptForTx(handle as unknown as string);
-      if (!proof) throw new Error("Couldn't confirm the lot with the Threshold Network. Try again.");
       const funded = asBool(proof.decryptedValue);
       setTxState("signing");
       const tx = await auctionContract.confirmLot(id, funded, proof.signature);
@@ -636,10 +635,11 @@ export default function AuctionsPage() {
         const [okHandle, bidHandle, winnerHandle] = await auctionContract.getRevealHandles(id);
 
         setTxState("decrypting");
-        const okProof = await decryptForTx(okHandle as unknown as string);
-        const bidProof = await decryptForTx(bidHandle as unknown as string);
-        const winnerProof = await decryptForTx(winnerHandle as unknown as string);
-        if (!okProof || !bidProof || !winnerProof) throw new Error("Threshold Network decryption failed. Try again.");
+        const [okProof, bidProof, winnerProof] = await Promise.all([
+          decryptForTx(okHandle as unknown as string),
+          decryptForTx(bidHandle as unknown as string),
+          decryptForTx(winnerHandle as unknown as string),
+        ]);
 
         const saleOk = asBool(okProof.decryptedValue);
         const winnerAddr = ethers.getAddress(

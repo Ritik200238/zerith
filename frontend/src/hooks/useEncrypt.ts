@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useCofhe } from "./useCofhe";
+import { describeCofheError } from "@/lib/cofhe-errors";
 
 /**
  * Encryption stages shown by EncryptionProgress. The SDK's own steps
@@ -93,7 +94,7 @@ export function useEncrypt() {
         setState({ stage: "done", encrypting: false, error: null });
         return { handles: out.slice(0, -1), signature: out[out.length - 1] };
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Encryption failed";
+        const message = describeCofheError(err) ?? (err instanceof Error ? err.message : "Encryption failed");
         setState({ stage: "error", encrypting: false, error: message });
         return null;
       }

@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useCofhe } from "./useCofhe";
 import { useWallet } from "@/providers/WalletProvider";
+import { describeCofheError, isRecoverableAcpError } from "@/lib/cofhe-errors";
 
 interface UnsealState {
   unsealing: boolean;
@@ -56,13 +57,21 @@ export function useUnseal() {
       try {
         const c = client as CofheClient;
         await c.acp.getOrCreateSelfACP();
-        const value = await c.decryptForView(ctHash, fheType).withACP().execute();
+        let value: bigint | boolean | string;
+        try {
+          value = await c.decryptForView(ctHash, fheType).withACP().execute();
+        } catch (err) {
+          // Fhenix's error-handling guide: on a stale ACP, sign a fresh one and retry once.
+          if (!isRecoverableAcpError(err)) throw err;
+          await c.acp.createSelf({ issuer: account, name: "Zerith" });
+          value = await c.decryptForView(ctHash, fheType).withACP().execute();
+        }
         setState({ unsealing: false, error: null });
         if (typeof value === "bigint") return value;
         if (typeof value === "boolean") return value ? BigInt(1) : BigInt(0);
         return BigInt(value);
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Unsealing failed";
+        const message = describeCofheError(err) ?? (err instanceof Error ? err.message : "Unsealing failed");
         setState({ unsealing: false, error: message });
         return null;
       }
