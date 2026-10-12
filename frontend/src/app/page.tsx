@@ -12,13 +12,12 @@ import Link from "next/link";
 import {
   Rocket,
   CreditCard,
-  ArrowLeftRight,
-  Briefcase,
+  Vault,
+  ShieldCheck,
   Lock,
   ArrowRight,
   EyeOff,
   AlertTriangle,
-  Workflow,
   Zap,
   Loader2,
   Wallet,
@@ -30,36 +29,28 @@ import { useRouter } from "next/navigation";
 
 const CAPABILITIES = [
   {
-    title: "Launch",
-    subtitle: "5 auction types",
+    title: "Sell",
+    subtitle: "Sealed block sales",
     description:
-      "Sealed, Vickrey, Dutch, Batch, Overflow — every token launch format with encrypted bids.",
+      "Sell a token block to the highest sealed bid. Losing bids are never decrypted — not even after the sale.",
     href: "/auctions",
     icon: Rocket,
   },
   {
-    title: "Pay",
-    subtitle: "Private splits",
+    title: "Hold",
+    subtitle: "Encrypted treasury",
     description:
-      "Split payments across recipients. Each sees only their own encrypted amount.",
+      "Keep balances in an encrypted vault and prove you hold at least X without revealing the number.",
+    href: "/treasury",
+    icon: Vault,
+  },
+  {
+    title: "Pay",
+    subtitle: "Private payroll",
+    description:
+      "Split payments across recipients. Each sees only their own amount; the total payout is public.",
     href: "/payments",
     icon: CreditCard,
-  },
-  {
-    title: "Trade",
-    subtitle: "Sealed-price orders",
-    description:
-      "Hidden limit prices, P2P matching, OTC board. Prices stay sealed — no price-based front-running.",
-    href: "/trade",
-    icon: ArrowLeftRight,
-  },
-  {
-    title: "Hire",
-    subtitle: "Encrypted bidding",
-    description:
-      "Post jobs, receive sealed bids, milestone escrow. Budgets stay confidential.",
-    href: "/freelance",
-    icon: Briefcase,
   },
 ];
 
@@ -67,22 +58,22 @@ const CAPABILITIES = [
 
 const INNOVATIONS = [
   {
-    title: "Blind Floor",
+    title: "Losers stay sealed",
     description:
-      "Dutch auctions with encrypted purchase amounts. See the price, hide the size.",
+      "Bids are compared as ciphertext. Only the winning bid is ever made public; every other bid stays encrypted for good.",
     icon: EyeOff,
   },
   {
-    title: "Encrypted Disputes",
+    title: "Blind Floor reserve",
     description:
-      "Freelance milestone disputes resolved without revealing bid prices to arbitrators.",
+      "A seller's reserve price is encrypted and never decrypted. The chain only reveals whether the winning bid met it.",
     icon: AlertTriangle,
   },
   {
-    title: "Cross-Feature Flow",
+    title: "Proof of Reserves",
     description:
-      "Launch tokens via auction, pay contributors via splits, trade on OTC — one protocol.",
-    icon: Workflow,
+      "Prove your vault balance is at least a threshold, with the comparison done on ciphertext. The balance itself stays private.",
+    icon: ShieldCheck,
   },
 ];
 
@@ -273,23 +264,23 @@ export default function DashboardPage() {
 
         <hr style={{ border: "none", borderTop: "1px dashed var(--border-dash)" }} />
 
-        {/* ═══════ FOUR CAPABILITIES ═══════ */}
+        {/* ═══════ THREE CAPABILITIES ═══════ */}
         <section>
           <div
             className="font-mono text-[11px] uppercase tracking-[0.1em] mb-7"
             style={{ color: "var(--text-muted)" }}
           >
-            — Four capabilities
+            — Three capabilities
           </div>
           <h2
             className="font-display font-bold tracking-tight leading-[1.08] mb-12 max-w-3xl"
             style={{ fontSize: "clamp(30px, 3.6vw, 46px)", letterSpacing: "-0.03em" }}
           >
             One protocol.{" "}
-            <em className="font-serif italic font-normal">Four primitives</em>.
+            <em className="font-serif italic font-normal">Three jobs</em>.
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {CAPABILITIES.map((f) => (
               <Link
                 key={f.href}
@@ -473,42 +464,6 @@ export default function DashboardPage() {
           />
         </section>
 
-        <hr style={{ border: "none", borderTop: "1px dashed var(--border-dash)" }} />
-
-        {/* ═══════ STATS ═══════ */}
-        <section>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {[
-              { label: "FHE operations", value: "22+" },
-              { label: "Smart contracts", value: "26" },
-              { label: "Auction types", value: "5" },
-              { label: "Hero flows", value: "4" },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className="p-7"
-                style={{
-                  background: "var(--bg-card)",
-                  border: "1px dashed var(--border-dash)",
-                  borderRadius: 4,
-                }}
-              >
-                <p
-                  className="font-display text-4xl font-bold"
-                  style={{ letterSpacing: "-0.03em", color: "var(--text)" }}
-                >
-                  {s.value}
-                </p>
-                <p
-                  className="font-mono text-[11px] uppercase tracking-[0.1em] mt-2"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  {s.label}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
 
         {/* ═══════ FOOTER MARK ═══════ */}
         <div
