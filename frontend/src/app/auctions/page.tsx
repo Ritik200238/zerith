@@ -1017,7 +1017,7 @@ export default function AuctionsPage() {
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${style.bg} ${style.text} ${style.border}`}
                         >
-                          {STATUS_LABEL[auction.status]}
+                          {auction.status === 0 && ended ? "ENDED · CLOSE TO REVEAL" : STATUS_LABEL[auction.status]}
                         </span>
                         {auction.hasReserve && (
                           <span
@@ -1595,7 +1595,7 @@ export default function AuctionsPage() {
                   <span
                     className={`inline-flex items-center px-3 py-1 rounded text-xs font-bold uppercase tracking-wider border ${s.bg} ${s.text} ${s.border}`}
                   >
-                    {STATUS_LABEL[selectedAuction.status]}
+                    {selectedAuction.status === 0 && selectedAuction.deadline <= nowSec ? "ENDED · CLOSE TO REVEAL" : STATUS_LABEL[selectedAuction.status]}
                   </span>
                 );
               })()}
