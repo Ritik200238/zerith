@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
 import { OnboardingModal } from "@/components/shared/OnboardingModal";
 import { SystemStatus } from "@/components/shared/SystemStatus";
+import { FeatureStatusBanner } from "@/components/shared/FeatureStatusBanner";
 
 /**
  * Zerith editorial app shell.
@@ -25,6 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         style={{ marginTop: "var(--nav-height)" }}
       >
         <div className="mx-auto w-full max-w-container px-5 md:px-10 py-10 md:py-14">
+          <FeatureStatusBanner />
           {children}
         </div>
 

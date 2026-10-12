@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 /**
- * /more — the secondary surface.
+ * /more — Labs: experimental features outside the core product.
  *
  * After trimming primary nav to the wedge-focused 5 (Dashboard, Block Sales,
  * Treasury, Audit, More), every other feature lives here. Pages remain at
@@ -53,7 +53,7 @@ export default function MorePage() {
             className="font-mono text-[11px] uppercase tracking-[0.1em]"
             style={{ color: "var(--text-muted)" }}
           >
-            — Secondary surfaces
+            — Labs
           </div>
           <h1
             className="font-display font-bold tracking-tight leading-[1.05]"
@@ -62,8 +62,8 @@ export default function MorePage() {
               letterSpacing: "-0.03em",
             }}
           >
-            Everything else{" "}
-            <em className="font-serif italic font-normal">we built</em>.
+            Experiments,{" "}
+            <em className="font-serif italic font-normal">clearly labelled</em>.
           </h1>
           <p
             className="max-w-2xl"
@@ -73,11 +73,11 @@ export default function MorePage() {
               color: "var(--text-secondary)",
             }}
           >
-            Zerith&apos;s primary product is encrypted block sales for token
-            foundations. These are the other primitives we built on the same
-            FHE stack — auction variants, payroll, OTC, observability. Every
-            page works; all share the same threshold network and the same
-            privacy guarantees.
+            Zerith&apos;s core product is sealed block sales, an encrypted
+            treasury and private payroll. These experiments run on the same FHE
+            stack and work on Sepolia testnet, but they have known issues and
+            aren&apos;t ready for real value. Other features we built earlier
+            are paused while we harden the core.
           </p>
         </header>
 

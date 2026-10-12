@@ -88,28 +88,24 @@ export const NAV_ITEMS = [
   { label: "Quickstart", href: "/quickstart", icon: "Sparkles", group: "Overview" },
   { label: "Block Sales", href: "/auctions", icon: "Gavel", group: "Product" },
   { label: "Treasury", href: "/treasury", icon: "Vault", group: "Product" },
+  { label: "Payroll", href: "/payments", icon: "CreditCard", group: "Product" },
   { label: "Audit", href: "/audit", icon: "Shield", group: "Trust" },
   { label: "Docs", href: "/docs", icon: "Code2", group: "Trust" },
-  { label: "More", href: "/more", icon: "Grid", group: "Trust" },
+  { label: "Labs", href: "/more", icon: "Grid", group: "Trust" },
 ] as const;
 
-/** Secondary surface — everything reachable from /more. Order matters: most
- *  foundation-relevant variants of the wedge come first; tooling that's useful
- *  for DAOs/payroll comes second; experimental / phase-2 surfaces last. */
+/** Routes that are the core product (no "labs"/"paused" banner). */
+export const CORE_ROUTES = [
+  "/", "/quickstart", "/auctions", "/treasury", "/payments",
+  "/audit", "/docs", "/more", "/contact", "/why-cdex",
+] as const;
+
+/** Labs — listed on /more. They work on testnet but have known issues, so
+ *  they carry a "Labs" banner. Any other feature route is shown as paused. */
 export const SECONDARY_NAV = [
-  // Auction variants (same wedge, different mechanics)
-  { label: "Vickrey", href: "/vickrey", icon: "Eye", description: "Sealed bids, highest wins, second-highest pays. Incentive-compatible." },
-  { label: "Dutch", href: "/dutch", icon: "TrendingDown", description: "Price ticks down, first buyer at their target wins. Encrypted purchase amounts." },
-  { label: "Batch", href: "/batch", icon: "Layers", description: "Many bidders, one clearing price, no front-running on order arrival." },
-  { label: "Overflow", href: "/overflow", icon: "Droplets", description: "Oversubscribed token sales pro-rata, no whale sniping on cap." },
-  // DAO finance primitives
-  { label: "Payments", href: "/payments", icon: "CreditCard", description: "Encrypted payroll splits — each recipient only sees their own amount." },
-  { label: "OTC", href: "/otc", icon: "Users", description: "Sealed request-for-quote. Counterparties never see your price band." },
-  { label: "Trade", href: "/trade", icon: "ArrowLeftRight", description: "Limit orders with encrypted prices. No MEV on order arrival." },
-  // Trust / observability surfaces
-  { label: "Activity", href: "/activity", icon: "Activity", description: "Cross-feature activity feed with privacy indicators." },
-  { label: "Reputation", href: "/reputation", icon: "Star", description: "Reputation scores on encrypted history." },
-  { label: "Agent", href: "/agent", icon: "Sparkles", description: "Programmatic agent that runs encrypted workflows on your behalf." },
+  { label: "Vickrey", href: "/vickrey", icon: "Eye", description: "Sealed bids where the highest bidder wins but pays the second-highest price. The winning and second bids are revealed." },
+  { label: "OTC", href: "/otc", icon: "Users", description: "Request a quote privately. Quotes are encrypted, but the requester can read a quote as soon as it arrives." },
+  { label: "Activity", href: "/activity", icon: "Activity", description: "A feed of on-chain events across Zerith. Shows counts and parties, never encrypted amounts." },
 ] as const;
 
 /** Encryption stage labels for progress display.
