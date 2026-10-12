@@ -7,16 +7,13 @@ import { useWallet } from "@/providers/WalletProvider";
 import { useCofhe } from "@/hooks/useCofhe";
 
 /**
- * Permit Manager — header dropdown that surfaces the user's privacy keys.
+ * Access-permission manager — header dropdown for the user's ACPs.
  *
- * Permits authorize Zerith contracts to share encrypted data with the
- * caller. Previously they were silently auto-rotated every 23h with zero
- * visibility. Two changes:
- *   1. Rotation cadence raised to 30 DAYS (matches typical user session
- *      lifetime). Far fewer surprise signing prompts.
- *   2. When any permit drops below 24h of remaining life, the dropdown
- *      surfaces an "Expiring soon — renew now" prompt so the user takes
- *      action instead of being silently re-signed in the background.
+ * An ACP (Access Control Permission, CoFHE 1.0's replacement for permits) is a
+ * signed permission that lets the user decrypt values they're allowed to read,
+ * such as their own vault balance or bid. This lists the ACPs stored for the
+ * connected wallet, prompts to renew one that's about to expire, and revokes
+ * one on-chain so it can never be used again.
  *
  * Trust posture: privacy infrastructure must be visible AND controllable.
  */
@@ -46,14 +43,13 @@ function shortenHash(h: string): string {
   return `${h.slice(0, 6)}…${h.slice(-4)}`;
 }
 
-type SdkPermit = { hash?: string; name?: string; expiration?: number };
+type SdkACP = { name?: string; expiration?: number };
 type CofheClient = {
-  permits: {
-    list?: () => Promise<SdkPermit[]> | SdkPermit[];
-    getAll?: () => Promise<SdkPermit[]> | SdkPermit[];
-    createSelf: (opts: { issuer: string; name?: string; expiration?: number }) => Promise<SdkPermit>;
-    getOrCreateSelfPermit?: () => Promise<SdkPermit>;
-    remove?: (hash: string) => Promise<void> | void;
+  acp: {
+    getACPs: () => Record<string, SdkACP>;
+    createSelf: (opts: { issuer: string; name?: string; expiration?: number }) => Promise<SdkACP>;
+    revokeACP: (acp: SdkACP) => Promise<string>;
+    removeACP: (hash: string) => void;
   };
 };
 
@@ -73,9 +69,8 @@ export function PermitManager() {
     }
     try {
       const c = client as CofheClient;
-      const list = (await (c.permits.list?.() ?? c.permits.getAll?.() ?? [])) as SdkPermit[];
-      const mapped: PermitInfo[] = list.map((p) => ({
-        hash: p.hash ?? "",
+      const mapped: PermitInfo[] = Object.entries(c.acp.getACPs() ?? {}).map(([hash, p]) => ({
+        hash,
         name: p.name,
         expiresAt: p.expiration,
       }));
@@ -109,14 +104,14 @@ export function PermitManager() {
     setError(null);
     try {
       const c = client as CofheClient;
-      await c.permits.createSelf({
+      await c.acp.createSelf({
         issuer: account,
         name: "Zerith",
         expiration: Math.floor(Date.now() / 1000) + ROTATION_WINDOW_SECONDS,
       });
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message.slice(0, 80) : "Failed to create permit");
+      setError(e instanceof Error ? e.message.slice(0, 80) : "Couldn't create the access permission");
     } finally {
       setBusy(false);
     }
@@ -129,7 +124,10 @@ export function PermitManager() {
       setError(null);
       try {
         const c = client as CofheClient;
-        await c.permits.remove?.(permitHash);
+        const acp = c.acp.getACPs()?.[permitHash];
+        // Revoke on-chain so the ACP can never be used again, then forget it locally.
+        if (acp) await c.acp.revokeACP(acp);
+        c.acp.removeACP(permitHash);
         await refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message.slice(0, 80) : "Failed to revoke");
@@ -163,8 +161,8 @@ export function PermitManager() {
                     ${hasExpiring
                       ? "border-warning text-warning"
                       : "border-borderDash text-textSecondary hover:border-textMuted"}`}
-        aria-label="Manage privacy permits"
-        title={hasExpiring ? "A permit is expiring soon" : "Manage privacy permits"}
+        aria-label="Manage access permissions"
+        title={hasExpiring ? "An access permission is expiring soon" : "Manage access permissions"}
       >
         {hasExpiring ? (
           <AlertCircle size={12} className="text-warning" />
@@ -172,7 +170,7 @@ export function PermitManager() {
           <Key size={12} className={initialized ? "text-success" : "text-textMuted"} />
         )}
         <span className="font-mono text-[10px] uppercase tracking-wider">
-          {activeCount} permit{activeCount === 1 ? "" : "s"}
+          {activeCount} ACP{activeCount === 1 ? "" : "s"}
         </span>
         <ChevronDown
           size={11}
@@ -196,11 +194,11 @@ export function PermitManager() {
               <div className="flex items-center gap-2">
                 <ShieldCheck size={14} className="text-success" />
                 <h3 className="font-display text-sm font-semibold text-text">
-                  Privacy Permits
+                  Access permissions
                 </h3>
               </div>
               <p className="text-[11px] text-textMuted mt-0.5 leading-relaxed">
-                Cryptographic keys that let you decrypt your own data.
+                Signed permissions (ACPs) that let you decrypt your own data.
               </p>
             </div>
 
@@ -211,7 +209,7 @@ export function PermitManager() {
                   <AlertCircle size={13} className="text-warning mt-0.5 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-warning">
-                      Permit expiring soon
+                      Access permission expiring soon
                     </p>
                     <p className="text-[10px] text-textSecondary mt-0.5">
                       {shortenHash(expiringPermit.hash)} expires in{" "}
@@ -227,7 +225,7 @@ export function PermitManager() {
                       className="btn btn-primary btn-sm mt-2"
                     >
                       <RefreshCw size={11} />
-                      <span>Renew permit (30d)</span>
+                      <span>Renew (30 days)</span>
                     </button>
                   </div>
                 </div>
@@ -239,7 +237,7 @@ export function PermitManager() {
               {permits.length === 0 ? (
                 <div className="px-4 py-6 text-center">
                   <p className="text-[12px] text-textMuted leading-relaxed">
-                    No active permits.
+                    No access permissions yet.
                   </p>
                   <p className="text-[10px] text-textMuted mt-1 opacity-70">
                     They&apos;ll be created when you decrypt your first value.
@@ -270,7 +268,7 @@ export function PermitManager() {
                                  px-2 py-1 rounded border border-dashed border-danger/40
                                  text-[10px] font-medium text-danger
                                  hover:bg-danger/[0.08] disabled:opacity-30"
-                      aria-label="Revoke permit"
+                      aria-label="Revoke access permission on-chain"
                     >
                       Revoke
                     </button>
@@ -299,7 +297,7 @@ export function PermitManager() {
                 className="btn btn-outline btn-sm"
               >
                 <Plus size={11} />
-                <span>New permit</span>
+                <span>New ACP</span>
               </button>
             </div>
           </motion.div>
