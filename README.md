@@ -4,9 +4,9 @@
 
 ### Sell your treasury without leaking it.
 
-**Sealed-bid block sales, an encrypted treasury and private payroll, built on Fhenix FHE (CoFHE 1.0).**
+**Sealed-bid block sales, an encrypted treasury and private payroll, built on Fhenix FHE (CoFHE 1.0, ERC-7984 tokens).**
 
-[![Ethereum Sepolia](https://img.shields.io/badge/network-Ethereum_Sepolia_(testnet)-16a34a?style=flat-square)](https://sepolia.etherscan.io/address/0x3B29F7F773E5554c3f46Cc8d4236d109AE3FfE08#code)
+[![Ethereum Sepolia](https://img.shields.io/badge/network-Ethereum_Sepolia_(testnet)-16a34a?style=flat-square)](https://sepolia.etherscan.io/address/0x42C620C7014E5fe40b8C6B8c1bc12AAde1db47aB#code)
 [![Fhenix CoFHE 1.0](https://img.shields.io/badge/Fhenix-CoFHE_1.0-6d28d9?style=flat-square)](https://cofhesdk.fhenix.io)
 [![Source verified](https://img.shields.io/badge/source-verified_on_Etherscan-16a34a?style=flat-square)](#contracts)
 [![Not audited](https://img.shields.io/badge/external_audit-not_yet-b45309?style=flat-square)](#security)
@@ -46,28 +46,33 @@ flowchart LR
 ```
 
 - Bids are compared as ciphertext (`FHE.gt`, `FHE.max`). Only the amount a bidder **actually locked** competes. A bid from a wallet that can't cover it locks nothing and can't win.
-- After the deadline, anyone can close and reveal. The contract checks the Threshold Network's signature on the outcome (`FHE.publishDecryptResult`).
+- Encrypted values passed between contracts (feature contract ↔ vault ↔ ERC-7984 token) are shared handles (`FHE.shareEuint64` / `receiveEuint64FromCall`), so no contract can act on a value it wasn't explicitly handed.
+- After the deadline, anyone can close and reveal. The contract checks the signature from Fhenix's decryption network on the outcome (`FHE.verifyDecryptResult`).
 - Losing bids are never decrypted. They are refunded as encrypted amounts.
 - **Blind Floor:** the seller's reserve is encrypted and never decrypted. If it isn't met, neither the reserve, the winner nor any bid is revealed, and everyone is refunded.
 
 ## Verify it on-chain
 
-A full sale on Sepolia, run on 2026-10-12 by [`tasks/verify-escrow-auction-e2e.ts`](./tasks/verify-escrow-auction-e2e.ts) against the real Threshold Network (auction #1):
+A full sale on Sepolia, run on 2026-10-12 by [`tasks/verify-escrow-auction-e2e.ts`](./tasks/verify-escrow-auction-e2e.ts) against Fhenix's live testnet (auction #0 on the current contracts):
 
 | Step | Transaction |
 |---|---|
-| Lot locked and confirmed by the Threshold Network | [`0x563f25d5…b8d44f`](https://sepolia.etherscan.io/tx/0x563f25d5a36ec7beebaf1500aa38ff7640a006b80719b0f42f56273425b8d44f) |
-| Bids: 300 and 450 CDEX (funded), 5,000 CDEX from a wallet with an **empty** vault | [`0x2eb59536…`](https://sepolia.etherscan.io/tx/0x2eb59536629a0d3077494dcb1c1dd658ca6fab0f92d533959d5c75d68d6dc20c) · [`0xe0cbc383…`](https://sepolia.etherscan.io/tx/0xe0cbc3835842b5341c3d6b50955f19542049584e9407fca72deb952d7bba18c4) · [`0x2b015981…`](https://sepolia.etherscan.io/tx/0x2b01598173ec2e1cb550f0b48e29676d0fe422bfb282bd9c6899dc4949e3901f) |
-| Reveal: winner is the 450 bidder (the unfunded 5,000 bid couldn't win) | [`0x609f9342…a8cb`](https://sepolia.etherscan.io/tx/0x609f93426d4374df8f249f24c8e293c3f97bd62072719ddc4bc4576871bca8cb) |
-| Settlement from escrow: seller gets 441 (450 − 2% fee), winner gets the 2,000 MOCK lot | [`0x19dd547d…1ebc`](https://sepolia.etherscan.io/tx/0x19dd547dc3b99a01ba101b7f14e3b500d6c502770c237a06136a180755be1ebc) |
-| Losing bid refunded as ciphertext | [`0x1cba9b1a…`](https://sepolia.etherscan.io/tx/0x1cba9b1aee2390bde0a8828ed4c487672b007aedf302ef621778a6fa2afbd1e9) |
+| Lot locked and confirmed by Fhenix's decryption network | [`0xa0e2d896…23d1`](https://sepolia.etherscan.io/tx/0xa0e2d8967ffbb8a804995a4da1ab70e6d6d0f446218544a5cd9d9709f6bb23d1) |
+| Bids: 300 and 450 CDEX (funded), 5,000 CDEX from a wallet with an **empty** vault | [`0x34eb8b62…`](https://sepolia.etherscan.io/tx/0x34eb8b62f3c20c11da2c797e7572f85f3eb7fc5a8d82830153faf1f1a8d1b4ea) · [`0x860f5a47…`](https://sepolia.etherscan.io/tx/0x860f5a470da30f219c69c9a4b98cda9ec04e81c02a0d718f79390a45a40ac607) · [`0x1808835c…`](https://sepolia.etherscan.io/tx/0x1808835cf6f4fd67727d97fd3c0ff1e6a8c26fd421a320fe42f69133943d2fb9) |
+| Reveal: winner is the 450 bidder (the unfunded 5,000 bid couldn't win) | [`0x0b989da4…0a511`](https://sepolia.etherscan.io/tx/0x0b989da475cb37b0aa26a35c9b4dafa13b05ed22c7f56ffd6129ed2f0bb0a511) |
+| Settlement from escrow: seller gets 441 (450 − 2% fee), winner gets the 2,000 MOCK lot | [`0x061ea130…23ed`](https://sepolia.etherscan.io/tx/0x061ea1304e8b68099fa3b97fb7a6fda83cde280ee803a9c1ab88ec397438e4ed) |
+| Losing bid refunded as ciphertext | [`0x1f519817…`](https://sepolia.etherscan.io/tx/0x1f519817026700bf2a09815caa0f4d9fb104bac911372c0af3795d07c8f72b95) |
 
-Each party then unsealed its own balance: the winner held 550 CDEX and the 2,000 MOCK lot, the loser 1,000 CDEX, and the empty-vault bidder nothing.
+Each party then unsealed its own balance:
+- **Winner:** 550 CDEX and the 2,000 MOCK lot.
+- **Loser:** 1,000 CDEX, fully refunded.
+- **Empty-vault bidder:** got nothing.
 
-Payroll and proof of reserves are covered by [`tasks/verify-escrow-payroll-e2e.ts`](./tasks/verify-escrow-payroll-e2e.ts). In the 2026-10-12 run:
-- **Proofs:** "holds ≥ 1,000" verified true, and "holds ≥ 1,001" verified false.
-- **Split:** a 120 / 80 split paid recipient 1 their 120, and cancelling returned the unclaimed 80.
-- **Balances:** each party read only its own.
+Payroll and proof of reserves are covered by [`tasks/verify-escrow-payroll-e2e.ts`](./tasks/verify-escrow-payroll-e2e.ts). Same day, every check passed:
+- **Proofs:** "holds ≥ 1,000" was proven ([`0x68f3ed76…`](https://sepolia.etherscan.io/tx/0x68f3ed761fa14087f674b2c77e44f0b7cdc31f3256668af0bcfed0d1eee351bc)), and "holds ≥ 1,001" was not ([`0x9c069d67…`](https://sepolia.etherscan.io/tx/0x9c069d6753385d78c8eddf2a5450c3d2ac39f76cb5699bc565f02441cde17a69)).
+- **Split:** a 120 / 80 split ([`0xc8e20291…`](https://sepolia.etherscan.io/tx/0xc8e20291f278c2db83ed447a1dcfb15bfd7d57b5c18da467285b73c07b4773b2)) paid recipient 1 their 120.
+- **Cancel:** cancelling ([`0xe9daf1f6…`](https://sepolia.etherscan.io/tx/0xe9daf1f6d64c2e96fd6366da262a48293d6a7132a21a5972fc496e4f79080a66)) returned the unclaimed 80.
+- **Privacy:** each party could read only its own numbers.
 
 ## What's private, what's public
 
@@ -83,9 +88,9 @@ The full schema, with the FHE calls each contract makes (generated from the sour
 
 ## Trust assumptions
 
-- **Fhenix Threshold Network.** Decryptions (lot confirmation, reveals, proofs, your own unseals) are done by Fhenix's network. Contracts verify one signature from it on-chain; any operator quorum is off-chain. In principle that network can decrypt any value.
+- **Fhenix's decryption network.** Decryptions (lot confirmation, reveals, proofs, your own unseals) are done by Fhenix's network. Contracts verify one signature from it on-chain; how that signature is produced happens off-chain. In principle that network can decrypt any value.
 - **One owner key.** The contracts' admin functions (pause, fee settings, which contracts may use escrow) are controlled by a single deployer key on testnet. Moving this to a multisig is required before mainnet.
-- **If the Threshold Network is down,** sales can't confirm or reveal until it's back. Escrowed funds stay locked meanwhile; there's no on-chain timeout that refunds them without a reveal.
+- **If Fhenix's decryption network is down,** sales can't confirm or reveal until it's back. Escrowed funds stay locked meanwhile; there's no on-chain timeout that refunds them without a reveal.
 
 ## Try it
 
@@ -117,20 +122,20 @@ npm run copy-abis && npm run dev
 
 ## Contracts
 
-Ethereum Sepolia (chainId `11155111`). Core contracts redeployed 2026-10-12 on CoFHE 1.0, source verified on Etherscan.
+Ethereum Sepolia (chainId `11155111`), deployed 2026-10-12 on CoFHE 1.0. All source verified on Etherscan.
 
 | Contract | Address |
 |---|---|
-| `SealedAuction` | [`0x3B29F7F773E5554c3f46Cc8d4236d109AE3FfE08`](https://sepolia.etherscan.io/address/0x3B29F7F773E5554c3f46Cc8d4236d109AE3FfE08#code) |
-| `SettlementVault` | [`0xb6e0D910Ea85d365820A96ffb9cC0Ebd9A169Ad2`](https://sepolia.etherscan.io/address/0xb6e0D910Ea85d365820A96ffb9cC0Ebd9A169Ad2#code) |
-| `PrivatePayments` | [`0x132053d697E0fd79A216DC4E7a4b3E1317a435B1`](https://sepolia.etherscan.io/address/0x132053d697E0fd79A216DC4E7a4b3E1317a435B1#code) |
-| `ProofOfReserves` | [`0x2Cc1F8DE2f07051e94BB8305942882134890B106`](https://sepolia.etherscan.io/address/0x2Cc1F8DE2f07051e94BB8305942882134890B106#code) |
-| `ConfidentialToken` (CDEX test token, faucet) | [`0x56047782ABFE56d88f1f29b12b3c0C22ee12a3d2`](https://sepolia.etherscan.io/address/0x56047782ABFE56d88f1f29b12b3c0C22ee12a3d2) |
-| MOCK test token (the lot side) | [`0x949caC2113c0AF90b309Ec1A9136f7B159d1A672`](https://sepolia.etherscan.io/address/0x949caC2113c0AF90b309Ec1A9136f7B159d1A672) |
-| `PlatformRegistry` | [`0x0a97e158D0679A29321AB97A54AF666269C5F5A8`](https://sepolia.etherscan.io/address/0x0a97e158D0679A29321AB97A54AF666269C5F5A8) |
-| `AuctionClaim` (winner NFT) | [`0xD46b298b4c4ce04E65b37a7F594D8C8e7876f65c`](https://sepolia.etherscan.io/address/0xD46b298b4c4ce04E65b37a7F594D8C8e7876f65c) |
+| `SealedAuction` | [`0x42C620C7014E5fe40b8C6B8c1bc12AAde1db47aB`](https://sepolia.etherscan.io/address/0x42C620C7014E5fe40b8C6B8c1bc12AAde1db47aB#code) |
+| `SettlementVault` | [`0x28ab1735988cD549FfBC6ebE5383a5ae83534D17`](https://sepolia.etherscan.io/address/0x28ab1735988cD549FfBC6ebE5383a5ae83534D17#code) |
+| `PrivatePayments` | [`0xD10f93f12c9bbd69a85d5ec654038CC8201fB49C`](https://sepolia.etherscan.io/address/0xD10f93f12c9bbd69a85d5ec654038CC8201fB49C#code) |
+| `ProofOfReserves` | [`0x8b3df8FD07aBE76157CFbeb512600B6256795C39`](https://sepolia.etherscan.io/address/0x8b3df8FD07aBE76157CFbeb512600B6256795C39#code) |
+| `ConfidentialToken` — CDEX ("Zerith Test Dollar", ERC-7984, faucet) | [`0x9233B71feB89Bddd14B30Ddc5de171541E9bBC90`](https://sepolia.etherscan.io/address/0x9233B71feB89Bddd14B30Ddc5de171541E9bBC90#code) |
+| `ConfidentialToken` — MOCK ("Mock Project Token", the lot side) | [`0xEEAcA4dC06534E150Ee41e772BE675bCDF830150`](https://sepolia.etherscan.io/address/0xEEAcA4dC06534E150Ee41e772BE675bCDF830150#code) |
+| `PlatformRegistry` | [`0x3B7B81E6B2D6b2F4904Bef744fCfdcE3a8bc5616`](https://sepolia.etherscan.io/address/0x3B7B81E6B2D6b2F4904Bef744fCfdcE3a8bc5616#code) |
+| `AuctionClaim` (winner NFT) | [`0x3065150c4fbf0dC767D3669F5a3B2Ad056be3De9`](https://sepolia.etherscan.io/address/0x3065150c4fbf0dC767D3669F5a3B2Ad056be3De9#code) |
 
-The CDEX symbol comes from the project's earlier name; token metadata can't change.
+The CDEX symbol comes from the project's earlier name.
 
 ## Repository
 
@@ -138,7 +143,7 @@ The CDEX symbol comes from the project's earlier name; token metadata can't chan
 contracts/            core contracts (CoFHE 1.0)
   core/               SettlementVault, ConfidentialToken, PlatformRegistry, AuctionClaim
   features/           SealedAuction, PrivatePayments, ProofOfReserves
-  vendor/fherc20/     FHERC20 0.2.0 (what the live tokens run), inputs ported to CoFHE 1.0
+  vendor/fherc20/     FHERC20 0.4.0 (ERC-7984), the token Fhenix's docs point to
 test/unit/            Hardhat tests, including the review's attack scenarios
 tasks/                deploy-core, seed-live-auctions, Sepolia end-to-end checks
 frontend/             Next.js app (www.zerithfi.tech)
@@ -164,6 +169,8 @@ The October 2026 review fixed, with a test for each:
 | The vault credited deposits the token never moved, so an empty wallet could withdraw other users' funds | Credit only what the token reports as transferred |
 | Bids locked nothing and each settlement leg was separate, so a bidder with an empty vault could win the lot and pay 0 | Lots and bids are escrowed; settlement pays from escrow |
 | Bids were euint128 but settled as euint64, so huge bids wrapped | Bids are euint64 end to end |
+| The vault passed bare encrypted handles to the token, a pattern Fhenix's docs call a possible disclosure path | Tokens are ERC-7984 (FHERC20 0.4); every cross-contract value is a shared handle |
+| Users approved the vault as token operator forever | Approvals last 10 minutes, per Fhenix's FHERC20 guidance |
 | Payroll was never funded, and its total was public | Splits lock the encrypted total up front (overflow-checked); the total is private |
 | Only the seller could close a sale, so a seller could stall it forever | Anyone can close after the deadline |
 | A Blind Floor sale that missed its reserve still revealed the top bid | Nothing about any bid is revealed when the reserve isn't met |

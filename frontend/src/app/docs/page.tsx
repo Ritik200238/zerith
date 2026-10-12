@@ -34,11 +34,11 @@ import {
 import { CONTRACTS, FHENIX_TESTNET } from "@/lib/constants";
 
 const GITHUB_REPO = "https://github.com/Ritik200238/zerith";
-// Escrowed sale on CoFHE 1.0, run 2026-10-12 by tasks/verify-escrow-auction-e2e.ts (auction #1).
+// Escrowed sale on CoFHE 1.0 / ERC-7984, run 2026-10-12 by tasks/verify-escrow-auction-e2e.ts (auction #0).
 const HEADLINE_REVEAL_TX =
-  "0x609f93426d4374df8f249f24c8e293c3f97bd62072719ddc4bc4576871bca8cb";
+  "0x0b989da475cb37b0aa26a35c9b4dafa13b05ed22c7f56ffd6129ed2f0bb0a511";
 const HEADLINE_SETTLE_TX =
-  "0x19dd547dc3b99a01ba101b7f14e3b500d6c502770c237a06136a180755be1ebc";
+  "0x061ea1304e8b68099fa3b97fb7a6fda83cde280ee803a9c1ab88ec397438e4ed";
 
 const SECTIONS: { id: string; label: string; Icon: typeof Code2 }[] = [
   { id: "sdk", label: "SDK reference", Icon: Code2 },
