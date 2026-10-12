@@ -60,6 +60,9 @@ import { formatAmount, parseAmount } from "@/lib/format";
 // v2: amounts are stored in 6-decimal base units and progress is per-wallet.
 const STORAGE_KEY = "zerith-quickstart-progress-v2";
 const SAMPLE_BID_AMOUNT = "100"; // whole CDEX, fixed so the demo is repeatable
+// Bids lock funds from the vault, so step 2 deposits this much after the faucet.
+const QUICKSTART_DEPOSIT = "500";
+const MAX_UINT48 = "281474976710655"; // operator approval that doesn't expire (testnet)
 
 interface Progress {
   /** Wallet this progress belongs to; switching wallets starts over. */
@@ -122,6 +125,7 @@ export default function QuickstartPage() {
   const { encrypt } = useEncrypt();
   const { unseal } = useUnseal();
   const tokenContract = useContract("ConfidentialToken");
+  const vaultContract = useContract("SettlementVault");
   const auctionContract = useContract("SealedAuction");
   const auctionRead = useReadContract("SealedAuction");
   const toast = useToast();
@@ -187,46 +191,57 @@ export default function QuickstartPage() {
     }
   }, [account, createAndConnectBurner, toast]);
 
-  /* ── Step 2: Faucet ── */
+  /* ── Step 2: Faucet + deposit into the vault ── */
   const handleStep2 = useCallback(async () => {
-    if (!tokenContract) {
+    if (!tokenContract || !vaultContract || !account) {
       toast.error("Wallet not ready", "Finish step 1 first.");
+      return;
+    }
+    if (!cofheReady) {
+      toast.error("Not ready yet", "Encryption is still loading — try again in a few seconds.");
       return;
     }
     setBusyStep(2);
     setStepError(null);
     try {
-      // The faucet allows one claim per hour. If this wallet already claimed,
-      // it already holds test tokens — treat the step as done, don't revert.
-      const last = account ? Number(await tokenContract.lastFaucetClaim(account)) : 0;
-      if (last > 0 && Date.now() / 1000 < last + 3600) {
-        setProgress((prev) => {
-          const next = { ...prev, step2Done: true };
-          saveProgress(next);
-          return next;
-        });
-        toast.success("Test tokens already claimed", "This wallet claimed within the last hour, so you're set.");
-        return;
+      // 1. Test tokens. The faucet allows one claim per hour; a wallet that already
+      //    claimed holds tokens, so skip instead of hitting the cooldown revert.
+      const last = Number(await tokenContract.lastFaucetClaim(account));
+      if (!(last > 0 && Date.now() / 1000 < last + 3600)) {
+        await (await tokenContract.faucet()).wait();
       }
-      const tx = await tokenContract.faucet();
-      await tx.wait();
+
+      // 2. One-time approval so the vault can pull tokens for the deposit.
+      if (!(await tokenContract.isOperator(account, CONTRACTS.SettlementVault))) {
+        await (await tokenContract.setOperator(CONTRACTS.SettlementVault, MAX_UINT48)).wait();
+      }
+
+      // 3. Encrypted deposit — bids lock funds from this vault balance.
+      const { Encryptable } = await import("@cofhe/sdk");
+      const enc = await encrypt(
+        [Encryptable.uint64(parseAmount(QUICKSTART_DEPOSIT)!)],
+        CONTRACTS.SettlementVault,
+      );
+      if (!enc) throw new Error("Encryption failed");
+      await (await vaultContract.deposit(CONTRACTS.ConfidentialToken, enc.handles[0], enc.signature)).wait();
+
       setProgress((prev) => {
         const next = { ...prev, step2Done: true };
         saveProgress(next);
         return next;
       });
       toast.success(
-        `${TOKEN_CONFIG.faucetAmount} ${TOKEN_CONFIG.symbol} minted`,
-        "Your encrypted balance is ready.",
+        `${QUICKSTART_DEPOSIT} ${TOKEN_CONFIG.symbol} deposited`,
+        "Your vault balance is encrypted — only you can unseal it.",
       );
     } catch (err) {
       const msg = humanizeTxError(err);
       setStepError(msg);
-      toast.error("Faucet failed", msg);
+      toast.error("Couldn't fund your vault", msg);
     } finally {
       setBusyStep(null);
     }
-  }, [account, tokenContract, toast]);
+  }, [account, tokenContract, vaultContract, cofheReady, encrypt, toast]);
 
   /* ── Step 3: Encrypted bid on first OPEN auction ── */
   const handleStep3 = useCallback(async () => {
@@ -250,12 +265,14 @@ export default function QuickstartPage() {
         .map((a, i) => ({
           id: i,
           seller: a[0] as string,
+          paymentToken: a[2] as string,
           deadline: Number(a[4]),
           status: Number(a[6]),
         }))
         .filter(
           (a) =>
             a.status === 0 &&
+            a.paymentToken.toLowerCase() === CONTRACTS.ConfidentialToken.toLowerCase() &&
             a.deadline > now + 60 && // 60s buffer
             (account === null || a.seller.toLowerCase() !== account.toLowerCase()),
         )
@@ -271,10 +288,10 @@ export default function QuickstartPage() {
       }
 
       const { Encryptable } = await import("@cofhe/sdk");
-      const enc = await encrypt([Encryptable.uint128(parseAmount(SAMPLE_BID_AMOUNT)!)]);
+      const enc = await encrypt([Encryptable.uint64(parseAmount(SAMPLE_BID_AMOUNT)!)], CONTRACTS.SealedAuction);
       if (!enc) throw new Error("Encryption failed");
 
-      const tx = await auctionContract.bid(target.id, enc[0]);
+      const tx = await auctionContract.bid(target.id, enc.handles[0], enc.signature);
       await tx.wait();
 
       setProgress((prev) => {
@@ -293,12 +310,7 @@ export default function QuickstartPage() {
         `Sealed bid of ${SAMPLE_BID_AMOUNT} CDEX on auction #${target.id}.`,
       );
     } catch (err) {
-      const msg =
-        err instanceof Error && err.message.includes("user rejected")
-          ? "You rejected the transaction"
-          : err instanceof Error
-            ? err.message.slice(0, 240)
-            : "Bid failed";
+      const msg = humanizeTxError(err);
       setStepError(msg);
       toast.error("Bid failed", msg);
     } finally {
@@ -327,10 +339,8 @@ export default function QuickstartPage() {
     setStepError(null);
     try {
       const handle: unknown = await auctionContract.getMyBid(progress.step3AuctionId);
-      // Bids are stored as euint128 (SealedAuction.getMyBid returns euint128),
-      // so unseal with FheTypes.Uint128 = 6. Passing 5 (Uint64) silently fails
-      // to unseal a 128-bit ciphertext.
-      const value = await unseal(BigInt(String(handle)), 6); // FheTypes.Uint128 = 6
+      // getMyBid returns the euint64 amount actually locked → FheTypes.Uint64 = 5.
+      const value = await unseal(BigInt(String(handle)), 5);
       if (value === null) throw new Error("Unseal returned null");
       setProgress((prev) => {
         const next: Progress = {
@@ -518,11 +528,11 @@ export default function QuickstartPage() {
           <Step
             n={2}
             Icon={Coins}
-            title="Claim encrypted tokens"
-            tagline={`${TOKEN_CONFIG.faucetAmount} ${TOKEN_CONFIG.symbol} minted to your encrypted balance.`}
+            title="Fund your private vault"
+            tagline={`Claim ${TOKEN_CONFIG.faucetAmount} test ${TOKEN_CONFIG.symbol}, then deposit ${QUICKSTART_DEPOSIT} into the vault — encrypted.`}
             done={progress.step2Done}
             active={activeStep === 2}
-            body="The faucet mints tokens directly to your encrypted balance. Your wallet shows the encrypted handle, not the number — only you can unseal it."
+            body="Bids lock real funds, so you need a vault balance first. Your deposit amount is encrypted in your browser before it's sent; the chain only ever sees ciphertext. Three quick transactions: faucet, one-time vault approval, deposit."
           >
             {!progress.step2Done && (
               <button

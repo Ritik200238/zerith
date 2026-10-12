@@ -1,5 +1,17 @@
 "use client";
 
+/**
+ * CofheProvider — the app's single @cofhe/sdk (CoFHE 1.0) client.
+ *
+ * Used for everything Fhenix: encrypting inputs (useEncrypt), unsealing a user's
+ * own values with their self ACP (useUnseal), and Threshold-Network-signed public
+ * decrypts for on-chain reveals (useDecryptForTx).
+ *
+ * The client is bound to one wallet account. It is rebuilt whenever the account,
+ * signer or chain changes, so encrypted inputs and ACPs never belong to a wallet
+ * the user has switched away from.
+ */
+
 import React, {
   createContext,
   useCallback,
@@ -11,19 +23,14 @@ import React, {
 } from "react";
 import { useWallet } from "./WalletProvider";
 
-/* ---------- Types ---------- */
-
-// Loose typing — the SDK's full types load only at runtime via dynamic import.
+// Loose typing — the SDK ships WASM and is loaded only at runtime via dynamic import.
 type CofheClient = unknown;
 
 interface CofheState {
-  /** Whether the cofhe client is connected for the current signer */
+  /** The client is connected for the current account */
   initialized: boolean;
-  /** Initialization is in progress */
   initializing: boolean;
-  /** Last initialization error */
   error: string | null;
-  /** The active @cofhe/sdk client. Null until initialized. */
   client: CofheClient | null;
 }
 
@@ -33,34 +40,33 @@ interface CofheContextValue extends CofheState {
 
 const CofheContext = createContext<CofheContextValue | null>(null);
 
-/* ---------- Provider ---------- */
-
 export function CofheProvider({ children }: { children: React.ReactNode }) {
   const { provider, signer, account, isCorrectChain } = useWallet();
 
-  const [initialized, setInitialized] = useState(false);
-  const [initializing, setInitializing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [client, setClient] = useState<CofheClient | null>(null);
+  const [state, setState] = useState<CofheState>({
+    initialized: false,
+    initializing: false,
+    error: null,
+    client: null,
+  });
 
-  // Track which account we initialized for so we re-init on switch
-  const initializedForRef = useRef<string | null>(null);
+  // Identity the current client was built for; a mismatch means "rebuild".
+  const builtForRef = useRef<string | null>(null);
+  // Guards against an older init resolving after a newer one started.
+  const generationRef = useRef(0);
 
-  const doInit = useCallback(async () => {
-    if (!provider || !signer || !account || !isCorrectChain) {
-      setInitialized(false);
-      setClient(null);
+  const identity = account && signer && isCorrectChain ? account.toLowerCase() : null;
+
+  const init = useCallback(async () => {
+    const generation = ++generationRef.current;
+    if (!provider || !signer || !identity) {
+      builtForRef.current = null;
+      setState({ initialized: false, initializing: false, error: null, client: null });
       return;
     }
 
-    // Already initialized for this account
-    if (initializedForRef.current === account && initialized) return;
-
-    setInitializing(true);
-    setError(null);
-
+    setState((s) => ({ ...s, initialized: false, initializing: true, error: null, client: null }));
     try {
-      // Dynamic imports — @cofhe/sdk ships WASM and must only run client-side.
       const [{ createCofheClient, createCofheConfig }, { Ethers6Adapter }, { chains }] =
         await Promise.all([
           import("@cofhe/sdk/web"),
@@ -68,82 +74,39 @@ export function CofheProvider({ children }: { children: React.ReactNode }) {
           import("@cofhe/sdk/chains"),
         ]);
 
-      const cfg = createCofheConfig({
-        supportedChains: [chains.sepolia],
-      });
-      const c = createCofheClient(cfg);
-
+      const client = createCofheClient(createCofheConfig({ supportedChains: [chains.sepolia] }));
       const { publicClient, walletClient } = await Ethers6Adapter(provider, signer);
-      await c.connect(publicClient, walletClient);
+      await client.connect(publicClient, walletClient);
 
-      initializedForRef.current = account;
-      setClient(c);
-      setInitialized(true);
+      if (generation !== generationRef.current) return; // superseded by a newer init
+      builtForRef.current = identity;
+      setState({ initialized: true, initializing: false, error: null, client });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "cofhe client init failed";
-      setError(message);
-      setInitialized(false);
-      setClient(null);
-    } finally {
-      setInitializing(false);
+      if (generation !== generationRef.current) return;
+      builtForRef.current = null;
+      setState({
+        initialized: false,
+        initializing: false,
+        error: err instanceof Error ? err.message : "Couldn't start the encryption client",
+        client: null,
+      });
     }
-  }, [provider, signer, account, isCorrectChain, initialized]);
+  }, [provider, signer, identity]);
 
-  // Auto-initialize when wallet connects or account changes
+  // Build on connect, and rebuild whenever the account/signer/chain changes.
   useEffect(() => {
-    if (account && isCorrectChain && !initialized && !initializing) {
-      doInit();
-    }
-  }, [account, isCorrectChain, initialized, initializing, doInit]);
+    if (builtForRef.current === identity && (state.initialized || state.initializing)) return;
+    void init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identity, signer, provider]);
 
-  // Reset when wallet disconnects
-  useEffect(() => {
-    if (!account) {
-      setInitialized(false);
-      setClient(null);
-      setError(null);
-      initializedForRef.current = null;
-    }
-  }, [account]);
-
-  // Auto-rotate permit every 23 hours (permits last 24h).
-  // New SDK manages permits through client.permits.
-  useEffect(() => {
-    if (!initialized || !client || !account) return;
-    const c = client as { permits?: { getOrCreateSelfPermit?: () => Promise<unknown> } };
-    if (!c.permits?.getOrCreateSelfPermit) return;
-
-    const interval = setInterval(async () => {
-      try {
-        await c.permits!.getOrCreateSelfPermit!();
-      } catch {
-        // Permit refresh failed — will retry on next interval or next unseal
-      }
-    }, 23 * 60 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [initialized, client, account]);
-
-  const value = useMemo<CofheContextValue>(
-    () => ({
-      initialized,
-      initializing,
-      error,
-      client,
-      reinitialize: doInit,
-    }),
-    [initialized, initializing, error, client, doInit],
-  );
+  const value = useMemo<CofheContextValue>(() => ({ ...state, reinitialize: init }), [state, init]);
 
   return <CofheContext.Provider value={value}>{children}</CofheContext.Provider>;
 }
 
-/* ---------- Hook ---------- */
-
 export function useCofheContext(): CofheContextValue {
   const ctx = useContext(CofheContext);
-  if (!ctx) {
-    throw new Error("useCofheContext must be used within a CofheProvider");
-  }
+  if (!ctx) throw new Error("useCofheContext must be used within a CofheProvider");
   return ctx;
 }

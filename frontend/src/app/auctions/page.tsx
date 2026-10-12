@@ -59,13 +59,15 @@ interface AuctionData {
   amount: string;
   deadline: number;
   bidCount: number;
-  status: number; // 0=OPEN 1=CLOSED 2=REVEALED 3=SETTLED 4=CANCELLED 5=RESERVE_NOT_MET
+  status: number; // 0=OPEN 1=CLOSED 2=REVEALED 3=SETTLED 4=CANCELLED 5=NO_SALE 6=PENDING_LOT
   revealedBid: string;
   revealedBidder: string;
   myBidUnsealed: string | null;
   // Blind Floor extensions
   hasReserve: boolean;
   revealedReserveMet: boolean;
+  /** Connected wallet bid here and can still pull its escrowed bid back. */
+  canRefund: boolean;
 }
 
 type ModalView = "none" | "create" | "bid" | "detail";
@@ -81,6 +83,7 @@ const STATUS_LABEL: Record<number, string> = {
   3: "SETTLED",
   4: "CANCELLED",
   5: "RESERVE NOT MET",
+  6: "CONFIRMING LOT",
 };
 
 const STATUS_STYLE: Record<number, { bg: string; text: string; border: string }> = {
@@ -90,6 +93,7 @@ const STATUS_STYLE: Record<number, { bg: string; text: string; border: string }>
   3: { bg: "bg-bgAlt", text: "text-[var(--text-muted)]", border: "border-borderDash" },
   4: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
   5: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
+  6: { bg: "bg-[var(--bg-alt)]", text: "text-[var(--text-muted)]", border: "border-[var(--border-dash)]" },
 };
 
 const DURATION_OPTS = [
@@ -119,8 +123,13 @@ function tokenSymbol(addr: string): string {
   return hit ? hit.symbol : `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
-// FheTypes.Uint128 in @cofhe/sdk — bids and reserves are euint128.
-const FHE_UINT128 = 6;
+// FheTypes.Uint64 in @cofhe/sdk — bids are the euint64 amount actually locked.
+const FHE_UINT64 = 5;
+
+/** Threshold Network decrypts of an ebool come back as 0/1 (or a boolean). */
+function asBool(v: unknown): boolean {
+  return typeof v === "boolean" ? v : BigInt(v as bigint) === BigInt(1);
+}
 
 /** Human amount ("1.5") → token base units; throws a readable error on bad input. */
 function toUnits(input: string, what: string): bigint {
@@ -329,6 +338,20 @@ export default function AuctionsPage() {
         Promise.all(auctionPromises),
         Promise.all(blindPromises),
       ]);
+      // Escrowed bids: losers (and everyone on a no-sale) pull their bid back.
+      const refundable = await Promise.all(
+        auctionRaws.map(async (a) => {
+          const st = Number(a[6]);
+          if (!account || (st !== 3 && st !== 5)) return false;
+          if (st === 3 && String(a[8]).toLowerCase() === account.toLowerCase()) return false;
+          const idx = auctionRaws.indexOf(a);
+          const [bid, done] = await Promise.all([
+            auctionRead.hasBid(idx, account),
+            auctionRead.refunded(idx, account),
+          ]);
+          return Boolean(bid) && !done;
+        }),
+      ).catch(() => auctionRaws.map(() => false));
 
       const list: AuctionData[] = auctionRaws.map((a, idx) => {
         const blind = blindRaws[idx];
@@ -348,6 +371,7 @@ export default function AuctionsPage() {
           myBidUnsealed:  null,
           hasReserve,
           revealedReserveMet,
+          canRefund: refundable[idx],
         };
       });
 
@@ -365,7 +389,7 @@ export default function AuctionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [auctionRead]);
+  }, [auctionRead, account]);
 
   // Audit fix E3: poll new blocks so multi-user updates appear without refresh
   const blockTick = useBlockPoll();
@@ -398,7 +422,7 @@ export default function AuctionsPage() {
       if (!auctionContract || !account) return;
       try {
         const hash = await auctionContract.getMyBid(auction.id);
-        const val  = await unseal(BigInt(hash), FHE_UINT128);
+        const val  = await unseal(BigInt(hash), FHE_UINT64);
         if (val !== null) {
           setAuctions((prev) =>
             prev.map((a) =>
@@ -423,6 +447,29 @@ export default function AuctionsPage() {
   /*  Create auction */
   /* ---------------------------------------------------------------- */
 
+  /** Publish the TN-signed "lot funded" flag so bidding can open (anyone may call). */
+  const confirmLotFor = useCallback(
+    async (id: number) => {
+      if (!auctionContract) throw new Error("Auction contract not ready");
+      setTxState("decrypting");
+      const handle = await auctionContract.getLotFundedHandle(id);
+      const proof = await decryptForTx(handle as unknown as string);
+      if (!proof) throw new Error("Couldn't confirm the lot with the Threshold Network. Try again.");
+      const funded = asBool(proof.decryptedValue);
+      setTxState("signing");
+      const tx = await auctionContract.confirmLot(id, funded, proof.signature);
+      setTxState("confirming");
+      setTxHash(tx.hash);
+      await tx.wait();
+      if (!funded) {
+        throw new Error(
+          "Your vault didn't hold the full lot, so the auction was cancelled. Deposit the tokens in Treasury, then create it again.",
+        );
+      }
+    },
+    [auctionContract, decryptForTx],
+  );
+
   const handleCreate = useCallback(async () => {
     if (!auctionContract || !cToken || !cPayToken || !cAmount) return;
     if (cBlindFloor && !cReserve) {
@@ -438,7 +485,7 @@ export default function AuctionsPage() {
       if (cBlindFloor) {
         // Encrypt the reserve client-side; the value NEVER decrypts on-chain.
         const { Encryptable } = await import("@cofhe/sdk");
-        const enc = await encrypt([Encryptable.uint128(toUnits(cReserve, "reserve"))]);
+        const enc = await encrypt([Encryptable.uint64(toUnits(cReserve, "reserve"))], CONTRACTS.SealedAuction);
         if (!enc) throw new Error("Reserve encryption failed");
         tx = await auctionContract.createBlindAuction(
           cToken,
@@ -446,7 +493,8 @@ export default function AuctionsPage() {
           toUnits(cAmount, "lot size"),
           BigInt(cDuration),
           BigInt(cSnipe),
-          enc[0],
+          enc.handles[0],
+          enc.signature,
         );
       } else {
         tx = await auctionContract.createAuction(
@@ -459,13 +507,25 @@ export default function AuctionsPage() {
       }
       setTxState("confirming");
       setTxHash(tx.hash);
-      await tx.wait();
+      const receipt = await tx.wait();
+      // The lot is now locked from the seller's vault. Bidding opens once the
+      // Threshold Network confirms the full lot was there.
+      const created = receipt.logs
+        .map((l: { topics: string[]; data: string }) => {
+          try {
+            return auctionContract.interface.parseLog(l);
+          } catch {
+            return null;
+          }
+        })
+        .find((e: { name?: string } | null) => e?.name === "AuctionCreated");
+      if (created) await confirmLotFor(Number(created.args[0]));
       setTxState("success");
       toast.success(
-        cBlindFloor ? "Blind Floor auction created" : "Auction created",
+        cBlindFloor ? "Blind Floor auction is live" : "Auction is live",
         cBlindFloor
-          ? "Reserve price is sealed forever — bidders can't reverse-engineer it."
-          : "Sealed-bid auction is live.",
+          ? "Your lot is locked and the reserve is sealed forever."
+          : "Your lot is locked in escrow and bidding is open.",
       );
       setCAmount("");
       setCReserve("");
@@ -475,7 +535,7 @@ export default function AuctionsPage() {
     } catch (err: unknown) {
       handleTxError(err);
     }
-  }, [auctionContract, cToken, cPayToken, cAmount, cDuration, cSnipe, cBlindFloor, cReserve, encrypt, toast]);
+  }, [auctionContract, cToken, cPayToken, cAmount, cDuration, cSnipe, cBlindFloor, cReserve, encrypt, toast, confirmLotFor]);
 
   /* ---------------------------------------------------------------- */
   /*  Place bid */
@@ -492,11 +552,11 @@ export default function AuctionsPage() {
 
     try {
       const { Encryptable } = await import("@cofhe/sdk");
-      const enc = await encrypt([Encryptable.uint128(toUnits(bidAmount, "bid"))]);
+      const enc = await encrypt([Encryptable.uint64(toUnits(bidAmount, "bid"))], CONTRACTS.SealedAuction);
       if (!enc) throw new Error("Encryption failed");
 
       setBidFlowStep("submit");
-      const tx = await auctionContract.bid(selectedAuction.id, enc[0]);
+      const tx = await auctionContract.bid(selectedAuction.id, enc.handles[0], enc.signature);
       setTxState("confirming");
       setTxHash(tx.hash);
       setBidFlowStep("confirm");
@@ -556,97 +616,85 @@ export default function AuctionsPage() {
   );
 
   /**
-   * Verifiable reveal — Wave 3 W3.1 flow.
-   *
-   * 1. Read encrypted handles (highestBid + highestBidder) from contract.
-   * 2. Ask Threshold Network for {value, signature} via decryptForTx.
-   * 3. Submit revealWinner with verified values + TN signatures.
-   * 4. Open SignatureDrawer with the proof.
-   *
-   * The contract checks each signature via FHE.publishDecryptResult.
-   * Anyone can submit — not just the seller — because FHE.allowGlobal
-   * marked the handles as publicly decryptable when closeAuction was called.
+   * Verifiable reveal. After close, the contract marks three values publicly
+   * decryptable: whether the sale goes through, the winning bid, and the winner
+   * (both zeroed if a Blind Floor reserve wasn't met). We fetch each from the
+   * Threshold Network with its signature and submit them; the contract verifies
+   * the signatures on-chain. Anyone can do this.
    */
   const handleReveal = useCallback(
     (id: number) =>
       guardedAction(`reveal-${id}`, async () => {
         if (!auctionContract) throw new Error("Auction contract not ready");
+        const [okHandle, bidHandle, winnerHandle] = await auctionContract.getRevealHandles(id);
 
-        // 1. Read encrypted handles via the public mapping getter
-        const struct = await auctionContract.auctions(id);
-        const bidHandle = struct.highestBid as unknown as string;
-        const bidderHandle = struct.highestBidder as unknown as string;
-        const hasReserve = Boolean(struct.hasReserve);
-        const reserveMetHandle = struct.encReserveMet as unknown as string;
-
-        // 2. Get verifiable plaintext + signatures from Threshold Network
         setTxState("decrypting");
-        const bidProof = await decryptForTx(bidHandle);
-        if (!bidProof) throw new Error("Bid decryption failed");
-        const bidderProof = await decryptForTx(bidderHandle);
-        if (!bidderProof) throw new Error("Bidder decryption failed");
-        // Blind Floor: also fetch the reserveMet boolean proof (sealed reserve outcome)
-        let reserveMetProof: Awaited<ReturnType<typeof decryptForTx>> | null = null;
-        if (hasReserve) {
-          reserveMetProof = await decryptForTx(reserveMetHandle);
-          if (!reserveMetProof) throw new Error("Reserve outcome decryption failed");
-        }
+        const okProof = await decryptForTx(okHandle as unknown as string);
+        const bidProof = await decryptForTx(bidHandle as unknown as string);
+        const winnerProof = await decryptForTx(winnerHandle as unknown as string);
+        if (!okProof || !bidProof || !winnerProof) throw new Error("Threshold Network decryption failed. Try again.");
 
-        // Format bidder bigint -> 20-byte address string
-        const bidderAddr = ethers.getAddress(
-          "0x" + bidderProof.decryptedValue.toString(16).padStart(40, "0"),
+        const saleOk = asBool(okProof.decryptedValue);
+        const winnerAddr = ethers.getAddress(
+          "0x" + BigInt(winnerProof.decryptedValue).toString(16).padStart(40, "0"),
         );
 
-        // 3. Submit reveal with verified values + signatures
         setTxState("signing");
-        const tx = hasReserve
-          ? await auctionContract.revealWinnerBlind(
-              id,
-              bidProof.decryptedValue,
-              bidProof.signature,
-              bidderAddr,
-              bidderProof.signature,
-              reserveMetProof!.decryptedValue,
-              reserveMetProof!.signature,
-            )
-          : await auctionContract.revealWinner(
-              id,
-              bidProof.decryptedValue,
-              bidProof.signature,
-              bidderAddr,
-              bidderProof.signature,
-            );
+        const tx = await auctionContract.reveal(
+          id,
+          saleOk,
+          okProof.signature,
+          bidProof.decryptedValue,
+          bidProof.signature,
+          winnerAddr,
+          winnerProof.signature,
+        );
         setTxState("confirming");
         setTxHash(tx.hash);
         await tx.wait();
         setTxState("success");
 
-        // 4. Show signature drawer (uses bid proof — most informative)
-        setDrawerProof({
-          ctHash: bidHandle,
-          decryptedValue: `${formatAmount(bidProof.decryptedValue)} (winning bid)`,
-          signature: bidProof.signature,
-          txHash: tx.hash,
-          chainId: FHENIX_TESTNET.chainId,
-          label: "Winning bid value",
-        });
-        setDrawerOpen(true);
-
-        const reserveMet = hasReserve ? reserveMetProof!.decryptedValue === BigInt(1) : true;
+        if (saleOk) {
+          setDrawerProof({
+            ctHash: String(bidHandle),
+            decryptedValue: `${formatAmount(bidProof.decryptedValue)} (winning bid)`,
+            signature: bidProof.signature,
+            txHash: tx.hash,
+            chainId: FHENIX_TESTNET.chainId,
+            label: "Winning bid value",
+          });
+          setDrawerOpen(true);
+        }
         toast.success(
-          hasReserve
-            ? reserveMet
-              ? "Reserve MET — auction reveal verified"
-              : "Reserve NOT MET — auction closes, reserve stays sealed"
-            : "Auction reveal verified",
-          `Winner: ${shortAddrUtil(bidderAddr)} · Bid: ${formatAmount(bidProof.decryptedValue)}`,
-          {
-            href: `${FHENIX_TESTNET.blockExplorer}/tx/${tx.hash}`,
-            hrefLabel: "View on Etherscan",
-          },
+          saleOk ? "Winner revealed and verified" : "Reserve not met — no sale",
+          saleOk
+            ? `Winner: ${shortAddrUtil(winnerAddr)} · Bid: ${formatAmount(bidProof.decryptedValue)}. Losing bids stay encrypted.`
+            : "The lot went back to the seller. No bid and no reserve were revealed. Bidders can claim refunds.",
+          { href: `${FHENIX_TESTNET.blockExplorer}/tx/${tx.hash}`, hrefLabel: "View on Etherscan" },
         );
       }),
     [auctionContract, guardedAction, decryptForTx, toast],
+  );
+
+  const handleConfirmLot = useCallback(
+    (id: number) => guardedAction(`lot-${id}`, async () => {
+      await confirmLotFor(id);
+      setTxState("success");
+    }),
+    [guardedAction, confirmLotFor],
+  );
+
+  const handleRefund = useCallback(
+    (id: number) =>
+      guardedAction(`refund-${id}`, async () => {
+        const tx = await auctionContract!.claimRefund(id);
+        setTxState("confirming");
+        setTxHash(tx.hash);
+        await tx.wait();
+        setTxState("success");
+        toast.success("Bid refunded", "Your locked bid is back in your vault balance — still encrypted.");
+      }),
+    [auctionContract, guardedAction, toast],
   );
 
   const handleSettle = useCallback(
@@ -1065,8 +1113,8 @@ export default function AuctionsPage() {
                         </button>
                       )}
 
-                      {/* OPEN + seller + ended + bids => Close */}
-                      {auction.status === 0 && mine && ended && auction.bidCount > 0 && (
+                      {/* OPEN + ended => anyone can close (no bids returns the lot) */}
+                      {auction.status === 0 && ended && (
                         <button
                           onClick={() => handleClose(auction.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
@@ -1078,8 +1126,34 @@ export default function AuctionsPage() {
                         </button>
                       )}
 
-                      {/* OPEN + seller + no bids => Cancel */}
-                      {auction.status === 0 && mine && auction.bidCount === 0 && (
+                      {/* PENDING_LOT => anyone can publish the lot check */}
+                      {auction.status === 6 && (
+                        <button
+                          onClick={() => handleConfirmLot(auction.id)}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
+                                     bg-[var(--bg-alt)] border border-[var(--border-dash)] text-[var(--text)]
+                                     hover:bg-[var(--bg-alt)] transition-all"
+                          title="Publishes the Threshold Network check that the seller's lot is locked"
+                        >
+                          <ShieldCheck size={12} />
+                          Confirm lot
+                        </button>
+                      )}
+
+                      {/* Refund an escrowed losing bid */}
+                      {auction.canRefund && (
+                        <button
+                          onClick={() => handleRefund(auction.id)}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
+                                     bg-[var(--text)] text-[var(--bg)] transition-all"
+                        >
+                          <CheckCircle2 size={12} />
+                          Claim refund
+                        </button>
+                      )}
+
+                      {/* OPEN/PENDING + seller + no bids => Cancel */}
+                      {(auction.status === 0 || auction.status === 6) && mine && auction.bidCount === 0 && !ended && (
                         <button
                           onClick={() => handleCancel(auction.id)}
                           className="flex-1 flex items-center justify-center gap-1.5 rounded py-2 text-xs font-semibold
@@ -1184,7 +1258,9 @@ export default function AuctionsPage() {
 
               {/* amount */}
               <div className="space-y-1.5">
-                <label className="text-xs text-[var(--text-muted)] font-medium">Amount</label>
+                <label className="text-xs text-[var(--text-muted)] font-medium">
+                  Amount for sale (locked from your vault balance)
+                </label>
                 <input
                   type="number"
                   step="any"
@@ -1417,9 +1493,12 @@ export default function AuctionsPage() {
               {/* privacy note */}
               <div className="rounded bg-[var(--bg-alt)] border border-[var(--border-dash)] px-4 py-3">
                 <p className="text-xs text-[var(--text)]/80 leading-relaxed">
-                  Your bid is encrypted — nobody sees it until the auction
-                  closes. The highest bid wins, discovered via FHE.gt() and
-                  FHE.max() without revealing losing bids.
+                  Your bid is encrypted and locked from your vault balance, so
+                  you can't be outbid by someone who can't pay. Only the winning
+                  bid is ever revealed; if you don't win, you get your bid back
+                  and nobody ever learns it. If your vault holds less than your
+                  bid, nothing is locked and the bid can't win — deposit in
+                  Treasury first, then unseal your bid to check.
                 </p>
               </div>
 
@@ -1664,9 +1743,7 @@ export default function AuctionsPage() {
                   )}
 
                 {selectedAuction.status === 0 &&
-                  isSeller(selectedAuction) &&
-                  selectedAuction.deadline <= nowSec &&
-                  selectedAuction.bidCount > 0 && (
+                  selectedAuction.deadline <= nowSec && (
                     <button
                       onClick={() => handleClose(selectedAuction.id)}
                       className="flex-1 rounded py-2.5 text-sm font-semibold
@@ -1692,6 +1769,17 @@ export default function AuctionsPage() {
                   >
                     <ShieldCheck size={14} />
                     Reveal Verified
+                  </button>
+                )}
+
+                {selectedAuction.canRefund && (
+                  <button
+                    onClick={() => handleRefund(selectedAuction.id)}
+                    className="flex-1 rounded py-2.5 text-sm font-semibold text-[var(--bg)] bg-[var(--text)]
+                               transition-all flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 size={14} />
+                    Claim refund
                   </button>
                 )}
 

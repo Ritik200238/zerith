@@ -213,11 +213,11 @@ export default function TreasuryPage() {
       }
 
       const { Encryptable } = await import("@cofhe/sdk");
-      const encrypted = await encrypt([Encryptable.uint64(toUnits(amount))]);
+      const encrypted = await encrypt([Encryptable.uint64(toUnits(amount))], CONTRACTS.SettlementVault);
       if (!encrypted) throw new Error("Encryption failed");
 
       depositFlow.submitted();
-      const tx = await vault.deposit(CONTRACTS.ConfidentialToken, encrypted[0]);
+      const tx = await vault.deposit(CONTRACTS.ConfidentialToken, encrypted.handles[0], encrypted.signature);
       setTxState("confirming");
       setTxHash(tx.hash);
       depositFlow.confirmed(tx.hash);
@@ -249,11 +249,11 @@ export default function TreasuryPage() {
 
     try {
       const { Encryptable } = await import("@cofhe/sdk");
-      const encrypted = await encrypt([Encryptable.uint64(toUnits(amount))]);
+      const encrypted = await encrypt([Encryptable.uint64(toUnits(amount))], CONTRACTS.SettlementVault);
       if (!encrypted) throw new Error("Encryption failed");
 
       withdrawFlow.submitted();
-      const tx = await vault.withdraw(CONTRACTS.ConfidentialToken, encrypted[0]);
+      const tx = await vault.withdraw(CONTRACTS.ConfidentialToken, encrypted.handles[0], encrypted.signature);
       setTxState("confirming");
       setTxHash(tx.hash);
       withdrawFlow.confirmed(tx.hash);
@@ -286,15 +286,7 @@ export default function TreasuryPage() {
     setTxHash(undefined);
 
     try {
-      // Step 1 (idempotent): delegate vault balance read to the PoR contract.
-      // Required because PoR reads caller's encrypted balance from the vault.
-      const delegateTx = await vault.delegateBalanceRead(
-        CONTRACTS.ProofOfReserves,
-        CONTRACTS.ConfidentialToken,
-      );
-      await delegateTx.wait();
-
-      // Step 2: request proof
+      // One transaction: the vault compares your encrypted balance to the threshold.
       const tx = await por.requestProof(CONTRACTS.ConfidentialToken, toUnits(t));
       setTxState("confirming");
       setTxHash(tx.hash);

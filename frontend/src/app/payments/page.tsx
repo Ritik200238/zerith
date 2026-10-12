@@ -43,7 +43,6 @@ interface SplitData {
   id: number;
   creator: string;
   token: string;
-  totalDeposited: bigint;
   recipientCount: number;
   claimedCount: number;
   status: number; // 0=FUNDED 1=COMPLETED 2=CANCELLED
@@ -145,9 +144,8 @@ export default function PaymentsPage() {
     try {
       const total = Number(await paymentsRead.getSplitCount());
 
-      // Use the public mapping getter `splits(i)` (auto-generated from the
-      // `mapping(uint256 => Split) public splits`) — returns full 8-field struct
-      // in declaration order, including createdAt which getSplit() omits.
+      // Public mapping getter `splits(i)`: creator, token, recipientCount,
+      // claimedCount, status, createdAt, templateId (the total is encrypted).
       // Parallel fetch instead of sequential awaits.
       const indices = Array.from({ length: total }, (_, i) => i);
       const raws = await Promise.all(indices.map((i) => paymentsRead.splits(i)));
@@ -156,12 +154,11 @@ export default function PaymentsPage() {
         id: i,
         creator: s[0],
         token: s[1],
-        totalDeposited: BigInt(s[2]),
-        recipientCount: Number(s[3]),
-        claimedCount: Number(s[4]),
-        status: Number(s[5]),
-        createdAt: Number(s[6]),
-        templateId: Number(s[7]),
+        recipientCount: Number(s[2]),
+        claimedCount: Number(s[3]),
+        status: Number(s[4]),
+        createdAt: Number(s[5]),
+        templateId: Number(s[6]),
       }));
 
       list.reverse();
@@ -256,22 +253,18 @@ export default function PaymentsPage() {
     try {
       const { Encryptable } = await import("@cofhe/sdk");
 
-      // Audit fix B2: PrivatePayments.createSplit expects InEuint64[]
-      const encItems = units.map((u) => Encryptable.uint64(u));
-      const encrypted = await encrypt(encItems);
+      // All amounts are encrypted in one batch with one signature. The contract
+      // sums them under encryption and locks the total from your vault balance.
+      const encrypted = await encrypt(units.map((u) => Encryptable.uint64(u)), CONTRACTS.PrivatePayments);
       if (!encrypted) throw new Error("Encryption failed");
 
       const addresses = valid.map((r) => r.address);
-
-      // Contract requires plaintext totalDeposit (4th arg) — sum of per-recipient amounts
-      // for escrow funding. Note: total is publicly visible; per-recipient split stays encrypted.
-      const totalDeposit = units.reduce((sum, u) => sum + u, BigInt(0));
       setSplitFlowStep("submit");
       const tx = await paymentsContract.createSplit(
         CONTRACTS.ConfidentialToken,
         addresses,
-        encrypted,
-        totalDeposit,
+        encrypted.handles,
+        encrypted.signature,
       );
       setTxState("confirming");
       setTxHash(tx.hash);
@@ -424,7 +417,8 @@ export default function PaymentsPage() {
             </h1>
             <p style={{ color: "var(--text-secondary)", fontSize: 17, lineHeight: 1.6 }}>
               Split payments across recipients. Each sees only their own encrypted amount.
-              The total payout is public; who gets how much is not.
+              Who gets how much, and the total, stay encrypted. The full amount is
+              locked from your vault when you create the split, so every recipient can claim.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -531,8 +525,8 @@ export default function PaymentsPage() {
               How it works:
             </span>
             Each recipient&apos;s amount is encrypted separately. Only the recipient can unseal
-            their own share, and nobody else can read any individual amount. The total payout is
-            recorded in plain text.
+            their own share, and nobody else can read any individual amount or the total. The
+            split is funded from your Treasury balance when you create it — deposit there first.
           </p>
         </div>
       )}
@@ -978,11 +972,11 @@ export default function PaymentsPage() {
                     encrypted: false,
                   },
                   {
-                    label: "Total deposit",
-                    meValue: `${formatAmount(selectedSplit.totalDeposited)} ${TOKEN_CONFIG.symbol}`,
-                    counterpartyValue: `${formatAmount(selectedSplit.totalDeposited)} ${TOKEN_CONFIG.symbol}`,
-                    observerValue: `${formatAmount(selectedSplit.totalDeposited)} ${TOKEN_CONFIG.symbol}`,
-                    encrypted: false,
+                    label: "Total payout",
+                    meValue: "sealed (sum of your encrypted amounts)",
+                    counterpartyValue: "sealed",
+                    observerValue: "sealed",
+                    encrypted: true,
                   },
                   {
                     label: "Per-recipient amounts",

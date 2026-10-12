@@ -26,22 +26,6 @@
     "type": "error"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint8",
-        "name": "got",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint8",
-        "name": "expected",
-        "type": "uint8"
-      }
-    ],
-    "name": "InvalidEncryptedInput",
-    "type": "error"
-  },
-  {
     "inputs": [],
     "name": "InvalidInput",
     "type": "error"
@@ -133,7 +117,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "deadline",
+        "name": "duration",
         "type": "uint256"
       }
     ],
@@ -183,24 +167,56 @@
     "inputs": [
       {
         "indexed": true,
-        "internalType": "bytes32",
-        "name": "partyAHash",
-        "type": "bytes32"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "partyBHash",
-        "type": "bytes32"
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
       },
       {
         "indexed": false,
+        "internalType": "bool",
+        "name": "funded",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "deadline",
+        "type": "uint256"
+      }
+    ],
+    "name": "LotConfirmed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
         "internalType": "uint256",
         "name": "auctionId",
         "type": "uint256"
       }
     ],
-    "name": "TradeCompleted",
+    "name": "NoSale",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "bidder",
+        "type": "address"
+      }
+    ],
+    "name": "RefundClaimed",
     "type": "event"
   },
   {
@@ -220,9 +236,9 @@
       },
       {
         "indexed": false,
-        "internalType": "uint128",
+        "internalType": "uint64",
         "name": "winningBid",
-        "type": "uint128"
+        "type": "uint64"
       }
     ],
     "name": "WinnerRevealed",
@@ -244,6 +260,32 @@
   {
     "inputs": [],
     "name": "DEFAULT_SNIPE_WINDOW",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_DURATION",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_SNIPE_EXTENSION",
     "outputs": [
       {
         "internalType": "uint256",
@@ -312,12 +354,12 @@
       },
       {
         "internalType": "uint256",
-        "name": "deadline",
+        "name": "duration",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "originalDeadline",
+        "name": "deadline",
         "type": "uint256"
       },
       {
@@ -326,7 +368,7 @@
         "type": "uint256"
       },
       {
-        "internalType": "euint128",
+        "internalType": "euint64",
         "name": "highestBid",
         "type": "bytes32"
       },
@@ -336,9 +378,34 @@
         "type": "bytes32"
       },
       {
-        "internalType": "uint128",
+        "internalType": "euint64",
+        "name": "lotLocked",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "ebool",
+        "name": "lotFunded",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "euint64",
+        "name": "encWinningBid",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "eaddress",
+        "name": "encWinner",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "ebool",
+        "name": "encSaleOk",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
         "name": "revealedBid",
-        "type": "uint128"
+        "type": "uint64"
       },
       {
         "internalType": "address",
@@ -361,19 +428,9 @@
         "type": "bool"
       },
       {
-        "internalType": "euint128",
+        "internalType": "euint64",
         "name": "encReserve",
         "type": "bytes32"
-      },
-      {
-        "internalType": "euint64",
-        "name": "encReserveMet",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bool",
-        "name": "revealedReserveMet",
-        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -387,31 +444,14 @@
         "type": "uint256"
       },
       {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "ctHash",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint8",
-            "name": "securityZone",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "utype",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "signature",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct InEuint128",
+        "internalType": "externalEuint64",
         "name": "encBidAmount",
-        "type": "tuple"
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "proof",
+        "type": "bytes"
       }
     ],
     "name": "bid",
@@ -453,7 +493,43 @@
         "type": "uint256"
       }
     ],
+    "name": "claimRefund",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      }
+    ],
     "name": "closeAuction",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "funded",
+        "type": "bool"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "confirmLot",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -525,31 +601,14 @@
         "type": "uint256"
       },
       {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "ctHash",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint8",
-            "name": "securityZone",
-            "type": "uint8"
-          },
-          {
-            "internalType": "uint8",
-            "name": "utype",
-            "type": "uint8"
-          },
-          {
-            "internalType": "bytes",
-            "name": "signature",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct InEuint128",
-        "name": "encReserveInput",
-        "type": "tuple"
+        "internalType": "externalEuint64",
+        "name": "encReserve",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "reserveProof",
+        "type": "bytes"
       }
     ],
     "name": "createBlindAuction",
@@ -609,9 +668,9 @@
         "type": "uint8"
       },
       {
-        "internalType": "uint128",
+        "internalType": "uint64",
         "name": "revealedBid",
-        "type": "uint128"
+        "type": "uint64"
       },
       {
         "internalType": "address",
@@ -656,8 +715,27 @@
         "type": "bool"
       },
       {
-        "internalType": "euint64",
-        "name": "encReserveMetHandle",
+        "internalType": "ebool",
+        "name": "encSaleOkHandle",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getLotFundedHandle",
+    "outputs": [
+      {
+        "internalType": "ebool",
+        "name": "",
         "type": "bytes32"
       }
     ],
@@ -675,8 +753,37 @@
     "name": "getMyBid",
     "outputs": [
       {
-        "internalType": "euint128",
+        "internalType": "euint64",
         "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "auctionId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRevealHandles",
+    "outputs": [
+      {
+        "internalType": "ebool",
+        "name": "saleOk",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "euint64",
+        "name": "winningBid",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "eaddress",
+        "name": "winner",
         "type": "bytes32"
       }
     ],
@@ -734,6 +841,30 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "refunded",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "registry",
     "outputs": [
@@ -754,98 +885,38 @@
         "type": "uint256"
       },
       {
-        "internalType": "uint128",
-        "name": "bidValue",
-        "type": "uint128"
+        "internalType": "bool",
+        "name": "saleOk",
+        "type": "bool"
       },
       {
         "internalType": "bytes",
-        "name": "bidSignature",
-        "type": "bytes"
-      },
-      {
-        "internalType": "address",
-        "name": "bidderValue",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes",
-        "name": "bidderSignature",
-        "type": "bytes"
-      }
-    ],
-    "name": "revealWinner",
-    "outputs": [
-      {
-        "internalType": "uint128",
-        "name": "winningBid",
-        "type": "uint128"
-      },
-      {
-        "internalType": "address",
-        "name": "winner",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "auctionId",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint128",
-        "name": "bidValue",
-        "type": "uint128"
-      },
-      {
-        "internalType": "bytes",
-        "name": "bidSignature",
-        "type": "bytes"
-      },
-      {
-        "internalType": "address",
-        "name": "bidderValue",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes",
-        "name": "bidderSignature",
+        "name": "saleOkSignature",
         "type": "bytes"
       },
       {
         "internalType": "uint64",
-        "name": "reserveMetValue",
+        "name": "bidValue",
         "type": "uint64"
       },
       {
         "internalType": "bytes",
-        "name": "reserveMetSignature",
+        "name": "bidSignature",
         "type": "bytes"
-      }
-    ],
-    "name": "revealWinnerBlind",
-    "outputs": [
-      {
-        "internalType": "uint128",
-        "name": "winningBid",
-        "type": "uint128"
       },
       {
         "internalType": "address",
-        "name": "winner",
+        "name": "bidderValue",
         "type": "address"
       },
       {
-        "internalType": "bool",
-        "name": "reserveMet",
-        "type": "bool"
+        "internalType": "bytes",
+        "name": "bidderSignature",
+        "type": "bytes"
       }
     ],
+    "name": "reveal",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },

@@ -10,23 +10,25 @@ interface UnsealState {
 }
 
 type CofheClient = {
-  permits: {
-    getOrCreateSelfPermit: () => Promise<unknown>;
+  acp: {
+    getOrCreateSelfACP: () => Promise<unknown>;
     createSelf: (opts: { issuer: string; name?: string }) => Promise<unknown>;
   };
   decryptForView: (
     ctHash: bigint,
     fheType: number,
-  ) => { execute: () => Promise<bigint | { decryptedValue: bigint }> };
+  ) => { withACP: () => { execute: () => Promise<bigint | boolean | string> } };
 };
 
 /**
- * Hook wrapping @cofhe/sdk client.decryptForView(...) — decrypts a sealed
- * ciphertext hash using the current permit so only the owner can read it.
+ * Hook wrapping @cofhe/sdk client.decryptForView(...) — decrypts a ciphertext the
+ * connected account is allowed to read, using its self ACP (Access Control
+ * Permission, the CoFHE 1.0 replacement for permits). The first unseal asks the
+ * wallet to sign the ACP once; later unseals reuse it.
  *
  * Usage:
  * ```ts
- * const { unseal, unsealing, error } = useUnseal();
+ * const { unseal } = useUnseal();
  * const value = await unseal(ctHash, FheTypes.Uint64);
  * ```
  */
@@ -41,24 +43,18 @@ export function useUnseal() {
   const unseal = useCallback(
     async (ctHash: bigint, fheType: number): Promise<bigint | null> => {
       if (!initialized || !client || !account) {
-        setState({ unsealing: false, error: "Not initialized or no account" });
+        setState({ unsealing: false, error: "Connect a wallet first" });
         return null;
       }
-
       setState({ unsealing: true, error: null });
-
       try {
         const c = client as CofheClient;
-        // Make sure an active self-permit exists (idempotent in new SDK).
-        await c.permits.getOrCreateSelfPermit();
-
-        const result = await c.decryptForView(ctHash, fheType).execute();
+        await c.acp.getOrCreateSelfACP();
+        const value = await c.decryptForView(ctHash, fheType).withACP().execute();
         setState({ unsealing: false, error: null });
-
-        // New SDK can return either the bigint directly or an envelope.
-        if (typeof result === "bigint") return result;
-        const envelope = result as { decryptedValue?: bigint; value?: bigint };
-        return BigInt(envelope.decryptedValue ?? envelope.value ?? 0);
+        if (typeof value === "bigint") return value;
+        if (typeof value === "boolean") return value ? BigInt(1) : BigInt(0);
+        return BigInt(value);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unsealing failed";
         setState({ unsealing: false, error: message });
@@ -68,14 +64,13 @@ export function useUnseal() {
     [initialized, client, account],
   );
 
-  const createPermit = useCallback(async () => {
+  /** Explicitly create a fresh self ACP (e.g. from an "access" settings panel). */
+  const createACP = useCallback(async () => {
     if (!initialized || !client || !account) return null;
-
     try {
-      const c = client as CofheClient;
-      return await c.permits.createSelf({ issuer: account, name: "Zerith" });
+      return await (client as CofheClient).acp.createSelf({ issuer: account, name: "Zerith" });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Permit creation failed";
+      const message = err instanceof Error ? err.message : "Couldn't create the access permission";
       setState({ unsealing: false, error: message });
       return null;
     }
@@ -83,7 +78,7 @@ export function useUnseal() {
 
   return {
     unseal,
-    createPermit,
+    createACP,
     unsealing: state.unsealing,
     error: state.error,
   };

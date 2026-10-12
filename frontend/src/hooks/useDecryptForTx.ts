@@ -1,19 +1,19 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useCofhe2Context } from "@/providers/Cofhe2Provider";
+import { useCofhe } from "./useCofhe";
 
 /**
  * useDecryptForTx — verifiable on-chain reveal hook.
  *
- * Calls @cofhe/sdk's decryptForTx builder, which submits to the Threshold
- * Network and returns { ctHash, decryptedValue, signature }. Signature is
- * verified on-chain by FHE.publishDecryptResult, so any caller (not just
- * the original requester) can trigger the reveal.
+ * Asks the Threshold Network to decrypt a handle and returns
+ * { ctHash, decryptedValue, signature }. Contracts verify the signature with
+ * FHE.publishDecryptResult, so anyone (not just the original requester) can
+ * submit the reveal.
  *
- * Pair with .withoutPermit() when the contract has called FHE.allowGlobal /
- * FHE.allowPublic on the handle (e.g. auction winners after closeAuction).
- * Use .withPermit() when ACL is per-account.
+ * Default is `withoutACP()` — for handles the contract made publicly decryptable
+ * (FHE.allowGlobal / allowPublic), e.g. auction outcomes after close. Pass
+ * `{ withACP: true }` for handles only the connected account may decrypt.
  */
 
 interface DecryptForTxResult {
@@ -28,15 +28,16 @@ interface DecryptForTxState {
   result: DecryptForTxResult | null;
 }
 
+type Selected = { execute: () => Promise<DecryptForTxResult> };
 type ClientLike = {
   decryptForTx: (ctHash: bigint | string) => {
-    withoutPermit: () => { execute: () => Promise<DecryptForTxResult> };
-    withPermit: (permit?: unknown) => { execute: () => Promise<DecryptForTxResult> };
+    withoutACP: () => Selected;
+    withACP: () => Selected;
   };
 };
 
 export function useDecryptForTx() {
-  const { client, initialized } = useCofhe2Context();
+  const { client, initialized } = useCofhe();
   const [state, setState] = useState<DecryptForTxState>({
     decrypting: false,
     error: null,
@@ -46,27 +47,20 @@ export function useDecryptForTx() {
   const decrypt = useCallback(
     async (
       ctHash: bigint | string,
-      options: { withPermit?: boolean } = { withPermit: false },
+      options: { withACP?: boolean } = {},
     ): Promise<DecryptForTxResult | null> => {
       if (!initialized || !client) {
-        setState({ decrypting: false, error: "Cofhe2 not initialized", result: null });
+        setState({ decrypting: false, error: "Encryption client not ready", result: null });
         return null;
       }
-
       setState({ decrypting: true, error: null, result: null });
-
       try {
-        const c = client as ClientLike;
-        const builder = c.decryptForTx(ctHash);
-        const flow = options.withPermit ? builder.withPermit() : builder.withoutPermit();
-        const result = await flow.execute();
-
+        const builder = (client as ClientLike).decryptForTx(ctHash);
+        const result = await (options.withACP ? builder.withACP() : builder.withoutACP()).execute();
         setState({ decrypting: false, error: null, result });
         return result;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "decryptForTx failed";
-        // P0 instrumentation: surface the actual error to console so UI bugs
-        // don't hide behind a silent null return + generic toast.error.
         console.error("[useDecryptForTx] failed for ctHash", ctHash, ":", err);
         setState({ decrypting: false, error: message, result: null });
         return null;

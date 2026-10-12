@@ -215,11 +215,16 @@
         "type": "address"
       }
     ],
-    "name": "getHighestVerifiedThreshold",
+    "name": "getLatestVerifiedThreshold",
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "highest",
+        "name": "threshold",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "requestedAt",
         "type": "uint256"
       }
     ],
