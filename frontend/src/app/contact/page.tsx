@@ -202,10 +202,17 @@ const FAQS: FaqEntry[] = [
     question: "What happens if the threshold network is down?",
     answer: (
       <>
-        Encrypted submissions still confirm on-chain — the FHE network
-        only co-signs decryption-on-reveal, not the encrypted writes.
-        Reveals can be retried. Each auction has a 7-day emergency
-        timeout that allows seller cancellation if reveal cannot complete.
+        Your encrypted bids and deposits still confirm on-chain — the
+        threshold network only co-signs the <em>reveal</em>, not the
+        encrypted writes. After the seller closes an auction, anyone can
+        fetch the co-signed result and finish the reveal, and it can be
+        retried as soon as the network is back. To be precise about the
+        edge case: sealed auctions have <strong>no</strong> automatic
+        on-chain refund or timeout if a reveal never completes, and only
+        the seller can close an auction. Bids don&apos;t lock any funds, so a
+        stuck auction doesn&apos;t hold your tokens — it simply stays
+        unrevealed. The 7-day emergency timeout applies only to Freelance
+        jobs, not to auctions.
       </>
     ),
   },
