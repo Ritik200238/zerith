@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useContract } from "@/hooks/useContract";
 import { useWallet } from "@/providers/WalletProvider";
 import { useToast } from "@/components/shared/Toast";
+import { humanizeTxError } from "@/hooks/useTxFlow";
 import { TOKEN_CONFIG, FHENIX_TESTNET } from "@/lib/constants";
 import { Droplets, Loader2, Check, AlertCircle, Wallet } from "lucide-react";
 
@@ -25,6 +26,20 @@ export function FaucetButton() {
 
   const handleFaucet = useCallback(async () => {
     if (!tokenContract || !account) return;
+    // One claim per hour per wallet: check first instead of letting it revert.
+    try {
+      const last = Number(await tokenContract.lastFaucetClaim(account));
+      const wait = last + 3600 - Math.floor(Date.now() / 1000);
+      if (last > 0 && wait > 0) {
+        toast.info(
+          "Already claimed this hour",
+          `The test faucet allows one claim per hour. Try again in about ${Math.ceil(wait / 60)} min.`,
+        );
+        return;
+      }
+    } catch {
+      // fall through and let the transaction report any real problem
+    }
     setStatus("pending");
     try {
       const tx = await tokenContract.faucet();
@@ -38,12 +53,8 @@ export function FaucetButton() {
       setTimeout(() => setStatus("idle"), 4000);
     } catch (err: unknown) {
       setStatus("error");
-      const errorMsg = err instanceof Error ? err.message : "Faucet request failed";
-      const isRejection = errorMsg.includes("user rejected");
-      toast.error(
-        isRejection ? "Faucet cancelled" : "Faucet failed",
-        isRejection ? "Transaction rejected — try again any time" : "Network or contract error — try again",
-      );
+      const message = humanizeTxError(err);
+      toast.error(message.startsWith("You cancelled") ? "Faucet cancelled" : "Faucet failed", message);
       setTimeout(() => setStatus("idle"), 4000);
     }
   }, [tokenContract, account, toast]);

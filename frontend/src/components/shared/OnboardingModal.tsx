@@ -21,7 +21,7 @@ const PRIMARY_PATH = { label: "Continue to Treasury", href: "/treasury" };
 const FEATURE_PATHS = [
   { icon: Send, label: "Encrypted Payroll", href: "/payments" },
   { icon: Gavel, label: "Sealed Auction", href: "/auctions" },
-  { icon: ArrowLeftRight, label: "OTC Desk", href: "/otc" },
+  { icon: ArrowLeftRight, label: "Try it in 5 steps", href: "/quickstart" },
 ];
 
 /**
@@ -111,6 +111,15 @@ export function OnboardingModal() {
     if (!tokenContract || faucetState === "pending") return;
     setFaucetState("pending");
     try {
+      // One claim per hour: a wallet that already claimed already has tokens.
+      if (account) {
+        const last = Number(await tokenContract.lastFaucetClaim(account));
+        if (last > 0 && Date.now() / 1000 < last + 3600) {
+          setFaucetState("done");
+          toast.success("You already have test tokens", "This wallet claimed within the last hour.");
+          return;
+        }
+      }
       const tx = await tokenContract.faucet();
       await tx.wait();
       setFaucetState("done");
@@ -123,7 +132,7 @@ export function OnboardingModal() {
         isRejection ? "You can try again any time" : "Network or contract error",
       );
     }
-  }, [tokenContract, faucetState, toast]);
+  }, [tokenContract, faucetState, toast, account]);
 
   const pickPath = useCallback(
     (href: string) => {
@@ -325,9 +334,8 @@ function ScreenWelcome() {
         </p>
       </div>
       <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.65 }}>
-        Sealed bids, fair clearing, losing prices encrypted forever. Same
-        FHE stack powers encrypted payroll, OTC, and treasury — listed
-        under More once you&apos;re in.
+        Sealed bids, escrowed settlement, losing bids encrypted forever. The
+        same FHE stack runs the encrypted treasury and private payroll.
       </p>
       <div
         className="p-3 font-mono"
