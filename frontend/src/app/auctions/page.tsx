@@ -1188,7 +1188,6 @@ export default function AuctionsPage() {
                 <input
                   type="number"
                   step="any"
-                  min="0"
                   value={cAmount}
                   onChange={(e) => setCAmount(e.target.value)}
                   placeholder="0"
@@ -1275,7 +1274,6 @@ export default function AuctionsPage() {
                     <input
                       type="number"
                       step="any"
-                      min="0"
                       value={cReserve}
                       onChange={(e) => setCReserve(e.target.value)}
                       placeholder="e.g. 10000"
@@ -1406,7 +1404,6 @@ export default function AuctionsPage() {
                 <input
                   type="number"
                   step="any"
-                  min="0"
                   value={bidAmount}
                   onChange={(e) => setBidAmount(e.target.value)}
                   placeholder="Enter bid amount"
